@@ -26,7 +26,10 @@ Dále: škála TN/PO/KV/NR/NU/N-A, vážené SMART cíle vč. firemních KPI dle
 
 Lokálně: otevři `index.html` v prohlížeči (funguje offline; Google Fonts mají fallback).
 
-**Produkce:** [https://demo.teampulse.cz](https://demo.teampulse.cz) (Cloudflare Pages)
+**Produkce:** [https://demo.teampulse.cz](https://demo.teampulse.cz) (Cloudflare Pages)  
+**Preview:** [https://teampulse-demo-v2.pages.dev](https://teampulse-demo-v2.pages.dev)
+
+Podrobný deploy checklist: [`DEPLOY.md`](DEPLOY.md)
 
 **Cloudflare Pages přes GitHub:**
 1. Repo `teampulse-demo-v2` na GitHubu (kořen = obsah dema).
