@@ -1047,9 +1047,13 @@
       <p><b>${esc(t('rev.q.challenge'))}</b><br>${esc(f.self.challenge)}</p>
       <p><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve)}</p>
       <h2>${esc(t('rev.areas'))}</h2>
-      <table><tr><th></th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.summary'))}</th></tr>
-        ${AREAS.map(a => `<tr><td>${esc(areaName(a))}</td><td>${f.self.areas[a] || '—'}</td><td>${f.mgr.areas[a] || '—'}</td><td>${esc(f.mgr.areaComments[a])}</td></tr>`).join('')}
+      ${(compFramework() && f.compRatings) ? `<table><tr><th></th><th>${esc(t('goals.weight'))}</th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th></tr>
+        ${compFramework().map(c => `<tr><td>${esc(c.title)} <i>(${esc(areaName(c.areaKey))})</i></td><td>${c.weight} %</td><td>${f.compRatings.self[c.key] || '—'}</td><td>${f.compRatings.mgr[c.key] || '—'}</td></tr>`).join('')}
       </table>
+      ${AREAS.map(a => f.mgr.areaComments[a] ? `<p><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</p>` : '').join('')}`
+      : `<table><tr><th></th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.summary'))}</th></tr>
+        ${AREAS.map(a => `<tr><td>${esc(areaName(a))}</td><td>${f.self.areas[a] || '—'}</td><td>${f.mgr.areas[a] || '—'}</td><td>${esc(f.mgr.areaComments[a])}</td></tr>`).join('')}
+      </table>`}
       ${f.goalsEval.length ? `<h2>${esc(t('rev.goalsEval'))}</h2>${goalTable(f.goalsEval, true)}` : ''}
       ${f.newGoals.length ? `<h2>${esc(t('rev.goalsNew'))}</h2>${goalTable(f.newGoals, false)}` : ''}
       <h2>${esc(t('rev.managerSection'))}</h2>

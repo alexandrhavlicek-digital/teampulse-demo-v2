@@ -797,10 +797,13 @@
     const stOrder = ['pending_self', 'self_in_progress', 'self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done', 'awaiting_employee_confirmation', 'confirmed'];
     const dist = stOrder.map(s => [s, cur.filter(r => r.status === s).length]).filter(([, n]) => n > 0);
     const atRisk = cur.filter(r => ['risk', 'blocked'].includes(ReviewLogic.risk(r)));
-    // rating distribution from manager area ratings of closed reviews
+    // rating distribution from manager ratings of closed reviews
+    // (competency ratings in detailed mode, area ratings otherwise)
     const ratings = { TN: 0, PO: 0, KV: 0, NR: 0, NU: 0 };
     reviews().filter(r => ['confirmed', 'closed_by_hr'].includes(r.status)).forEach(r => {
-      Object.values(r.form.mgr.areas).forEach(v => { if (ratings[v] != null) ratings[v]++; });
+      const cr = r.form.compRatings;
+      const vals = (cr && cr.mgr && Object.keys(cr.mgr).length) ? Object.values(cr.mgr) : Object.values(r.form.mgr.areas);
+      vals.forEach(v => { if (ratings[v] != null) ratings[v]++; });
     });
     const maxR = Math.max(1, ...Object.values(ratings));
     const tl = [[0, 'hr.tl.0'], [5, 'hr.tl.5'], [10, 'hr.tl.10'], [15, 'hr.tl.15'], [18, 'hr.tl.18'], [25, 'hr.tl.25'], [30, 'hr.tl.30'], [35, 'hr.tl.35']];
