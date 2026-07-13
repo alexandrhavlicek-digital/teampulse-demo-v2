@@ -1,4 +1,4 @@
-/* TeamPulse demo v2 — virtual company generator
+/* TeamPulse demo v2 - virtual company generator
    Builds a complete fictional company: people, roles, org chart,
    industry KPIs (company + team), per-area goals and seeded reviews. */
 (function () {
@@ -24,7 +24,7 @@
   const KPI_REQUIRED = { teamwork: true, growth: false, quality: true };
   const WEIGHT_PRESETS = { 2: [50, 50], 3: [30, 30, 40], 4: [25, 25, 25, 25], 5: [20, 20, 20, 20, 20] };
 
-  /* Detailní kompetenční knihovna (dle DER Touristik modelu) — váhy = 100 %.
+  /* Detailní kompetenční knihovna (dle DER Touristik modelu) - váhy = 100 %.
      Mapování na 3 oblasti drží zpětnou kompatibilitu reportingu. */
   const COMP_LIB = [
     { key: 'coop',       title: 'Spolupráce',                                weight: 15, areaKey: 'teamwork' },
@@ -60,7 +60,7 @@
       teamKpiPool: ['Dodržení sprint commitmentu', 'Spokojenost interních zákazníků', 'Dodržení termínů oddělení', 'Chybovost výstupů oddělení'],
       goalTemplates: {
         teamwork: [
-          ['Mentoring juniora', 'Vést jednoho juniora — párové programování 2× týdně, společný rozvojový plán.'],
+          ['Mentoring juniora', 'Vést jednoho juniora - párové programování 2× týdně, společný rozvojový plán.'],
           ['Sdílení know-how', 'Připravit 2 interní tech talky a doplnit dokumentaci svého modulu.'],
           ['Spolupráce s QA', 'Společné plánování testů u každé epiky, zkrátit zpětnou vazbu QA → dev.'],
         ],
@@ -104,7 +104,7 @@
         ],
         growth: [
           ['Znalost destinací', 'Absolvovat 2 studijní cesty nebo produktová školení destinací.'],
-          ['Jazykové dovednosti', 'Posunout angličtinu/němčinu o úroveň — certifikovaný kurz.'],
+          ['Jazykové dovednosti', 'Posunout angličtinu/němčinu o úroveň - certifikovaný kurz.'],
           ['Revenue management', 'Projít kurz revenue managementu a aplikovat na 1 destinaci.'],
         ],
         quality: [
@@ -136,7 +136,7 @@
       teamKpiPool: ['OEE oddělení', 'PPM oddělení', 'Plnění plánu výroby/práce', 'Úrazovost oddělení (cíl 0)'],
       goalTemplates: {
         teamwork: [
-          ['Předávání směn', 'Strukturované předání směny — zápis bez výpadku informací.'],
+          ['Předávání směn', 'Strukturované předání směny - zápis bez výpadku informací.'],
           ['Zaškolení operátora', 'Zaškolit 1 nového operátora dle kvalifikační matice.'],
           ['Kaizen v týmu', 'Podat 4 zlepšovací návrhy, 2 z nich zrealizovat s týmem.'],
         ],
@@ -157,9 +157,9 @@
   /* ---------------- seeded review texts ---------------- */
   const SELF_TEXTS = {
     success: [
-      'Dotáhl/a jsem {proj} včas a bez eskalací. Nejvíc si cením spolupráce s kolegy z vedlejšího týmu — bez nich by to nešlo.',
+      'Dotáhl/a jsem {proj} včas a bez eskalací. Nejvíc si cením spolupráce s kolegy z vedlejšího týmu - bez nich by to nešlo.',
       'Povedlo se mi zlepšit {metric} oproti minulému období. Začal/a jsem si líp plánovat týden a je to znát.',
-      'Zapracoval/a jsem na zpětné vazbě z minulého hodnocení — hlavně na komunikaci. Tým mi potvrdil, že je to lepší.',
+      'Zapracoval/a jsem na zpětné vazbě z minulého hodnocení - hlavně na komunikaci. Tým mi potvrdil, že je to lepší.',
     ],
     challenge: [
       'Nejtěžší bylo období, kdy odešel kolega a převzal/a jsem část jeho agendy. Pomohlo mi rozdělit si priority s nadřízeným.',
@@ -174,21 +174,21 @@
     strengths: 'Spolehlivost a tah na branku. Výborná spolupráce v týmu, kolegové se na ni/něj obracejí.',
     growth: 'Více proaktivní komunikace směrem ke stakeholderům. Doporučuji kurz prezentačních dovedností.',
     talking: 'Probrat kariérní směřování na další rok. Ocenit zvládnutí náročného období. Domluvit konkrétní rozvojový plán.',
-    privateNote: 'Pozor — zvažuje nabídky zvenku, klíčový člověk. Promyslet retenční plán.',
+    privateNote: 'Pozor - zvažuje nabídky zvenku, klíčový člověk. Promyslet retenční plán.',
   };
   const GOAL_OUTCOMES = [
-    'Splněno — průběžně dokládáno na 1:1, výsledek nad plán.',
+    'Splněno - průběžně dokládáno na 1:1, výsledek nad plán.',
     'Splněno částečně (cca 80 %), zbytek přechází do dalšího období.',
     'Splněno. Klíčová byla změna přístupu po prvním kvartálu.',
-    'Nesplněno dle plánu — objektivní překážky (změna priorit), dohodnut nový rámec.',
+    'Nesplněno dle plánu - objektivní překážky (změna priorit), dohodnut nový rámec.',
   ];
   const KUDOS_MSGS = [
     'Díky za záchranu prezentace pro klienta na poslední chvíli! 🙏',
-    'Skvělé zaučení nového kolegy — ptal se, kdo ho to tak dobře nastavil.',
+    'Skvělé zaučení nového kolegy - ptal se, kdo ho to tak dobře nastavil.',
     'Bez tebe by inventura trvala dvojnásobek času. Díky!',
     'Oceňuji klidnou hlavu při páteční krizi. Profesionální výkon.',
     'Tvoje dokumentace k procesu ušetřila všem hodiny práce.',
-    'Díky za upřímnou zpětnou vazbu — posunula mě.',
+    'Díky za upřímnou zpětnou vazbu - posunula mě.',
     'Parádní výsledek u zákazníka, chválil tě jmenovitě!',
   ];
 
@@ -243,7 +243,7 @@
       const leads = [];
       const numLeads = n >= 8 ? Math.floor(n / 8) : 0;
       for (let i = 0; i < numLeads; i++) {
-        const lead = makePerson('Team Lead — ' + d.name, d.key, d.name, heads[d.key].id, false);
+        const lead = makePerson('Team Lead - ' + d.name, d.key, d.name, heads[d.key].id, false);
         lead.isLead = true; leads.push(lead); people.push(lead);
       }
       for (let i = 0; i < n - numLeads; i++) {
@@ -252,7 +252,7 @@
       }
     });
 
-    /* team KPIs — 2 per department */
+    /* team KPIs - 2 per department */
     const teamKpis = [];
     ind.depts.forEach(d => {
       shuffle(ind.teamKpiPool).slice(0, 2).forEach(title => {
@@ -403,7 +403,7 @@
       });
     });
 
-    /* reviews — current cycle in mixed states + past closed */
+    /* reviews - current cycle in mixed states + past closed */
     const states = ['pending_self','self_in_progress','self_done','manager_in_progress','manager_done','conversation_scheduled','awaiting_employee_confirmation','confirmed'];
     const participants = shuffle(employees).slice(0, Math.ceil(employees.length * 0.85));
     participants.forEach((p, idx) => {
@@ -473,7 +473,7 @@
           id: uid(), managerId: m.id, employeeId: r.id,
           at: today - Math.floor(rnd() * 14) * day,
           mood: pick(['🙂', '😄', '😐']),
-          notes: pick(['Kapacita OK, chce víc zpětné vazby k novému úkolu.', 'Probráno workload — domluvena priorita A/B.', 'Spokojenost dobrá, zájem o školení.']),
+          notes: pick(['Kapacita OK, chce víc zpětné vazby k novému úkolu.', 'Probráno workload - domluvena priorita A/B.', 'Spokojenost dobrá, zájem o školení.']),
           next: pick(['Poslat tipy na kurz', 'Zarezervovat follow-up za 2 týdny', 'Propojit s kolegou z druhého týmu']),
         });
       });
