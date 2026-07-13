@@ -1,7 +1,7 @@
-/* TeamPulse demo v2 — review workflow
+/* TeamPulse demo v2 - review workflow
    Wizard (6 kroků: reflexe → oblasti → vyhodnocení cílů → nové cíle → rozvoj → náhled),
    manažerský flow s potvrzováním cílů, potvrzení hodnoceným, skóre + pásmo, tisk.
-   Also defines window.UI — shared rendering helpers used by app.js. */
+   Also defines window.UI - shared rendering helpers used by app.js. */
 (function () {
 
   /* ====================== shared UI helpers ====================== */
@@ -9,7 +9,7 @@
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   function fmtDate(ts) {
-    if (!ts) return '—';
+    if (!ts) return '-';
     const d = typeof ts === 'string' ? new Date(ts) : new Date(ts);
     return d.toLocaleDateString(I18N.locale === 'en' ? 'en-GB' : I18N.locale === 'de' ? 'de-DE' : 'cs-CZ');
   }
@@ -182,7 +182,7 @@
     if (r.form.newGoals && r.form.newGoals.length) return;
     const co = Store.getCompany();
     const subj = person(r.subjectId);
-    /* Rollover: nové cíle předvyplníme z běžících cílů — edituj, nezakládej. */
+    /* Rollover: nové cíle předvyplníme z běžících cílů - edituj, nezakládej. */
     const existing = Store.list('goals').filter(g => g.ownerId === r.subjectId && g.type === 'personal' && g.period === r.period);
     if (existing.length) {
       r.form.newGoals = existing.map(g => ({
@@ -264,7 +264,7 @@
     let body = '';
     if (step === 1) {
       body = `
-        <h2>${esc(t(r.type === 'probation' ? 'misc.probation' : 'rev.selfTitle'))} — ${esc(t('common.step'))} 1/${total}</h2>
+        <h2>${esc(t(r.type === 'probation' ? 'misc.probation' : 'rev.selfTitle'))} - ${esc(t('common.step'))} 1/${total}</h2>
         <div class="field"><label>${esc(t(r.type === 'probation' ? 'rev.q.adapt1' : 'rev.q.success'))}</label>
           <textarea class="input" data-f="success">${esc(f.self.success)}</textarea>
           <div class="hint">${esc(t('rev.q.successHint'))}</div></div>
@@ -276,7 +276,7 @@
       const fw = compFramework();
       if (fw) {
         const cr = ensureCompRatings(f);
-        body = `<h2>${esc(t('rev.areas'))} — ${esc(t('common.step'))} 2/${total}</h2>` +
+        body = `<h2>${esc(t('rev.areas'))} - ${esc(t('common.step'))} 2/${total}</h2>` +
           AREAS.map(a => {
             const comps = fw.filter(c => c.areaKey === a);
             if (!comps.length) return '';
@@ -285,11 +285,11 @@
                ${scaleRowHtml('comp.' + c.key, cr.self[c.key])}</div>`).join('');
           }).join('');
       } else {
-        body = `<h2>${esc(t('rev.areas'))} — ${esc(t('common.step'))} 2/${total}</h2>` +
+        body = `<h2>${esc(t('rev.areas'))} - ${esc(t('common.step'))} 2/${total}</h2>` +
           AREAS.map(a => `<div class="field"><label>${esc(areaName(a))}</label>${scaleRowHtml('self.' + a, f.self.areas[a])}</div>`).join('');
       }
     } else if (step === 3) {
-      body = `<h2>${esc(t('rev.goalsEval'))} — ${esc(t('common.step'))} 3/${total}</h2>` +
+      body = `<h2>${esc(t('rev.goalsEval'))} - ${esc(t('common.step'))} 3/${total}</h2>` +
         (f.goalsEval.length === 0 ? `<p class="page-sub">${esc(t('rev.noHistory'))}</p>` :
           AREAS.map(a => {
             const items = f.goalsEval.map((g, i) => ({ g, i })).filter(x => x.g.areaKey === a);
@@ -307,7 +307,7 @@
               </div>`).join('');
           }).join(''));
     } else if (step === 4) {
-      body = `<h2>${esc(t('rev.goalsNew'))} — ${esc(t('common.step'))} 4/${total}</h2>
+      body = `<h2>${esc(t('rev.goalsNew'))} - ${esc(t('common.step'))} 4/${total}</h2>
         <p class="page-sub">${esc(t('rev.newGoalsHint'))}</p>` +
         AREAS.map(a => {
           const items = f.newGoals.filter(g => g.areaKey === a);
@@ -332,7 +332,7 @@
     } else if (step === 5) {
       const tags = ['Prezentační dovednosti', 'Time management', 'Jazykový kurz AJ', 'Odborná certifikace', 'Leadership základy', 'Excel pokročilý'];
       body = `
-        <h2>${esc(t('rev.trainings'))} + ${esc(t('rev.summary'))} — ${esc(t('common.step'))} 5/${total}</h2>
+        <h2>${esc(t('rev.trainings'))} + ${esc(t('rev.summary'))} - ${esc(t('common.step'))} 5/${total}</h2>
         <div class="field"><label>${esc(t('rev.trainings'))}</label>
           <div class="hint" style="margin-bottom:6px">${esc(t('rev.trainingsHint'))}</div>
           <div id="train-tags">${tags.map(tag =>
@@ -341,7 +341,7 @@
         <div class="field"><label>${esc(t('rev.summary'))}</label>
           <textarea class="input" data-f="summary">${esc(f.self.summary)}</textarea></div>`;
     } else {
-      body = `<h2>${esc(t('rev.preview'))} — ${esc(t('common.step'))} 6/${total}</h2>
+      body = `<h2>${esc(t('rev.preview'))} - ${esc(t('common.step'))} 6/${total}</h2>
         <p class="page-sub">${esc(t('rev.previewHint'))}</p>
         ${previewSelfHtml(r)}`;
     }
@@ -403,7 +403,7 @@
     }));
     const go = s => {
       collect();
-      /* nováček nemá cíle k vyhodnocení — krok 3 se přeskakuje */
+      /* nováček nemá cíle k vyhodnocení - krok 3 se přeskakuje */
       if (s === 3 && r.form.goalsEval.length === 0) s = s > step ? 4 : 2;
       r.form.wizardStep = s; saveForm(r); renderWizard(root, r); window.scrollTo(0, 0);
     };
@@ -423,7 +423,7 @@
       if (errs.length) { toast(errs[0]); return; }
       r.form.versions.push({ label: 'v1_self', at: Date.now() });
       saveForm(r);
-      transition(r, 'self_done', ((person(r.subjectId) || {}).name || '') + ' — ' + t('st.self_done'), 'manager');
+      transition(r, 'self_done', ((person(r.subjectId) || {}).name || '') + ' - ' + t('st.self_done'), 'manager');
       toast(t('st.self_done'));
       location.hash = '#/myreviews';
     };
@@ -443,7 +443,7 @@
           ${kpiChip(g.kpiRef)}
           ${g.rating ? `<span class="badge">${esc(t('misc.you'))}: ${g.rating}</span>` : ''}
           ${g.mgrRating ? `<span class="badge b-blue">${g.mgrRating}</span>` : ''}
-          ${g.mgrNote ? `<span style="color:var(--text-muted);font-size:.84rem"> — ${esc(g.mgrNote)}</span>` : ''}
+          ${g.mgrNote ? `<span style="color:var(--text-muted);font-size:.84rem"> - ${esc(g.mgrNote)}</span>` : ''}
           ${opts.showConfirm ? (g.mgrConfirmed ? `<span class="badge b-green">${icon('check', 11)} ${esc(t('goals.confirmed'))}</span>` : `<span class="badge b-amber">${esc(t('goals.notConfirmed'))}</span>`) : ''}
           ${g.outcome ? `<br><span style="color:var(--text-muted);font-size:.85rem;margin-left:12px">${esc(g.outcome)}</span>` : ''}
         </p>`).join('')}</div>`;
@@ -455,15 +455,15 @@
     return `
       <div class="card" style="background:var(--surface-2)">
         <h2>${esc(t('rev.v1'))}</h2>
-        <p><b>${esc(t('rev.q.success'))}</b><br>${esc(f.self.success) || '—'}</p>
-        <p style="margin-top:8px"><b>${esc(t('rev.q.challenge'))}</b><br>${esc(f.self.challenge) || '—'}</p>
-        <p style="margin-top:8px"><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve) || '—'}</p>
-        ${(compFramework() && f.compRatings) ? `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${compFramework().map(c => `${esc(c.title)}: <b>${f.compRatings.self[c.key] || '—'}</b>`).join(' · ')}</p>`
-          : `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${AREAS.map(a => `${esc(areaName(a))}: <b>${f.self.areas[a] || '—'}</b>`).join(' · ')}</p>`}
+        <p><b>${esc(t('rev.q.success'))}</b><br>${esc(f.self.success) || '-'}</p>
+        <p style="margin-top:8px"><b>${esc(t('rev.q.challenge'))}</b><br>${esc(f.self.challenge) || '-'}</p>
+        <p style="margin-top:8px"><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve) || '-'}</p>
+        ${(compFramework() && f.compRatings) ? `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${compFramework().map(c => `${esc(c.title)}: <b>${f.compRatings.self[c.key] || '-'}</b>`).join(' · ')}</p>`
+          : `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${AREAS.map(a => `${esc(areaName(a))}: <b>${f.self.areas[a] || '-'}</b>`).join(' · ')}</p>`}
         ${f.goalsEval.length ? `<div style="margin-top:8px"><b>${esc(t('rev.goalsEval'))}</b>${goalsByAreaHtml(f.goalsEval)}</div>` : ''}
         ${f.newGoals.length ? `<div style="margin-top:12px"><b>${esc(t('rev.goalsNew'))}</b>${goalsByAreaHtml(f.newGoals)}</div>` : ''}
         ${f.trainings.length ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.trainings.map(esc).join(', ')}</p>` : ''}
-        <p style="margin-top:8px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.self.summary) || '—'}</p>
+        <p style="margin-top:8px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.self.summary) || '-'}</p>
       </div>`;
   }
 
@@ -472,7 +472,7 @@
     if (r.type === 'semi') return renderSemiManager(root, r);
     const f = r.form, subj = person(r.subjectId);
     if (r.status === 'self_done') transition(r, 'manager_in_progress');
-    /* Tichá shoda: manažerovo hodnocení předvyplníme ze sebehodnocení —
+    /* Tichá shoda: manažerovo hodnocení předvyplníme ze sebehodnocení -
        upravuje jen tam, kde nesouhlasí. */
     if (!f.mgrPrefilled) {
       AREAS.forEach(a => { if (!f.mgr.areas[a] && f.self.areas[a]) f.mgr.areas[a] = f.self.areas[a]; });
@@ -535,8 +535,8 @@
           if (gls.length) h += `<div class="bars" style="margin-bottom:10px">${gls.map(g => `
             <div class="brow"><span>${esc(g.title)}</span><div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}</div>`;
           if (kud.length) h += kud.map(k => { const fr = person(k.fromId); return `<p style="font-size:.88rem;margin-bottom:4px">${icon('heart', 13)} <b>${esc(fr ? fr.name : '?')}</b>: ${esc(k.msg)}</p>`; }).join('');
-          if (cis.length) h += cis.map(c => `<p style="font-size:.88rem;margin-bottom:4px;color:var(--text-muted)">${icon('checkin', 13)} ${fmtDate(c.at)} ${c.mood} — ${esc(c.notes)}</p>`).join('');
-          return h || `<p class="page-sub">—</p>`;
+          if (cis.length) h += cis.map(c => `<p style="font-size:.88rem;margin-bottom:4px;color:var(--text-muted)">${icon('checkin', 13)} ${fmtDate(c.at)} ${c.mood} - ${esc(c.notes)}</p>`).join('');
+          return h || `<p class="page-sub">-</p>`;
         })()}
       </div>
 
@@ -560,18 +560,18 @@
       </div>
 
       <div class="card">
-        <h2>${icon('gauge', 18)}${esc(t('rev.managerSection'))} ${phase3 ? '— ' + esc(t('rev.v2f')) : '— ' + esc(t('rev.v2d'))}</h2>
+        <h2>${icon('gauge', 18)}${esc(t('rev.managerSection'))} ${phase3 ? '- ' + esc(t('rev.v2f')) : '- ' + esc(t('rev.v2d'))}</h2>
         <p class="callout" style="margin-bottom:14px">${icon('check', 16)} ${esc(t('comp.adopted'))}</p>
         ${compFramework() ? AREAS.map(a => {
           const comps = compFramework().filter(c => c.areaKey === a);
           if (!comps.length) return '';
           const cr = ensureCompRatings(f);
           return `<div style="font-weight:650;margin:10px 0 4px">${esc(areaName(a))}</div>` + comps.map(c => `
-            <div class="field"><label>${esc(c.title)} <span class="badge">${c.weight} %</span> <span class="badge">${esc(t('misc.you'))}: ${cr.self[c.key] || '—'}</span></label>
+            <div class="field"><label>${esc(c.title)} <span class="badge">${c.weight} %</span> <span class="badge">${esc(t('misc.you'))}: ${cr.self[c.key] || '-'}</span></label>
               ${scaleRowHtml('mgrc.' + c.key, cr.mgr[c.key])}</div>`).join('')
-            + `<textarea class="input" style="margin:4px 0 12px;min-height:54px" data-ac="${a}" placeholder="${esc(areaName(a))} — ${esc(t('rev.summary'))}…">${esc(f.mgr.areaComments[a])}</textarea>`;
+            + `<textarea class="input" style="margin:4px 0 12px;min-height:54px" data-ac="${a}" placeholder="${esc(areaName(a))} - ${esc(t('rev.summary'))}…">${esc(f.mgr.areaComments[a])}</textarea>`;
         }).join('') : AREAS.map(a => `
-          <div class="field"><label>${esc(areaName(a))} <span class="badge">${esc(t('misc.you'))}: ${f.self.areas[a] || '—'}</span></label>
+          <div class="field"><label>${esc(areaName(a))} <span class="badge">${esc(t('misc.you'))}: ${f.self.areas[a] || '-'}</span></label>
             ${scaleRowHtml('mgr.' + a, f.mgr.areas[a])}
             <textarea class="input" style="margin-top:8px;min-height:60px" data-ac="${a}" placeholder="${esc(t('rev.summary'))}…">${esc(f.mgr.areaComments[a])}</textarea>
           </div>`).join('')}
@@ -583,7 +583,7 @@
           const disputed = f.goalsEval.concat(f.newGoals).filter(g => g.mgrDecision === 'discuss');
           return disputed.length ? `<div class="callout" style="margin-bottom:12px;background:color-mix(in srgb, var(--warn) 14%, transparent);color:var(--warn)">
             ${icon('checkin', 16)} <span><b>${esc(t('rev.discussList'))}:</b><br>${disputed.map(g =>
-              `· ${esc(g.title)}${g.rating || g.mgrRating ? ` (${esc(t('misc.you'))} ${g.rating || '—'} × ${g.mgrRating || '—'})` : ''}${g.mgrNote ? ' — ' + esc(g.mgrNote) : ''}`).join('<br>')}</span></div>` : '';
+              `· ${esc(g.title)}${g.rating || g.mgrRating ? ` (${esc(t('misc.you'))} ${g.rating || '-'} × ${g.mgrRating || '-'})` : ''}${g.mgrNote ? ' - ' + esc(g.mgrNote) : ''}`).join('<br>')}</span></div>` : '';
         })()}
         <div class="field"><label>${esc(t('rev.mgr.talking'))}</label><textarea class="input" data-m="talking">${esc(f.mgr.talking)}</textarea></div>
         <div class="field"><label>${icon('lock', 14)} ${esc(t('rev.privateNote'))}</label>
@@ -664,7 +664,7 @@
       if (undecided) { toast(t('rev.decideAllFirst')); return; }
       f.versions.push({ label: 'v2_draft', at: Date.now() }); saveForm(r);
       transition(r, f.conversationDate ? 'conversation_scheduled' : 'manager_done',
-        subj.name + ' — ' + t('st.manager_done'), 'employee');
+        subj.name + ' - ' + t('st.manager_done'), 'employee');
       toast(t('rev.v2d')); renderManagerEditor(root, getReview(r.id));
     };
     if (q('#m-conv')) q('#m-conv').onclick = () => {
@@ -680,7 +680,7 @@
       if (unconfirmed || sumsBad) { toast(t('rev.allConfirmRequired')); return; }
       f.versions.push({ label: 'v2_final', at: Date.now() }); saveForm(r);
       transition(r, 'awaiting_employee_confirmation',
-        subj.name + ' — ' + t('st.awaiting_employee_confirmation'), 'employee');
+        subj.name + ' - ' + t('st.awaiting_employee_confirmation'), 'employee');
       toast(t('st.awaiting_employee_confirmation'));
       location.hash = '#/team';
     };
@@ -711,14 +711,14 @@
 
     let body = '';
     if (step === 1) {
-      body = `<h2>${esc(t('misc.semi'))} — ${esc(t('common.step'))} 1/${total}</h2>
+      body = `<h2>${esc(t('misc.semi'))} - ${esc(t('common.step'))} 1/${total}</h2>
         <p class="callout" style="margin-bottom:14px">${icon('checkin', 16)} ${esc(t('semi.intro'))}</p>
         <div class="field"><label>${esc(t('semi.q1'))}</label>
           <textarea class="input" data-f="success">${esc(f.self.success)}</textarea></div>
         <div class="field"><label>${esc(t('semi.q2'))}</label>
           <textarea class="input" data-f="challenge">${esc(f.self.challenge)}</textarea></div>`;
     } else if (step === 2) {
-      body = `<h2>${esc(t('semi.checkTitle'))} — ${esc(t('common.step'))} 2/${total}</h2>
+      body = `<h2>${esc(t('semi.checkTitle'))} - ${esc(t('common.step'))} 2/${total}</h2>
         <p class="page-sub">${esc(t('semi.checkHint'))}</p>` +
         AREAS.map(a => {
           const items = f.goalsEval.map((g, i) => ({ g, i })).filter(x => x.g.areaKey === a);
@@ -743,15 +743,15 @@
             </div>`).join('');
         }).join('');
     } else {
-      body = `<h2>${esc(t('rev.preview'))} — ${esc(t('common.step'))} 3/${total}</h2>
+      body = `<h2>${esc(t('rev.preview'))} - ${esc(t('common.step'))} 3/${total}</h2>
         <p class="page-sub">${esc(t('rev.previewHint'))}</p>
         <div class="card" style="background:var(--surface-2)">
-          <p><b>${esc(t('semi.q1'))}</b><br>${esc(f.self.success) || '—'}</p>
-          <p style="margin-top:8px"><b>${esc(t('semi.q2'))}</b><br>${esc(f.self.challenge) || '—'}</p>
+          <p><b>${esc(t('semi.q1'))}</b><br>${esc(f.self.success) || '-'}</p>
+          <p style="margin-top:8px"><b>${esc(t('semi.q2'))}</b><br>${esc(f.self.challenge) || '-'}</p>
           ${AREAS.map(a => {
             const items = f.goalsEval.filter(g => g.areaKey === a);
             return items.length ? `<div style="margin-top:10px"><b>${esc(areaName(a))}</b>${items.map(g =>
-              `<p style="margin:5px 0 0 2px;font-size:.92rem">· ${esc(g.title)} — ${g.progress} %
+              `<p style="margin:5px 0 0 2px;font-size:.92rem">· ${esc(g.title)} - ${g.progress} %
                ${g.newWeight !== g.weight ? `<span class="badge b-amber">${g.weight} → ${g.newWeight} %</span>` : `<span class="badge">${g.weight} %</span>`}
                ${g.outcome ? `<br><span style="color:var(--text-muted);font-size:.85rem;margin-left:12px">${esc(g.outcome)}</span>` : ''}</p>`).join('')}</div>` : '';
           }).join('')}
@@ -808,7 +808,7 @@
       collect();
       r.form.versions.push({ label: 'v1_self', at: Date.now() });
       saveForm(r);
-      transition(r, 'self_done', ((person(r.subjectId) || {}).name || '') + ' — ' + t('st.self_done'), 'manager');
+      transition(r, 'self_done', ((person(r.subjectId) || {}).name || '') + ' - ' + t('st.self_done'), 'manager');
       toast(t('st.self_done'));
       location.hash = '#/myreviews';
     };
@@ -828,8 +828,8 @@
 
       <div class="card">
         <h2>${icon('doc', 18)}${esc(t('rev.selfSection'))}</h2>
-        <p><b>${esc(t('semi.q1'))}</b><br>${esc(f.self.success) || '—'}</p>
-        <p style="margin-top:8px"><b>${esc(t('semi.q2'))}</b><br>${esc(f.self.challenge) || '—'}</p>
+        <p><b>${esc(t('semi.q1'))}</b><br>${esc(f.self.success) || '-'}</p>
+        <p style="margin-top:8px"><b>${esc(t('semi.q2'))}</b><br>${esc(f.self.challenge) || '-'}</p>
       </div>
 
       <div class="card">
@@ -907,7 +907,7 @@
       collect();
       if (f.goalsEval.some(g => !g.mgrDecision)) { toast(t('rev.decideAllFirst')); return; }
       f.versions.push({ label: 'v2_draft', at: Date.now() }); saveForm(r);
-      transition(r, f.conversationDate ? 'conversation_scheduled' : 'manager_done', subj.name + ' — ' + t('st.manager_done'), 'employee');
+      transition(r, f.conversationDate ? 'conversation_scheduled' : 'manager_done', subj.name + ' - ' + t('st.manager_done'), 'employee');
       toast(t('rev.v2d')); renderSemiManager(root, getReview(r.id));
     };
     if (q('#m-conv')) q('#m-conv').onclick = () => { collect(); transition(r, 'conversation_done'); renderSemiManager(root, getReview(r.id)); };
@@ -918,7 +918,7 @@
       const sums2 = semiSums(f.goalsEval);
       if (AREAS.some(a => f.goalsEval.some(g => g.areaKey === a) && sums2[a] !== 100)) { toast(t('goals.sumBad')); return; }
       f.versions.push({ label: 'v2_final', at: Date.now() }); saveForm(r);
-      transition(r, 'awaiting_employee_confirmation', subj.name + ' — ' + t('st.awaiting_employee_confirmation'), 'employee');
+      transition(r, 'awaiting_employee_confirmation', subj.name + ' - ' + t('st.awaiting_employee_confirmation'), 'employee');
       toast(t('st.awaiting_employee_confirmation'));
       location.hash = '#/team';
     };
@@ -954,7 +954,7 @@
     const subj = person(r.subjectId), ev = person(r.evaluatorId);
     root.innerHTML = `
       <h1 class="page-title">${esc(t('rev.v2f'))}</h1>
-      <p class="page-sub">${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '—')} · ${esc(r.period)}</p>
+      <p class="page-sub">${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '-')} · ${esc(r.period)}</p>
       ${fullReadHtml(r, false)}
       <div class="card">
         <h2>${icon('check', 18)}${esc(t('rev.confirm'))}</h2>
@@ -971,13 +971,13 @@
       r.form.versions.push({ label: 'v3_confirmed', at: Date.now() });
       saveForm(r);
       if (r.type === 'semi') applySemiChanges(r); else materializeNewGoals(r);
-      transition(r, 'confirmed', ((subj || {}).name || '') + ' — ' + t('st.confirmed'), 'all');
+      transition(r, 'confirmed', ((subj || {}).name || '') + ' - ' + t('st.confirmed'), 'all');
       toast(t('st.confirmed'));
       location.hash = '#/myreviews';
     };
     root.querySelector('#c-reopen').onclick = () => {
       r.form.employeeComment = root.querySelector('#emp-comment').value; saveForm(r);
-      transition(r, 'conversation_done', ((subj || {}).name || '') + ' — ' + t('rev.disagree'), 'manager');
+      transition(r, 'conversation_done', ((subj || {}).name || '') + ' - ' + t('rev.disagree'), 'manager');
       toast(t('rev.disagree'));
       location.hash = '#/myreviews';
     };
@@ -992,14 +992,14 @@
         <h2>${icon('target', 18)}${esc(t('rev.managerSection'))}</h2>
         ${(compFramework() && f.compRatings) ? compFramework().map(c =>
           `<p style="margin-bottom:6px"><b>${esc(c.title)}</b> <span class="badge">${c.weight} %</span>
-           <span class="badge">${esc(t('misc.you'))}: ${f.compRatings.self[c.key] || '—'}</span>
-           <span class="badge b-blue">${f.compRatings.mgr[c.key] || '—'}</span></p>`).join('')
+           <span class="badge">${esc(t('misc.you'))}: ${f.compRatings.self[c.key] || '-'}</span>
+           <span class="badge b-blue">${f.compRatings.mgr[c.key] || '-'}</span></p>`).join('')
           + AREAS.map(a => f.mgr.areaComments[a] ? `<p style="margin-bottom:6px;color:var(--text-muted)"><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</p>` : '').join('')
         : AREAS.map(a => `<p style="margin-bottom:6px"><b>${esc(areaName(a))}:</b>
-          <span class="badge b-blue">${f.mgr.areas[a] || '—'}</span> ${esc(f.mgr.areaComments[a])}</p>`).join('')}
-        <p style="margin-top:8px"><b>${esc(t('rev.mgr.strengths'))}:</b> ${esc(f.mgr.strengths) || '—'}</p>
-        <p style="margin-top:6px"><b>${esc(t('rev.mgr.growthAreas'))}:</b> ${esc(f.mgr.growthAreas) || '—'}</p>
-        <p style="margin-top:6px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.mgr.summary) || '—'}</p>
+          <span class="badge b-blue">${f.mgr.areas[a] || '-'}</span> ${esc(f.mgr.areaComments[a])}</p>`).join('')}
+        <p style="margin-top:8px"><b>${esc(t('rev.mgr.strengths'))}:</b> ${esc(f.mgr.strengths) || '-'}</p>
+        <p style="margin-top:6px"><b>${esc(t('rev.mgr.growthAreas'))}:</b> ${esc(f.mgr.growthAreas) || '-'}</p>
+        <p style="margin-top:6px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.mgr.summary) || '-'}</p>
         ${withPrivate && f.mgr.privateNote ? `<p style="margin-top:6px;color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.privateNote'))}:</b> ${esc(f.mgr.privateNote)}</p>` : ''}
         ${f.conversationDate ? `<p style="margin-top:6px"><b>${icon('calendar', 14)}</b> ${fmtDate(f.conversationDate)} · <b>${esc(t('rev.nextDate'))}:</b> ${fmtDate(f.nextReviewDate)}</p>` : ''}
         ${f.employeeComment ? `<p style="margin-top:6px"><b>${esc(t('rev.employeeComment'))}:</b> ${esc(f.employeeComment)}</p>` : ''}
@@ -1018,12 +1018,12 @@
     const subj = person(r.subjectId), ev = person(r.evaluatorId);
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
-        <h1 class="page-title" style="margin:0">${esc(subj ? subj.name : '')} — ${esc(r.period)}</h1>
+        <h1 class="page-title" style="margin:0">${esc(subj ? subj.name : '')} - ${esc(r.period)}</h1>
         ${stBadge(r.status)}
         <span style="flex:1"></span>
         <button class="btn btn-sm" id="print-btn">${icon('print', 15)} ${esc(t('common.print'))}</button>
       </div>
-      <p class="page-sub">${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '—')} · ${esc(t('rev.deadline'))}: ${fmtDate(r.deadline)}</p>
+      <p class="page-sub">${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '-')} · ${esc(t('rev.deadline'))}: ${fmtDate(r.deadline)}</p>
       ${fullReadHtml(r, withPrivate)}`;
     root.querySelector('#print-btn').onclick = () => printReview(r, withPrivate);
   }
@@ -1035,21 +1035,25 @@
     const score = computeScore(f), b = band(score);
     const goalTable = (list, withOutcome) => `<table><tr><th>${esc(t('goals.area'))}</th><th>${esc(t('goals.name'))}</th><th>${esc(t('goals.weight'))}</th><th>KPI</th>${withOutcome ? `<th>Rating</th><th>${esc(t('rev.summary'))}</th>` : ''}<th>${esc(t('goals.confirmed'))}</th></tr>
       ${AREAS.map(a => list.filter(g => g.areaKey === a).map(g =>
-        `<tr><td>${esc(areaName(a))}</td><td>${esc(g.title)}</td><td>${g.weight} %</td><td>${esc(kpiName(g.kpiRef) || '—')}</td>${withOutcome ? `<td>${g.rating || '—'} / ${g.mgrRating || '—'}</td><td>${esc(g.outcome || '')}${g.mgrNote ? ' · ' + esc(g.mgrNote) : ''}</td>` : ''}<td>${g.mgrConfirmed ? '✓' : '—'}</td></tr>`).join('')).join('')}
+        `<tr><td>${esc(areaName(a))}</td><td>${esc(g.title)}</td><td>${g.weight} %</td><td>${esc(kpiName(g.kpiRef) || '-')}</td>${withOutcome ? `<td>${g.rating || '-'} / ${g.mgrRating || '-'}</td><td>${esc(g.outcome || '')}${g.mgrNote ? ' · ' + esc(g.mgrNote) : ''}</td>` : ''}<td>${g.mgrConfirmed ? '✓' : '-'}</td></tr>`).join('')).join('')}
     </table>`;
     const pr = document.getElementById('print-root');
     pr.innerHTML = `
-      <h1>${esc(co ? co.name : 'TeamPulse')} — ${esc(t('rev.title'))}</h1>
+      <h1>${esc(co ? co.name : 'TeamPulse')} - ${esc(t('rev.title'))}</h1>
       <p class="meta">${esc(t('rev.subject'))}: <b>${esc(subj ? subj.name : '')}</b> (${esc(subj ? subj.role : '')}) ·
-        ${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '—')} · ${esc(r.period)} · ${esc(t('st.' + r.status))}</p>
+        ${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '-')} · ${esc(r.period)} · ${esc(t('st.' + r.status))}</p>
       <h2>${esc(t('rev.v1'))}</h2>
       <p><b>${esc(t('rev.q.success'))}</b><br>${esc(f.self.success)}</p>
       <p><b>${esc(t('rev.q.challenge'))}</b><br>${esc(f.self.challenge)}</p>
       <p><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve)}</p>
       <h2>${esc(t('rev.areas'))}</h2>
-      <table><tr><th></th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.summary'))}</th></tr>
-        ${AREAS.map(a => `<tr><td>${esc(areaName(a))}</td><td>${f.self.areas[a] || '—'}</td><td>${f.mgr.areas[a] || '—'}</td><td>${esc(f.mgr.areaComments[a])}</td></tr>`).join('')}
+      ${(compFramework() && f.compRatings) ? `<table><tr><th></th><th>${esc(t('goals.weight'))}</th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th></tr>
+        ${compFramework().map(c => `<tr><td>${esc(c.title)} <i>(${esc(areaName(c.areaKey))})</i></td><td>${c.weight} %</td><td>${f.compRatings.self[c.key] || '-'}</td><td>${f.compRatings.mgr[c.key] || '-'}</td></tr>`).join('')}
       </table>
+      ${AREAS.map(a => f.mgr.areaComments[a] ? `<p><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</p>` : '').join('')}`
+      : `<table><tr><th></th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.summary'))}</th></tr>
+        ${AREAS.map(a => `<tr><td>${esc(areaName(a))}</td><td>${f.self.areas[a] || '-'}</td><td>${f.mgr.areas[a] || '-'}</td><td>${esc(f.mgr.areaComments[a])}</td></tr>`).join('')}
+      </table>`}
       ${f.goalsEval.length ? `<h2>${esc(t('rev.goalsEval'))}</h2>${goalTable(f.goalsEval, true)}` : ''}
       ${f.newGoals.length ? `<h2>${esc(t('rev.goalsNew'))}</h2>${goalTable(f.newGoals, false)}` : ''}
       <h2>${esc(t('rev.managerSection'))}</h2>
@@ -1057,7 +1061,7 @@
       <p><b>${esc(t('rev.mgr.growthAreas'))}:</b> ${esc(f.mgr.growthAreas)}</p>
       <p><b>${esc(t('rev.summary'))}:</b> ${esc(f.mgr.summary)}</p>
       ${withPrivate && f.mgr.privateNote ? `<p><b>${esc(t('rev.privateNote'))}:</b> ${esc(f.mgr.privateNote)}</p>` : ''}
-      ${withPrivate && score != null ? `<p><b>${esc(t('rev.score'))}:</b> ${score.toFixed(2)} — ${esc(t('band.' + b.key))}</p>` : ''}
+      ${withPrivate && score != null ? `<p><b>${esc(t('rev.score'))}:</b> ${score.toFixed(2)} - ${esc(t('band.' + b.key))}</p>` : ''}
       ${f.employeeComment ? `<p><b>${esc(t('rev.employeeComment'))}:</b> ${esc(f.employeeComment)}</p>` : ''}
       <p class="meta">${esc(t('rev.nextDate'))}: ${fmtDate(f.nextReviewDate)} · TeamPulse demo · ${fmtDate(Date.now())}</p>`;
     pr.hidden = false;

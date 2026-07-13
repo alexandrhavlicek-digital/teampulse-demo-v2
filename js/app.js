@@ -1,4 +1,4 @@
-/* TeamPulse demo v2 — app shell, onboarding, router, views */
+/* TeamPulse demo v2 - app shell, onboarding, router, views */
 (function () {
   const { esc, fmtDate, avatar, stBadge, toast, modal, closeModal, notify } = UI;
 
@@ -48,7 +48,7 @@
   /* ================= onboarding ================= */
   const ob = { mode: null, industry: 'it', size: 50, theme: 'brand', step: 0 };
 
-  /* oficiální animované brand logo (Brand Manual v1.0) — pulzní kruh + geometrické T */
+  /* oficiální animované brand logo (Brand Manual v1.0) - pulzní kruh + geometrické T */
   function pulseMark() {
     return `<div class="tp-pulse" aria-hidden="true"><svg viewBox="0 0 140 140" style="overflow:visible">
       <defs>
@@ -333,9 +333,9 @@
     });
     teamRevs.forEach(r => {
       if (['self_done', 'manager_in_progress'].includes(r.status))
-        todos.push({ ico: icon('doc', 16), txt: t('home.actionReview') + ' — ' + (person(r.subjectId) || {}).name, hash: '#/review/' + r.id, d: ReviewLogic.daysLeft(r) });
+        todos.push({ ico: icon('doc', 16), txt: t('home.actionReview') + ' - ' + (person(r.subjectId) || {}).name, hash: '#/review/' + r.id, d: ReviewLogic.daysLeft(r) });
       if (['manager_done', 'conversation_scheduled', 'conversation_done'].includes(r.status))
-        todos.push({ ico: icon('calendar', 16), txt: t('home.actionConversation') + ' — ' + (person(r.subjectId) || {}).name, hash: '#/review/' + r.id, d: ReviewLogic.daysLeft(r) });
+        todos.push({ ico: icon('calendar', 16), txt: t('home.actionConversation') + ' - ' + (person(r.subjectId) || {}).name, hash: '#/review/' + r.id, d: ReviewLogic.daysLeft(r) });
     });
     const myGoals = me ? Store.list('goals').filter(g => g.ownerId === me.id) : [];
     const lastKudos = Store.list('kudos').slice(-3).reverse();
@@ -360,7 +360,7 @@
           <div class="progressbar" style="margin-top:10px"><div style="width:${totalCur ? confirmed / totalCur * 100 : 0}%"></div></div>
           <div style="margin-top:18px">
             <h2>${icon('heartPulse', 18)}${esc(t('home.recentKudos'))}</h2>
-            ${lastKudos.map(k => `<p style="font-size:.88rem;margin-bottom:6px">${avatar(person(k.fromId), 22)} <b>${esc((person(k.fromId) || {}).firstName || '')}</b> → <b>${esc((person(k.toId) || {}).firstName || '')}</b>: ${esc(k.msg)}</p>`).join('') || `<p class="page-sub">—</p>`}
+            ${lastKudos.map(k => `<p style="font-size:.88rem;margin-bottom:6px">${avatar(person(k.fromId), 22)} <b>${esc((person(k.fromId) || {}).firstName || '')}</b> → <b>${esc((person(k.toId) || {}).firstName || '')}</b>: ${esc(k.msg)}</p>`).join('') || `<p class="page-sub">-</p>`}
           </div>
         </div>
       </div>
@@ -388,7 +388,7 @@
             : r.status === 'awaiting_employee_confirmation' ? t('rev.confirm') : t('rev.view');
           return `<tr class="clickable" onclick="location.hash='#/review/${r.id}'">
             <td><b>${esc(r.period)}</b><br><small style="color:var(--text-muted)">${esc(t('misc.' + ({ probation: 'probation', semi: 'semi', annual: 'annual' })[r.type]))}</small></td>
-            <td>${avatar(person(r.evaluatorId), 26)} ${esc((person(r.evaluatorId) || {}).name || '—')}</td>
+            <td>${avatar(person(r.evaluatorId), 26)} ${esc((person(r.evaluatorId) || {}).name || '-')}</td>
             <td>${stBadge(r.status)}</td>
             <td><button class="btn btn-sm btn-primary">${esc(action)}</button></td></tr>`;
         }).join('')}</table>` : `<div class="empty">${icon('inbox', 52)}<br>${esc(t('rev.noHistory'))}</div>`}
@@ -451,7 +451,7 @@
           ${Generator.KPI_REQUIRED[a] ? `<span class="badge b-blue">${esc(t('goals.kpi'))}</span>` : ''}
           ${va.role !== 'hr' && items.length ? `<span class="badge ${mineSum === 100 ? 'b-green' : 'b-amber'}">${esc(t('goals.sum'))}: ${mineSum} %</span>` : ''}
         </h2>
-        ${items.length ? items.slice(0, va.role === 'hr' ? 10 : 99).map(goalRow).join('') : `<p class="page-sub">—</p>`}</div>`;
+        ${items.length ? items.slice(0, va.role === 'hr' ? 10 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>`;
     };
 
     root.innerHTML = `
@@ -537,7 +537,7 @@
         ${list.slice(0, 120).map(p => `<tr>
           <td>${avatar(p, 32)} <b>${esc(p.name)}</b><br><small style="color:var(--text-muted)">${esc(p.email)}</small></td>
           <td>${esc(p.role)}</td><td><span class="badge">${esc(p.dept)}</span></td>
-          <td>${p.managerId ? esc((person(p.managerId) || {}).name || '—') : '—'}</td></tr>`).join('')}</table>`;
+          <td>${p.managerId ? esc((person(p.managerId) || {}).name || '-') : '-'}</td></tr>`).join('')}</table>`;
     }
     const tbl = root.querySelector('#p-table');
     if (tbl) {
@@ -571,7 +571,7 @@
           <div class="field"><label>${esc(t('people.dept'))}</label>
             <select class="input" id="np-dept">${depts.map(d => `<option value="${d.key}">${esc(d.name)}</option>`).join('')}</select></div>
           <div class="field"><label>${esc(t('people.manager'))}</label>
-            <select class="input" id="np-mgr"><option value="">—</option>${ps.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+            <select class="input" id="np-mgr"><option value="">-</option>${ps.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
         </div>
         <div class="wizard-foot"><button class="btn" id="np-cancel">${esc(t('common.cancel'))}</button>
           <button class="btn btn-primary" id="np-save">${esc(t('common.save'))}</button></div>`, m => {
@@ -584,7 +584,7 @@
           Store.insert('people', {
             id: uid(), firstName: parts[0], lastName: parts.slice(1).join(' ') || '',
             name, initials: (parts[0][0] || '?') + ((parts[1] || ' ')[0] || ''),
-            hue: Math.floor(Math.random() * 360), role: m.querySelector('#np-role').value || '—',
+            hue: Math.floor(Math.random() * 360), role: m.querySelector('#np-role').value || '-',
             deptKey, dept: dept ? dept.name : deptKey, managerId: m.querySelector('#np-mgr').value || null,
             isHead: false, email: name.toLowerCase().replace(/\s+/g, '.') + '@firma.cz', hiredMonthsAgo: 0, female: false,
           });
@@ -620,7 +620,7 @@
       const isCollapsed = orgUi.collapsed.has(p.id);
       const toggle = kids.length ? `
         <button class="org-toggle" data-org-toggle="${p.id}" title="${kids.length}">
-          ${isCollapsed ? `＋ ${subtreeCount(p)}` : '−'}
+          ${isCollapsed ? `＋ ${subtreeCount(p)}` : '-'}
         </button>` : '';
       return `<div class="org-branch">
         <div class="org-node">${avatar(p, 40)}<div class="nm">${esc(p.name)}</div><div class="rl">${esc(p.role)}</div>${toggle}</div>
@@ -636,7 +636,7 @@
       <div class="card" style="padding:0;position:relative;overflow:hidden">
         <div class="org-zoom">
           <button class="iconbtn" id="oz-in" title="+">${icon('plus', 16)}</button>
-          <button class="iconbtn" id="oz-out" title="−"><svg class="pi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.2 12h13.6"/></svg></button>
+          <button class="iconbtn" id="oz-out" title="-"><svg class="pi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.2 12h13.6"/></svg></button>
           <button class="iconbtn" id="oz-fit" title="reset">${icon('refresh', 15)}</button>
         </div>
         <div class="org-canvas" id="org-canvas">
@@ -662,7 +662,7 @@
       orgUi.z = z; apply();
     };
 
-    /* pan — pointer events (myš i dotyk), klik na ＋/− zůstává klikem */
+    /* pan - pointer events (myš i dotyk), klik na ＋/- zůstává klikem */
     let drag = null;
     canvas.addEventListener('pointerdown', e => {
       if (e.target.closest('.org-toggle')) return;
@@ -680,7 +680,7 @@
     canvas.addEventListener('pointerup', endDrag);
     canvas.addEventListener('pointercancel', endDrag);
 
-    /* zoom — kolečko / pinch-trackpad */
+    /* zoom - kolečko / pinch-trackpad */
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -797,10 +797,13 @@
     const stOrder = ['pending_self', 'self_in_progress', 'self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done', 'awaiting_employee_confirmation', 'confirmed'];
     const dist = stOrder.map(s => [s, cur.filter(r => r.status === s).length]).filter(([, n]) => n > 0);
     const atRisk = cur.filter(r => ['risk', 'blocked'].includes(ReviewLogic.risk(r)));
-    // rating distribution from manager area ratings of closed reviews
+    // rating distribution from manager ratings of closed reviews
+    // (competency ratings in detailed mode, area ratings otherwise)
     const ratings = { TN: 0, PO: 0, KV: 0, NR: 0, NU: 0 };
     reviews().filter(r => ['confirmed', 'closed_by_hr'].includes(r.status)).forEach(r => {
-      Object.values(r.form.mgr.areas).forEach(v => { if (ratings[v] != null) ratings[v]++; });
+      const cr = r.form.compRatings;
+      const vals = (cr && cr.mgr && Object.keys(cr.mgr).length) ? Object.values(cr.mgr) : Object.values(r.form.mgr.areas);
+      vals.forEach(v => { if (ratings[v] != null) ratings[v]++; });
     });
     const maxR = Math.max(1, ...Object.values(ratings));
     const tl = [[0, 'hr.tl.0'], [5, 'hr.tl.5'], [10, 'hr.tl.10'], [15, 'hr.tl.15'], [18, 'hr.tl.18'], [25, 'hr.tl.25'], [30, 'hr.tl.30'], [35, 'hr.tl.35']];
@@ -829,7 +832,7 @@
         <div class="card"><h2>${icon('gauge', 18)}${esc(t('hr.statusDist'))}</h2>
           <div class="bars">${dist.map(([s, n]) => `
             <div class="brow"><span>${esc(t('st.' + s))}</span>
-            <div class="progressbar"><div style="width:${n / Math.max(1, cur.length) * 100}%"></div></div><b>${n}</b></div>`).join('') || '—'}</div></div>
+            <div class="progressbar"><div style="width:${n / Math.max(1, cur.length) * 100}%"></div></div><b>${n}</b></div>`).join('') || '-'}</div></div>
         <div class="card"><h2>${icon('spark', 18)}${esc(t('hr.ratingDist'))}</h2>
           <div class="bars">${Object.entries(ratings).map(([k, n]) => `
             <div class="brow"><span><b>${k}</b> ${esc(t('help.scale.' + k))}</span>
@@ -851,9 +854,9 @@
         <p class="page-sub" style="margin-bottom:8px">${esc(t('hr.kpiHint'))}</p>
         <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-sm" id="kpi-add">${icon('plus', 14)} ${esc(t('common.add'))}</button></div>
         ${co && co.kpis.length ? `<div class="bars">${co.kpis.map(k => `
-          <div class="brow" data-kedit="${k.id}" style="cursor:pointer" title="${esc(t('common.edit'))} — ${esc(k.desc)}">
+          <div class="brow" data-kedit="${k.id}" style="cursor:pointer" title="${esc(t('common.edit'))} - ${esc(k.desc)}">
           <span>${esc(k.title)} <small style="color:var(--text-muted)">(${esc(t('goals.weight'))} ${k.weight} %, ${esc(t('hr.kpiTarget'))}: ${esc(k.target)})</small></span>
-          <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div>` : `<p class="page-sub">—</p>`}
+          <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div>` : `<p class="page-sub">-</p>`}
       </div>
 
       <div class="grid cols-2" style="margin-top:16px">
@@ -910,14 +913,14 @@
             const k = (co.teamKpis || []).filter(x => x.deptKey === d.key).length;
             return `<tr><td><b>${esc(d.name)}</b></td><td>${n}</td><td>${k}</td>
               <td>${n === 0 && d.key !== 'vedeni' ? `<button class="btn btn-sm btn-danger" data-dept-del="${d.key}">${icon('trash', 13)}</button>` : ''}</td></tr>`;
-          }).join('')}</table>` : `<p class="page-sub">—</p>`}
+          }).join('')}</table>` : `<p class="page-sub">-</p>`}
       </div>
 
       <div class="card"><h2>${icon('team', 18)}${esc(t('hr.teamKpis'))}</h2>
         <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-sm" id="tk-add">${icon('plus', 14)} ${esc(t('common.add'))}</button></div>
         ${(co && co.teamKpis && co.teamKpis.length) ? `<div class="bars">${co.teamKpis.map(k => `
           <div class="brow"><span><span class="badge">${esc(k.dept)}</span> ${esc(k.title)}</span>
-          <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div>` : `<p class="page-sub">—</p>`}
+          <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div>` : `<p class="page-sub">-</p>`}
       </div>
 
       <div class="card"><h2>${icon('clock', 18)}${esc(t('hr.timeline'))}</h2>
@@ -1064,7 +1067,7 @@
             }
             Store.insert('reviews', { id: uid(), subjectId: p.id, evaluatorId: p.managerId, type: cType, period: Generator.CURRENT_PERIOD, status: 'pending_self', startedAt: now, deadline: now + 30 * 86400000, form });
           });
-          notify(t('hr.newCycle') + ' — ' + targets.length + '× ' + t('st.pending_self'), 'all');
+          notify(t('hr.newCycle') + ' - ' + targets.length + '× ' + t('st.pending_self'), 'all');
           closeModal(); toast(t('hr.launch')); render();
         };
       });
@@ -1107,9 +1110,9 @@
 
       <div class="grid cols-2">
         <div class="card"><h2>${icon('play', 18)}${esc(t('help.tutorials'))}</h2>
-          <div class="empty" style="padding:24px">${icon('play', 44)}<br>Onboarding videa — spravuje HR (CMS)</div></div>
+          <div class="empty" style="padding:24px">${icon('play', 44)}<br>Onboarding videa - spravuje HR (CMS)</div></div>
         <div class="card"><h2>${icon('folder', 18)}${esc(t('help.docs'))}</h2>
-          <div class="empty" style="padding:24px">${icon('folder', 44)}<br>Směrnice, handbook, šablony — spravuje HR</div></div>
+          <div class="empty" style="padding:24px">${icon('folder', 44)}<br>Směrnice, handbook, šablony - spravuje HR</div></div>
       </div>`;
     root.querySelectorAll('[data-htab]').forEach(btn => btn.onclick = () => { helpTab = btn.dataset.htab; views.help(root); });
   };
