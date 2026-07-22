@@ -208,6 +208,7 @@
     { id: 'home', ico: 'home', label: 'nav.home', roles: ['employee', 'manager', 'hr'] },
     { id: 'myreviews', ico: 'doc', label: 'nav.myreviews', roles: ['employee', 'manager', 'hr'], needsPerson: true },
     { id: 'team', ico: 'team', label: 'nav.team', roles: ['manager', 'hr'] },
+    { id: 'myteam', ico: 'grid9', label: 'nav.myteam', roles: ['manager'] },
     { id: 'goals', ico: 'target', label: 'nav.goals', roles: ['employee', 'manager', 'hr'] },
     { id: 'checkins', ico: 'checkin', label: 'nav.checkins', roles: ['manager', 'hr'] },
     { sec: 'nav.company' },
@@ -216,6 +217,7 @@
     { id: 'org', ico: 'tree', label: 'nav.org', roles: ['employee', 'manager', 'hr'] },
     { sec: 'nav.adminSec' },
     { id: 'hr', ico: 'gauge', label: 'nav.hr', roles: ['hr'] },
+    { id: 'talent', ico: 'grid9', label: 'nav.talent', roles: ['hr'] },
     { id: 'help', ico: 'bulb', label: 'nav.help', roles: ['employee', 'manager', 'hr'] },
     { id: 'settings', ico: 'gear', label: 'nav.settings', roles: ['employee', 'manager', 'hr'] },
   ];
@@ -605,6 +607,10 @@
     const kidsOf = id => ps.filter(x => x.managerId === id);
     const subtreeCount = p => kidsOf(p.id).reduce((n, k) => n + 1 + subtreeCount(k), 0);
 
+    /* succession overlay (DERTOUR legenda) - vidí jen manažer a HR, zaměstnanec nikdy */
+    const showSucc = ['hr', 'manager'].includes(viewAs().role);
+    const succ = showSucc ? SuccLogic.succMaps() : { kpByHolder: {}, succLevel: {} };
+
     /* default: sbalit vše pod úrovní vedoucích (CEO + heads viditelní) */
     if (orgUi.collapsed === null) {
       orgUi.collapsed = new Set();
@@ -622,8 +628,14 @@
         <button class="org-toggle" data-org-toggle="${p.id}" title="${kids.length}">
           ${isCollapsed ? `＋ ${subtreeCount(p)}` : '-'}
         </button>` : '';
+      const kp = succ.kpByHolder[p.id];
+      const sl = succ.succLevel[p.id];
+      const uncovered = kp && !(kp.successors || []).length;
       return `<div class="org-branch">
-        <div class="org-node">${avatar(p, 40)}<div class="nm">${esc(p.name)}</div><div class="rl">${esc(p.role)}</div>${toggle}</div>
+        <div class="org-node ${kp ? 'org-kp' : ''} ${sl === 'key' ? 'org-succ-key' : sl ? 'org-succ-reg' : ''}"
+          ${kp ? `title="${esc(t('kp.legend.kp'))}: ${esc(kp.title)}${uncovered ? ' · ' + esc(t('kp.noSucc')) : ''}"` : sl ? `title="${esc(t(sl === 'key' ? 'kp.succKey' : 'kp.succReg'))}"` : ''}>
+          ${avatar(p, 40)}<div class="nm">${esc(p.name)}</div><div class="rl">${esc(p.role)}</div>
+          ${uncovered ? `<span class="org-flag" title="${esc(t('kp.noSucc'))}">!</span>` : ''}${toggle}</div>
         ${kids.length && !isCollapsed ? `<div class="org-vline"></div><div class="org-children">
           ${kids.map(nodeHtml).join('')}</div>` : ''}
       </div>`;
@@ -644,7 +656,17 @@
             ${roots.map(nodeHtml).join('')}
           </div>
         </div>
-      </div>`
+      </div>
+      ${showSucc && Store.list('keyPositions').length ? `
+      <div class="card" style="margin-top:12px">
+        <div class="org-legend">
+          <span><i class="ol-kp"></i>${esc(t('kp.legend.kp'))}</span>
+          <span><i class="ol-key"></i>${esc(t('kp.succKey'))}</span>
+          <span><i class="ol-reg"></i>${esc(t('kp.succReg'))}</span>
+          <span><i class="ol-flag">!</i>${esc(t('kp.noSucc'))}</span>
+          <span style="margin-left:auto;color:var(--text-muted);font-size:.78rem">${icon('lock', 12)} ${esc(t('kp.legend.privacy'))}</span>
+        </div>
+      </div>` : ''}`
       : `<div class="card"><div class="empty">${icon('sprout', 52)}<br>${esc(t('people.emptyDesc'))}</div></div>`}`;
 
     const canvas = root.querySelector('#org-canvas');
@@ -1074,6 +1096,12 @@
     };
   };
 
+  /* ---- talent & reporty (jen HR) ---- */
+  views.talent = root => TalentViews.renderHr(root);
+
+  /* ---- můj tým (jen manažer) ---- */
+  views.myteam = root => TalentViews.renderMyTeam(root);
+
   /* ---- help (role-based) ---- */
   let helpTab = null;
   views.help = root => {
@@ -1156,6 +1184,7 @@
   /* ================= router & boot ================= */
   function render() {
     applySettings();
+    closeModal(); /* navigace zavírá případný otevřený modal */
     const s = Store.getSettings();
     if (!s.onboarded) { renderOnboarding(); return; }
     document.getElementById('onboarding').hidden = true;

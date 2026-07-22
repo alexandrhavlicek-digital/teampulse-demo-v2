@@ -15,7 +15,13 @@
     let db = load();
 
     function load() {
-      try { return JSON.parse(localStorage.getItem(LS_KEY)) || blank(); }
+      try {
+        const db2 = JSON.parse(localStorage.getItem(LS_KEY)) || blank();
+        /* migrace: kolekce přidané v novějších verzích doplnit do starších DB */
+        const b = blank();
+        Object.keys(b).forEach(k => { if (db2[k] === undefined) db2[k] = b[k]; });
+        return db2;
+      }
       catch (e) { return blank(); }
     }
     function blank() {
@@ -23,6 +29,7 @@
         company: null,          // { name, industry, sizeLabel, kpis:[], departments:[] }
         settings: { theme: 'brand', locale: 'cs', onboarded: false, viewAs: null },
         people: [], reviews: [], goals: [], kudos: [], checkins: [], notifications: [],
+        keyPositions: [],       // succession: [{id,deptKey,title,holderId,checklist{q1..q12},successors:[{personId,level,readiness}]}]
       };
     }
     function persist() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }

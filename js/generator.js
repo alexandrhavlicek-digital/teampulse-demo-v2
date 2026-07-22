@@ -363,7 +363,24 @@
     return form;
   }
   function filledMgr(form) {
-    form.mgr.areas = { teamwork: pick(['TN','PO','KV']), growth: pick(['PO','KV','NR']), quality: pick(['PO','KV','KV']) };
+    /* talent sekce (soukromá, jen mgr+HR) - plní 9-box matici v Talent & Reporty */
+    const roll = rnd();
+    const potential = roll < 0.22 ? 'high' : roll < 0.72 ? 'mid' : 'low';
+    form.mgr.talent = {
+      potential,
+      readiness: potential === 'high' ? pick(['r1', 'r1', 'r12']) : potential === 'mid' ? pick(['r12', 'no', 'no']) : 'no',
+      attrition: potential === 'high' ? pick(['low', 'mid', 'mid', 'high']) : pick(['low', 'low', 'low', 'mid', 'high']),
+      mobility: rnd() < 0.35, languages: pick(['AJ', 'AJ, NJ', 'NJ', 'AJ (B2)', '-']),
+    };
+    /* výkon koreluje s potenciálem, ať matice při demu žije (Hvězda ani Riziko nesmí být prázdné) */
+    const hi = potential === 'high' && rnd() < 0.6;
+    const lo = !hi && potential !== 'high' && rnd() < 0.3;
+    form.mgr.areas = hi
+      ? { teamwork: pick(['TN','TN','PO']), growth: pick(['TN','PO']), quality: pick(['TN','PO','PO']) }
+      : lo
+        ? { teamwork: pick(['KV','NR']), growth: pick(['NR','NR','NU']), quality: pick(['KV','NR','NR']) }
+        : { teamwork: pick(['TN','PO','KV']), growth: pick(['PO','KV','NR']), quality: pick(['PO','KV','KV']) };
+    form.mgrSeedBias = hi ? 'hi' : lo ? 'lo' : null;
     form.mgr.areaComments = {
       teamwork: 'Týmová spolupráce dlouhodobě silná, je oporou ostatním.',
       growth: 'Rozvoj jde správným směrem, doporučuji cílený kurz.',
@@ -375,7 +392,13 @@
     form.mgr.talking = MGR_TEXTS.talking;
     form.mgr.privateNote = MGR_TEXTS.privateNote;
     form.mgr.summary = 'Celkově kvalitní a stabilní výkon (KV až PO). Dohodli jsme se na rozvojovém plánu a cílech níže.';
-    form.goalsEval.forEach(g => { g.mgrConfirmed = true; g.mgrDecision = 'agree'; g.mgrRating = g.rating; });
+    form.goalsEval.forEach(g => {
+      g.mgrConfirmed = true; g.mgrDecision = 'agree';
+      if (form.mgrSeedBias === 'hi') g.rating = pick(['TN', 'TN', 'PO']);
+      if (form.mgrSeedBias === 'lo') g.rating = pick(['KV', 'NR', 'NR', 'NU']);
+      g.mgrRating = g.rating;
+    });
+    delete form.mgrSeedBias;
     form.newGoals.forEach(g => { g.mgrConfirmed = true; g.mgrDecision = 'agree'; });
     return form;
   }
@@ -479,7 +502,25 @@
       });
     });
 
-    return { reviews, goals, kudos, checkins, notifications };
+    /* klíčové pozice (succession) - 3 klíčové (1 nekrytá = vacancy risk), 1 neklíčová jako ukázka filtru */
+    const keyPositions = [];
+    const holders = people.filter(p => p.isHead || p.isLead).slice(0, 4);
+    const yesCounts = [10, 9, 8, 5];
+    holders.forEach((h, i) => {
+      const yesN = yesCounts[i] != null ? yesCounts[i] : 8;
+      const order = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      const checklist = {};
+      order.forEach((q, j) => { checklist['q' + q] = j < yesN; });
+      const reports = people.filter(p => p.managerId === h.id);
+      const successors = (i === 1 || yesN < 7) ? [] : reports.slice(0, i === 0 ? 2 : 1)
+        .map((r2, j) => ({ personId: r2.id, level: j === 0 ? 'key' : 'successor', readiness: j === 0 ? 'r1' : 'r12' }));
+      keyPositions.push({
+        id: uid(), deptKey: h.deptKey, dept: h.dept, title: h.role, holderId: h.id,
+        checklist, proposedBy: null, confirmedByHr: true, successors,
+      });
+    });
+
+    return { reviews, goals, kudos, checkins, notifications, keyPositions };
   }
 
   /* ---------------- public API ---------------- */
@@ -501,11 +542,12 @@
       Store.replaceAll('kudos', g.kudos);
       Store.replaceAll('checkins', g.checkins);
       Store.replaceAll('notifications', g.notifications);
+      Store.replaceAll('keyPositions', g.keyPositions || []);
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','checkins','notifications'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','checkins','notifications','keyPositions'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();
