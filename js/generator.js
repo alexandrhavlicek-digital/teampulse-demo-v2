@@ -502,7 +502,25 @@
       });
     });
 
-    return { reviews, goals, kudos, checkins, notifications };
+    /* klíčové pozice (succession) - 3 klíčové (1 nekrytá = vacancy risk), 1 neklíčová jako ukázka filtru */
+    const keyPositions = [];
+    const holders = people.filter(p => p.isHead || p.isLead).slice(0, 4);
+    const yesCounts = [10, 9, 8, 5];
+    holders.forEach((h, i) => {
+      const yesN = yesCounts[i] != null ? yesCounts[i] : 8;
+      const order = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      const checklist = {};
+      order.forEach((q, j) => { checklist['q' + q] = j < yesN; });
+      const reports = people.filter(p => p.managerId === h.id);
+      const successors = (i === 1 || yesN < 7) ? [] : reports.slice(0, i === 0 ? 2 : 1)
+        .map((r2, j) => ({ personId: r2.id, level: j === 0 ? 'key' : 'successor', readiness: j === 0 ? 'r1' : 'r12' }));
+      keyPositions.push({
+        id: uid(), deptKey: h.deptKey, dept: h.dept, title: h.role, holderId: h.id,
+        checklist, proposedBy: null, confirmedByHr: true, successors,
+      });
+    });
+
+    return { reviews, goals, kudos, checkins, notifications, keyPositions };
   }
 
   /* ---------------- public API ---------------- */
@@ -524,11 +542,12 @@
       Store.replaceAll('kudos', g.kudos);
       Store.replaceAll('checkins', g.checkins);
       Store.replaceAll('notifications', g.notifications);
+      Store.replaceAll('keyPositions', g.keyPositions || []);
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','checkins','notifications'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','checkins','notifications','keyPositions'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

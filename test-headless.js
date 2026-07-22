@@ -133,6 +133,44 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   Store.patchSettings({ viewAs: null });
 })();
 
+/* --- 11) succession: klíčové pozice --- */
+(function () {
+  const kps = Store.list('keyPositions');
+  ok(kps.length === 4, `seed keyPositions (${kps.length}/4)`);
+  const keyOnes = kps.filter(SuccLogic.kpIsKey);
+  ok(keyOnes.length === 3, `3 klíčové dle checklistu (${keyOnes.length})`);
+  const uncovered = keyOnes.filter(kp => !kp.successors.length);
+  ok(uncovered.length >= 1, `aspoň 1 nekrytá pozice (${uncovered.length})`);
+  ok(kps.some(kp => !SuccLogic.kpIsKey(kp)), 'checklist funguje jako filtr (1 neklíčová)');
+  /* prahy */
+  const mk = yes => ({ checklist: Object.fromEntries(Array.from({ length: 12 }, (_, i2) => ['q' + (i2 + 1), i2 < yes])) });
+  ok(SuccLogic.kpIsKey(mk(7)) && !SuccLogic.kpIsKey(mk(6)), 'práh většiny: 7/12 ANO');
+  /* mapy pro org overlay */
+  const maps = SuccLogic.succMaps();
+  ok(Object.keys(maps.kpByHolder).length === 3, 'org overlay: jen klíčové pozice');
+  ok(Object.keys(maps.succLevel).length >= 2, 'org overlay: nástupci namapováni');
+  /* HR view obsahuje sekci */
+  Store.patchSettings({ viewAs: null });
+  const r5 = fakeEl();
+  TalentViews.renderHr(r5);
+  ok(r5.innerHTML.includes('kp-row') && r5.innerHTML.includes('kp-add-btn'), 'sekce Nástupnictví v HR view');
+  ok(!r5.innerHTML.match(/kp\.\w/), 'žádné nepřeložené kp.* klíče');
+})();
+
+/* --- 12) store migrace: stará DB bez keyPositions --- */
+(function () {
+  const raw = JSON.parse(localStorage.getItem('teampulse_demo_v2'));
+  delete raw.keyPositions;
+  localStorage.setItem('teampulse_demo_v2', JSON.stringify(raw));
+  /* nová instance store přes reload souboru */
+  load('js/store.js');
+  try {
+    Store.insert('keyPositions', { id: 'test1', title: 'X', checklist: {}, successors: [] });
+    ok(Store.get('keyPositions', 'test1') !== null, 'migrace: insert do doplněné kolekce funguje');
+    Store.remove('keyPositions', 'test1');
+  } catch (e) { ok(false, 'migrace selhala: ' + e.message); }
+})();
+
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }
