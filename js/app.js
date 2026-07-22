@@ -208,6 +208,7 @@
     { id: 'home', ico: 'home', label: 'nav.home', roles: ['employee', 'manager', 'hr'] },
     { id: 'myreviews', ico: 'doc', label: 'nav.myreviews', roles: ['employee', 'manager', 'hr'], needsPerson: true },
     { id: 'team', ico: 'team', label: 'nav.team', roles: ['manager', 'hr'] },
+    { id: 'myteam', ico: 'grid9', label: 'nav.myteam', roles: ['manager'] },
     { id: 'goals', ico: 'target', label: 'nav.goals', roles: ['employee', 'manager', 'hr'] },
     { id: 'checkins', ico: 'checkin', label: 'nav.checkins', roles: ['manager', 'hr'] },
     { sec: 'nav.company' },
@@ -1077,6 +1078,9 @@
 
   /* ---- talent & reporty (jen HR) ---- */
   views.talent = root => TalentViews.renderHr(root);
+
+  /* ---- můj tým (jen manažer) ---- */
+  views.myteam = root => TalentViews.renderMyTeam(root);
 
   /* ---- help (role-based) ---- */
   let helpTab = null;

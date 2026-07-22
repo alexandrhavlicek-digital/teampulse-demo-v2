@@ -836,3 +836,23 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 [data-theme="genz"] .ng-cell.ng-risk { box-shadow: 3px 3px 0 color-mix(in srgb, var(--danger) 55%, transparent); }
 [data-theme="brand"] .ng-cell.ng-best { border-color: rgba(21, 184, 138, .5); }
 [data-theme="corp"] .ng-cell { border-radius: 4px; }
+
+/* ===== Můj tým - karty lidí ===== */
+.mt-sec { margin: 22px 0 12px; display: flex; align-items: center; }
+.mt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; }
+.mt-card { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.mt-head { display: flex; gap: 10px; align-items: center; }
+.mt-ava { width: auto; padding: 0; }
+.mt-nm { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-role { font-size: .8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-score { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.mt-score > b { font-size: 1.15rem; }
+.mt-flags { display: flex; gap: 6px; flex-wrap: wrap; }
+.mt-flags .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-row { display: flex; gap: 10px; align-items: center; font-size: .84rem; }
+.mt-row > span { flex: 0 0 auto; color: var(--text-muted); }
+.mt-row .progressbar { flex: 1; }
+.mt-ci { font-size: .82rem; color: var(--text-muted); display: flex; gap: 6px; align-items: baseline; }
+.mt-ci span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: auto; padding-top: 4px; border-top: 1px dashed var(--hairline); }
+.mt-foot .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

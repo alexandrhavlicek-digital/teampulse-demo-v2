@@ -4,7 +4,7 @@
    osa Y = odhad potenciálu z talent sekce manažera (form.mgr.talent).
    Viditelnost: pouze manažer + HR. Zaměstnanec tento pohled nikdy nevidí. */
 (function () {
-  const { esc, avatar, modal, closeModal } = UI;
+  const { esc, avatar, modal, closeModal, stBadge } = UI;
 
   /* ---------------- logic ---------------- */
   const CLOSED = ['confirmed', 'closed_by_hr'];
@@ -211,5 +211,77 @@
     root.querySelectorAll('[data-tal-p]').forEach(b => b.onclick = () => profileModal(b.dataset.talP));
   }
 
-  window.TalentViews = { renderHr, profileModal };
+  /* ---------------- manažerský pohled: Můj tým ---------------- */
+  /* Čistě čtecí. Účel: příprava na 1:1 a na hodnocení za 30 sekund,
+     ne další administrativa. Reuse grid komponenty z HR pohledu. */
+  function teamCardHtml(e) {
+    const p = e.p;
+    const b = e.score != null ? ReviewLogic.band(e.score) : null;
+    const boxKey = e.row && e.col ? BOXES[3 - e.row][e.col - 1] : null;
+    const goals = Store.list('goals').filter(g => g.ownerId === p.id && g.type === 'personal' && g.period === Generator.CURRENT_PERIOD);
+    const avgG = goals.length ? Math.round(goals.reduce((s, g) => s + g.progress, 0) / goals.length) : null;
+    const ci = Store.list('checkins').filter(c => c.employeeId === p.id).sort((a, b2) => b2.at - a.at)[0];
+    const kud = Store.list('kudos').filter(k => k.toId === p.id && k.at > Date.now() - 60 * 86400000).length;
+    const rev = Store.list('reviews').filter(r => r.subjectId === p.id && r.period === Generator.CURRENT_PERIOD)
+      .sort((a, b2) => b2.startedAt - a.startedAt)[0];
+    return `<div class="card mt-card">
+      <div class="mt-head">
+        <button class="ng-token mt-ava" data-tal-p="${p.id}" title="${esc(t('tal.gridHint'))}">
+          <span class="ng-ava">${avatar(p, 44)}${e.trend > 0 ? '<i class="ng-tr up">▲</i>' : e.trend < 0 ? '<i class="ng-tr down">▼</i>' : ''}</span>
+        </button>
+        <div style="min-width:0;flex:1">
+          <b class="mt-nm">${esc(p.name)}</b>
+          <div class="mt-role">${esc(p.role)}</div>
+        </div>
+        ${e.score != null ? `<div class="mt-score"><b>${e.score.toFixed(2)}</b></div>` : `<span class="badge">${esc(t('tal.noScore'))}</span>`}
+      </div>
+      <div class="mt-flags">
+        ${b ? `<span class="badge ${b.cls}" title="${esc(t('band.' + b.key))}">${esc(t('band.' + b.key))}</span>` : ''}
+        ${boxKey ? `<span class="badge b-blue">${esc(t('tal.box.' + boxKey))}</span>` : `<span class="badge">${esc(t('tal.noEstimate'))}</span>`}
+        ${e.tal && e.tal.attrition && e.tal.attrition !== 'low' ? `<span class="badge ${e.tal.attrition === 'high' ? 'b-red' : 'b-amber'}">${esc(t('rev.talent.attrition'))}: ${esc(t('tal.att.' + e.tal.attrition))}</span>` : ''}
+        ${kud ? `<span class="badge b-green">${icon('heart', 11)} ${kud}×</span>` : ''}
+      </div>
+      ${avgG != null ? `<div class="mt-row"><span>${esc(t('mt.goals'))} (${goals.length})</span>
+        <div class="progressbar"><div style="width:${avgG}%"></div></div><b>${avgG}%</b></div>` : ''}
+      ${ci ? `<div class="mt-ci">${ci.mood} <span>${UI.fmtDate(ci.at)} - ${esc(ci.notes)}</span></div>` : ''}
+      <div class="mt-foot">
+        ${rev ? stBadge(rev.status) : `<span class="badge">${esc(t('mt.noReview'))}</span>`}
+        <span style="flex:1"></span>
+        ${rev ? `<button class="btn btn-sm" onclick="location.hash='#/review/${rev.id}'">${icon('doc', 13)} ${esc(t('rev.view'))}</button>` : ''}
+        <button class="btn btn-sm btn-primary" data-tal-p="${p.id}">${esc(t('mt.profile'))}</button>
+      </div>
+    </div>`;
+  }
+
+  function renderMyTeam(root) {
+    const va = App.viewAs();
+    const me = va.personId ? Store.get('people', va.personId) : null;
+    const team = me ? Store.list('people').filter(p => p.managerId === me.id) : [];
+    if (!team.length) {
+      root.innerHTML = `<h1 class="page-title">${esc(t('mt.title'))}</h1>
+        <div class="card"><div class="empty">${icon('team', 52)}<br>${esc(t('mt.empty'))}</div></div>`;
+      return;
+    }
+    const entries = team.map(entryOf)
+      .sort((a, b) => (b.score != null) - (a.score != null) || (b.score || 0) - (a.score || 0));
+    const placed = entries.filter(e => e.row && e.col);
+    const retention = placed.filter(e => e.tal && e.tal.potential === 'high' && ['mid', 'high'].includes(e.tal.attrition));
+
+    root.innerHTML = `
+      <h1 class="page-title">${esc(t('mt.title'))} <span class="badge b-blue">${team.length}</span></h1>
+      <p class="page-sub">${esc(t('mt.sub'))}</p>
+      ${retention.length ? `<p class="callout" style="margin-bottom:14px">${icon('alert', 16)}
+        <span><b>${esc(t('tal.retention'))}:</b> ${retention.map(e => esc(e.p.name)).join(', ')}</span></p>` : ''}
+      <div class="card">
+        <h2>${icon('grid9', 18)}${esc(t('mt.gridTitle'))}</h2>
+        <p class="page-sub" style="margin-bottom:12px">${esc(t('tal.gridHint'))}</p>
+        ${gridHtml(entries)}
+      </div>
+      <h2 class="mt-sec">${icon('team', 18)}${esc(t('mt.cards'))}</h2>
+      <div class="mt-cards">${entries.map(teamCardHtml).join('')}</div>`;
+
+    root.querySelectorAll('[data-tal-p]').forEach(bn => bn.onclick = () => profileModal(bn.dataset.talP));
+  }
+
+  window.TalentViews = { renderHr, renderMyTeam, profileModal };
 })();

@@ -109,6 +109,30 @@ const root = fakeEl();
 try { TalentViews.renderHr(root); ok(root.innerHTML.includes('nine-grid'), 'TalentViews.renderHr vyrenderován'); }
 catch (e) { ok(false, 'renderHr spadl: ' + e.message); }
 
+/* --- 9b) Můj tým: render pro manažera s největším týmem --- */
+/* App definuje app.js (v testu neběží - potřebuje plný DOM); stub se stejným chováním */
+g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', personId: null } };
+(function () {
+  const ps2 = Store.list('people');
+  const counts = {};
+  ps2.forEach(p => { if (p.managerId) counts[p.managerId] = (counts[p.managerId] || 0) + 1; });
+  const mgrId = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mgrId } });
+  const r3 = fakeEl();
+  try {
+    TalentViews.renderMyTeam(r3);
+    ok(r3.innerHTML.includes('mt-card') && r3.innerHTML.includes('nine-grid'), `renderMyTeam vyrenderován (tým ${counts[mgrId]} lidí)`);
+    ok(!r3.innerHTML.includes('mt.'), 'žádné nepřeložené mt.* klíče');
+  } catch (e) { ok(false, 'renderMyTeam spadl: ' + e.message); }
+  /* manažer bez týmu → empty state */
+  const noTeam = ps2.find(p => !ps2.some(x => x.managerId === p.id));
+  Store.patchSettings({ viewAs: { role: 'manager', personId: noTeam.id } });
+  const r4 = fakeEl();
+  try { TalentViews.renderMyTeam(r4); ok(r4.innerHTML.includes('empty'), 'renderMyTeam empty state OK'); }
+  catch (e) { ok(false, 'renderMyTeam empty spadl: ' + e.message); }
+  Store.patchSettings({ viewAs: null });
+})();
+
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }
