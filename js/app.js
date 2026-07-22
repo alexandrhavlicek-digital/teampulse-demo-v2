@@ -216,6 +216,7 @@
     { id: 'org', ico: 'tree', label: 'nav.org', roles: ['employee', 'manager', 'hr'] },
     { sec: 'nav.adminSec' },
     { id: 'hr', ico: 'gauge', label: 'nav.hr', roles: ['hr'] },
+    { id: 'talent', ico: 'grid9', label: 'nav.talent', roles: ['hr'] },
     { id: 'help', ico: 'bulb', label: 'nav.help', roles: ['employee', 'manager', 'hr'] },
     { id: 'settings', ico: 'gear', label: 'nav.settings', roles: ['employee', 'manager', 'hr'] },
   ];
@@ -1073,6 +1074,9 @@
       });
     };
   };
+
+  /* ---- talent & reporty (jen HR) ---- */
+  views.talent = root => TalentViews.renderHr(root);
 
   /* ---- help (role-based) ---- */
   let helpTab = null;

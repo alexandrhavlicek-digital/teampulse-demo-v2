@@ -17,6 +17,8 @@
   function avatar(p, size) {
     size = size || 36;
     if (!p) return `<span class="avatar" style="width:${size}px;height:${size}px;background:#999;font-size:${size * .38}px">?</span>`;
+    /* volitelná fotka (person.photoUrl), fallback na generovaný avatar s iniciálami */
+    if (p.photoUrl) return `<span class="avatar" style="width:${size}px;height:${size}px" title="${esc(p.name)}"><img src="${esc(p.photoUrl)}" alt="" loading="lazy"></span>`;
     return `<span class="avatar" style="width:${size}px;height:${size}px;background:hsl(${p.hue},62%,46%);font-size:${size * .38}px" title="${esc(p.name)}">${esc(p.initials)}</span>`;
   }
 
@@ -151,6 +153,7 @@
 
   function bindScaleRows(root, onPick) {
     root.querySelectorAll('.scale-row').forEach(row => {
+      if (!row.dataset.scale) return; /* segmentové řady bez data-scale (talent) mají vlastní handler */
       row.addEventListener('click', e => {
         const btn = e.target.closest('.scale-opt'); if (!btn || btn.disabled) return;
         row.querySelectorAll('.scale-opt').forEach(b => b.classList.remove('sel'));
@@ -467,6 +470,48 @@
       </div>`;
   }
 
+  /* ---------- talent sekce (soukromá, jen roční typ, jen mgr+HR) ---------- */
+  function ensureTalent(f) {
+    if (!f.mgr.talent) f.mgr.talent = { potential: null, readiness: null, attrition: null, mobility: false, languages: '' };
+    return f.mgr.talent;
+  }
+  function talentSegHtml(field, options, selected) {
+    return `<div class="scale-row">${options.map(o =>
+      `<button type="button" class="scale-opt ${selected === o ? 'sel' : ''}" data-tal="${field}:${o}">${esc(t('tal.' + ({ potential: 'pot', readiness: 'rd', attrition: 'att' })[field] + '.' + o))}</button>`).join('')}</div>`;
+  }
+  function talentSectionHtml(f) {
+    const tal = ensureTalent(f);
+    return `<div class="card" style="border-color:var(--warn)">
+      <h2>${icon('lock', 18)}${esc(t('rev.talent.title'))}</h2>
+      <p class="hint" style="color:var(--warn);margin-bottom:12px">${esc(t('rev.talent.hint'))}</p>
+      <div class="field"><label>${esc(t('rev.talent.potential'))}</label>
+        ${talentSegHtml('potential', ['low', 'mid', 'high'], tal.potential)}</div>
+      <div class="field"><label>${esc(t('rev.talent.readiness'))}</label>
+        ${talentSegHtml('readiness', ['r1', 'r12', 'no'], tal.readiness)}</div>
+      <div class="field"><label>${esc(t('rev.talent.attrition'))}</label>
+        ${talentSegHtml('attrition', ['low', 'mid', 'high'], tal.attrition)}</div>
+      <div class="grid cols-2">
+        <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="tal-mob" ${tal.mobility ? 'checked' : ''}> ${esc(t('rev.talent.mobility'))}</label>
+          <div class="hint">${esc(t('rev.talent.mobilityHint'))}</div></div>
+        <div class="field"><label>${esc(t('rev.talent.languages'))}</label>
+          <input class="input" id="tal-lang" value="${esc(tal.languages || '')}" placeholder="${esc(t('rev.talent.languagesHint'))}"></div>
+      </div>
+    </div>`;
+  }
+  function bindTalentSection(root, r, f, rerender) {
+    root.querySelectorAll('[data-tal]').forEach(b => b.onclick = () => {
+      const [field, val] = b.dataset.tal.split(':');
+      const tal = ensureTalent(f);
+      tal[field] = tal[field] === val ? null : val;
+      saveForm(r); rerender();
+    });
+    const mob = root.querySelector('#tal-mob');
+    if (mob) mob.onchange = () => { ensureTalent(f).mobility = mob.checked; saveForm(r); };
+    const lang = root.querySelector('#tal-lang');
+    if (lang) lang.addEventListener('change', () => { ensureTalent(f).languages = lang.value; saveForm(r); });
+  }
+
   /* ====================== manager flow ====================== */
   function renderManagerEditor(root, r) {
     if (r.type === 'semi') return renderSemiManager(root, r);
@@ -592,6 +637,8 @@
         <div class="field"><label>${esc(t('rev.summary'))}</label><textarea class="input" data-m="summary">${esc(f.mgr.summary)}</textarea></div>
       </div>
 
+      ${r.type === 'annual' ? talentSectionHtml(f) : ''}
+
       ${scoreCard(f)}
 
       <div class="card">
@@ -650,6 +697,7 @@
         saveForm(r); renderManagerEditor(root, getReview(r.id));
       }
     });
+    bindTalentSection(root, r, f, () => { collect(); renderManagerEditor(root, getReview(r.id)); });
     const q = s => root.querySelector(s);
     if (q('#m-confall')) q('#m-confall').onclick = () => {
       collect();
@@ -1001,6 +1049,8 @@
         <p style="margin-top:6px"><b>${esc(t('rev.mgr.growthAreas'))}:</b> ${esc(f.mgr.growthAreas) || '-'}</p>
         <p style="margin-top:6px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.mgr.summary) || '-'}</p>
         ${withPrivate && f.mgr.privateNote ? `<p style="margin-top:6px;color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.privateNote'))}:</b> ${esc(f.mgr.privateNote)}</p>` : ''}
+        ${withPrivate && f.mgr.talent && f.mgr.talent.potential ? `<p style="margin-top:6px;color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.talent.title'))}:</b>
+          ${esc(t('rev.talent.potential'))}: ${esc(t('tal.pot.' + f.mgr.talent.potential))}${f.mgr.talent.readiness ? ' · ' + esc(t('rev.talent.readiness')) + ': ' + esc(t('tal.rd.' + f.mgr.talent.readiness)) : ''}${f.mgr.talent.attrition ? ' · ' + esc(t('rev.talent.attrition')) + ': ' + esc(t('tal.att.' + f.mgr.talent.attrition)) : ''}${f.mgr.talent.mobility ? ' · ' + esc(t('rev.talent.mobility')) : ''}${f.mgr.talent.languages && f.mgr.talent.languages !== '-' ? ' · ' + esc(f.mgr.talent.languages) : ''}</p>` : ''}
         ${f.conversationDate ? `<p style="margin-top:6px"><b>${icon('calendar', 14)}</b> ${fmtDate(f.conversationDate)} · <b>${esc(t('rev.nextDate'))}:</b> ${fmtDate(f.nextReviewDate)}</p>` : ''}
         ${f.employeeComment ? `<p style="margin-top:6px"><b>${esc(t('rev.employeeComment'))}:</b> ${esc(f.employeeComment)}</p>` : ''}
       </div>
