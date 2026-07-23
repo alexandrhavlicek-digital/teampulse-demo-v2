@@ -8,7 +8,7 @@ Headless testy běží přes jsdom (Node 18+): načtou `index.html` + skripty a 
 
 Spuštění: `node smoke.js` (vyžaduje `npm i jsdom`). Před release vždy: `node --check js/*.js` + kompletní smoke sada.
 
-**Talent modul: `node test-headless.js`** (bez závislostí, stub DOM). Pokrývá seed talent dat a pozic, prahy matice, override z finálního checku, stavový automat checku, migraci Store, rendery HR/Můj tým/check, pravidla soukromí (talent nikdy zaměstnanci ani do tisku) a úplnost i18n cs/en/de. Vizuální kontrola: Playwright + Chromium (screenshoty všech témat, kontrola `pageerror`). Detail: 08_talent_succession.md §9.
+**Talent modul: `node test-headless.js`** (bez závislostí, stub DOM). Pokrývá seed talent dat a pozic, prahy matice, override z finálního checku, stavový automat checku, migraci Store, rendery HR/Můj tým/check, pravidla soukromí (talent nikdy zaměstnanci ani do tisku) a úplnost i18n cs/en/de. Dále pokrývá checklist kandidáta (práh, verdikty), červenou kartu (kvadranty, overlay mapy) a 360 (anonymita pod 3 odpovědi, agregace na škálu, tři pohledy). Vizuální kontrola: Playwright + Chromium (screenshoty všech témat, kontrola `pageerror`). Detail: 08_talent_succession.md §9.
 
 ## 2. Manuální regresní scénáře
 

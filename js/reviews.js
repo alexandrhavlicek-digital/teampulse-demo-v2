@@ -581,6 +581,13 @@
             <div class="brow"><span>${esc(g.title)}</span><div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}</div>`;
           if (kud.length) h += kud.map(k => { const fr = person(k.fromId); return `<p style="font-size:.88rem;margin-bottom:4px">${icon('heart', 13)} <b>${esc(fr ? fr.name : '?')}</b>: ${esc(k.msg)}</p>`; }).join('');
           if (cis.length) h += cis.map(c => `<p style="font-size:.88rem;margin-bottom:4px;color:var(--text-muted)">${icon('checkin', 13)} ${fmtDate(c.at)} ${c.mood} - ${esc(c.notes)}</p>`).join('');
+          /* 360: tři pohledy (self · 360 · mgr) + běžící sběr + vyžádání */
+          if (window.Feedback360Views) {
+            h += Feedback360Views.statusLineHtml(r.subjectId);
+            h += Feedback360Views.threeViewsHtml(r.subjectId);
+            if (!Store.list('feedback360').some(x => x.subjectId === r.subjectId && x.status === 'collecting'))
+              h += `<div style="margin-top:10px"><button class="btn btn-sm" id="ev-f360">${icon('team', 13)} ${esc(t('f360.request'))}</button></div>`;
+          }
           return h || `<p class="page-sub">-</p>`;
         })()}
       </div>
@@ -706,6 +713,7 @@
       saveForm(r); renderManagerEditor(root, getReview(r.id));
     };
     if (q('#m-save')) q('#m-save').onclick = () => { collect(); toast(t('common.saved')); };
+    if (q('#ev-f360')) q('#ev-f360').onclick = () => Feedback360Views.requestModal(r.subjectId, () => renderManagerEditor(root, getReview(r.id)));
     if (q('#m-done')) q('#m-done').onclick = () => {
       collect();
       const undecided = f.goalsEval.concat(f.newGoals).some(g => !g.mgrDecision);

@@ -917,3 +917,25 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
   border-radius: var(--radius); font-size: .86rem; background: var(--surface-2);
 }
 .tc-banner { border-color: var(--accent); }
+
+/* ===== červená karta - matice potřebnosti ===== */
+.rc-grid { display: flex; gap: 10px; }
+.rc-ylab { writing-mode: vertical-rl; transform: rotate(180deg); font-size: .78rem; font-weight: 650; color: var(--text-muted); text-align: center; }
+.rc-rows { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rc-xlab { font-size: .78rem; font-weight: 650; color: var(--text-muted); text-align: right; padding-right: 4px; }
+.rc-cell { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--radius); padding: 10px 10px 12px; min-height: 110px; min-width: 0; }
+.rc-cell.rc-hot { border-color: color-mix(in srgb, var(--danger) 55%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--surface-2)); }
+@media (max-width: 700px) { .rc-row { grid-template-columns: 1fr; } .rc-grid { flex-direction: column; } .rc-ylab { writing-mode: horizontal-tb; transform: none; text-align: left; } }
+
+/* checklist kandidáta - marker na chipu nástupce */
+.kp-succ { position: relative; }
+.kp-succ-click { cursor: pointer; }
+.kp-succ-click:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+.kp-cl { font-style: normal; font-size: .68rem; font-weight: 800; margin-left: 2px; color: var(--text-muted); }
+.kp-cl.ok { color: var(--ok); }
+.kp-cl.bad { color: var(--danger); }
+
+/* org chart - červená karta */
+.org-node.org-redcard .avatar { box-shadow: 0 0 0 3px var(--danger); }
+.org-legend .ol-red { border: 3px solid var(--danger); }

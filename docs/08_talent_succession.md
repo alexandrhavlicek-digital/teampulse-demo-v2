@@ -1,6 +1,6 @@
 # Talent & nástupnictví — realizační dokument
 
-**Verze:** 1.0 · **Datum:** 2026-07-22 · **Zdroj pravdy:** `js/talent.js` (+ zásahy v `reviews.js`, `app.js`, `generator.js`, `store.js`)
+**Verze:** 1.1 · **Datum:** 2026-07-22 · **Zdroj pravdy:** `js/talent.js`, `js/feedback360.js` (+ zásahy v `reviews.js`, `app.js`, `generator.js`, `store.js`)
 **Koncepty (proč to je, jak to je):** `../../docs/koncept_talent_reporting_9box_360.md` a `../../docs/koncept_succession_planning.md` v kořeni repa — rozhodnutí zadavatele jsou v §7 succession konceptu. Metodický zdroj: succession planning proces DERTOUR Group (2025).
 
 Tento dokument je určen vývojáři, který modul přebírá. Popisuje **co je implementováno a jak přesně**, včetně invariantů, které nesmí porušit.
@@ -17,6 +17,9 @@ Nad existujícím hodnoticím procesem (dokumenty 01–02) staví vrstvu **lidí
 4. **Klíčové pozice + nástupci** — 12otázkový checklist (většina ANO → klíčová), přiřazení nástupců, overlay v org chartu.
 5. **Kvartální talent check** — vynucený moment: manažer potvrdí/posune lidi v matici (drag & drop), odešle, proběhne debata s HR, stav se zamrazí.
 6. **Tisková sestava pro poradu vedení** — souhrn talentu a nástupnictví na jeden tisk.
+7. **Checklist kandidáta** — 21 otázek / 7 okruhů na dvojici kandidát × pozice; práh nastavuje HR (default 16/21). Doporučený, ne povinný — chip nástupce bez checklistu jen jemně vyzývá.
+8. **Červená karta + matice potřebnosti** — potřebnost × problémovost, 4 kvadranty s akcemi; „potřebný potížista" = succession priorita č. 1 (⚑ když drží klíčovou pozici). Červený kroužek v org chartu.
+9. **360° zpětná vazba** (`js/feedback360.js`) — on-demand, 3–6 respondentů, stejná škála, anonymní agregát od 3 odpovědí, výstup „tři pohledy" (já · okolí · manažer) v talent profilu a Podkladech z období.
 
 ### Závazný princip: soukromí
 
@@ -26,6 +29,8 @@ Nad existujícím hodnoticím procesem (dokumenty 01–02) staví vrstvu **lidí
 | Pozice v matici / 9-box | **nikdy** | svůj tým | vše |
 | Klíčové pozice, nástupci, org overlay | **nikdy** | vidí (overlay + Můj tým) | vše + správa |
 | Talent check | **nikdy** | svůj (draft jen on) | stav vždy; obsah až po odeslání |
+| Checklist kandidáta, červená karta | **nikdy** | vidí/edituje | vše |
+| 360 — jednotlivé odpovědi | **nikdo je nevidí** (ani HR, ani zadavatel) — jen agregát od 3 odpovědí | | |
 | Tisk hodnocení | talent data se **netisknou vůbec** (ani s `withPrivate`) | | |
 
 Kontrolní body v kódu: `fullReadHtml(r, withPrivate)` renderuje talent jen s `withPrivate`; `printReview` talent nezná; org overlay se počítá jen když `viewAs().role ∈ {hr, manager}`; route `#/talentcheck` má guard v `views.talentcheck` (employee → redirect). Testy tato pravidla hlídají (viz §9).
@@ -50,8 +55,12 @@ Vše je vanilla JS (IIFE, žádný build). Pořadí načítání v `index.html` 
 | `window.SuccLogic` | `kpYes/kpAnswered(kp)`, `kpIsKey(kp)` (**≥ 7 ANO z 12**), `kpRated(kp)` (≥ 7 zodpovězeno), `succMaps()` | checklist logika + mapy pro org overlay |
 | `window.TalentCheck` | `tcCadence()` → `'q'\|'semi'\|'off'`, `tcPeriod()` → `'Q3 2026'`/`'H2 2026'`, `tcOf(managerId)`, `tcStart(me, team)` | kvartální check |
 | `window.TalentViews` | `renderHr(root)`, `renderMyTeam(root)`, `renderCheck(root, managerIdParam)`, `profileModal(pid)`, `printBoardReport()` | pohledy |
+| `window.RedCard` | `rcQuadrant(rc)`, `rcOf(pid)` | červená karta (nt = potřebný potížista, np, dt, dp) |
+| `SuccLogic` (rozšíření) | `CAND_CATS`, `candYes/candNo`, `candThreshold()` (default 16, `co.cycleConfig.candidateThreshold`), `candResult(cl)` → fit / notfit / null | checklist kandidáta; notfit = prahu už nejde dosáhnout |
+| `window.Feedback360` | `requestsFor(pid)`, `pendingFor(personId)`, `aggregate(f)` (null pod 3 odpovědi!), `latestClosedAgg(pid)`, `ratedKeys()`, `MIN_ANON` | 360 logika |
+| `window.Feedback360Views` | `requestModal(subjectId, cb)`, `respondModal(f, personId, cb)`, `threeViewsHtml(pid)`, `statusLineHtml(pid)` | 360 UI |
 
-Interní (neexportované, ale důležité): `kpEditModal` (editor pozice, reuse i z talent checku), `successionCardHtml`, `tcHrCardHtml`, `tcPersonModal`, `finalOverrideBox` (§4).
+Interní (neexportované, ale důležité): `kpEditModal` (editor pozice, reuse i z talent checku), `candChecklistModal` (otevírá se z chipu nástupce v seznamech — NE z `kpEditModal`, aby se nekřížily pracovní kopie), `rcModal`, `successionCardHtml`, `rcCardHtml`, `tcHrCardHtml`, `tcPersonModal`, `finalOverrideBox` (§4).
 
 ### Zásahy do existujících souborů
 
@@ -67,7 +76,7 @@ Interní (neexportované, ale důležité): `kpEditModal` (editor pozice, reuse 
 
 ### i18n
 
-Jmenné prostory: `tal.*` (matice), `mt.*` (Můj tým), `kp.*` (klíčové pozice vč. 12 otázek `kp.q1–q12` a 4 okruhů `kp.cat.*`), `tc.*` (talent check), `rev.talent.*` (talent sekce). **Každý klíč musí existovat v cs/en/de** — hlídá test (fallback na cs by prošel UI, ale test spadne).
+Jmenné prostory: `tal.*` (matice), `mt.*` (Můj tým), `kp.*` (klíčové pozice vč. 12 otázek `kp.q1–q12` a 4 okruhů `kp.cat.*`), `tc.*` (talent check), `rev.talent.*` (talent sekce), `cand.*` (checklist kandidáta vč. `cand.q1–q21`), `rc.*` (červená karta), `f360.*` (360). **Každý klíč musí existovat v cs/en/de** — hlídá test (fallback na cs by prošel UI, ale test spadne). Pořadí skriptů se rozšiřuje o `feedback360.js` (mezi `talent.js` a `app.js`).
 
 ---
 
@@ -93,6 +102,15 @@ Bez migrace: starší hodnocení talent nemají → člověk je v matici „bez 
   successors: [{ personId, level: 'key'|'successor', readiness: 'r1'|'r12'|'no' }] }
 ```
 Odvozené (nikdy neukládat): `isKey = kpYes ≥ 7`, `rated = kpAnswered ≥ 7`, nekrytá = `isKey && successors.length === 0`.
+
+### successors[i].checklist21 (checklist kandidáta)
+`{q1..q21: true|false|null}` na dvojici kandidát × pozice (tentýž člověk může být vhodný pro jednu roli a nevhodný pro jinou). Verdikt: `fit` při dosažení prahu, `notfit` když počet NE přesáhne 21−práh (prahu už nejde dosáhnout), jinak rozpracováno.
+
+### redCards
+`{id, personId, needed: bool, trouble: bool, note, byId, at}` — kvadrant se odvozuje (`rcQuadrant`), jedna aktivní karta na osobu. V org overlay má červený kroužek přednost před kroužkem nástupce.
+
+### feedback360
+`{id, subjectId, requestedById, period, deadline, status: collecting|closed, respondents: [{personId, group: peer|report|internal, status: invited|done, ratings{key: rating}, strengths, growth}]}` — **anonymita je pravidlo č. 1**: `aggregate()` vrací `null` pod `MIN_ANON = 3` odpovědí; jednotlivé odpovědi se nikde nerenderují; otevřené texty se zobrazují deduplikované a seřazené dle délky (ne dle pořadí respondentů). V Supabase: `feedback_requests` + `feedback_responses`, RLS: respondent vidí jen svou odpověď, agregační view od 3 odpovědí pro mgr+HR.
 
 ### talentChecks
 ```
@@ -187,7 +205,7 @@ Talent sekce se seeduje v `filledMgr` (deterministický `rnd()` se seedem): pote
 - DnD jen myší (mobil čte, neposouvá) — viz §7.
 - Trend šipek jde z rozdílu skóre hodnocení, ne z historie checků; jemnější kvartální trend lze doplnit čtením `talentChecks` (final) po obdobích.
 - Otázky checklistu jsou v i18n, ne editovatelná data per firma (koncept je chce jako data — kandidát na iteraci s HR nastavením).
-- Ze succession konceptu **zbývá**: checklist kandidáta (21 otázek, práh default 16/21, doporučený ne povinný), červená karta + matice potřebnosti, 360 zpětná vazba. Pořadí a zdůvodnění: koncept §6.
+- Succession koncept i koncept 9-box/360 jsou tímto **kompletně implementované** (iterace 1–7 konsolidovaného plánu). Kandidáti na další práci: klikový fallback drag & dropu pro dotyk, editovatelné otázky checklistů per firma, upward 360 na vedoucí, kvartální trend ze snapshotů, auto-propsání rozdílů z 360 do Bodů k rozhovoru.
 
 ## 11. Checklist pro další iteraci (drž tento postup)
 

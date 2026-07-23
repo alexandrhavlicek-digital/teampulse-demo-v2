@@ -31,6 +31,7 @@ load('js/store.js');
 load('js/generator.js');
 load('js/reviews.js');
 load('js/talent.js');
+load('js/feedback360.js');
 
 let failed = 0;
 const ok = (cond, msg) => { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); if (!cond) failed++; };
@@ -195,6 +196,57 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   const created = TalentCheck.tcOf(mgr3.id);
   if (created) Store.remove('talentChecks', created.id);
   Store.patchSettings({ viewAs: null });
+})();
+
+/* --- 11c) checklist kandidáta --- */
+(function () {
+  const mkc = (yes, no) => { const cl = {}; for (let i2 = 1; i2 <= yes; i2++) cl['q' + i2] = true; for (let i2 = yes + 1; i2 <= yes + no; i2++) cl['q' + i2] = false; return cl; };
+  ok(SuccLogic.candThreshold() === 16, 'práh default 16/21');
+  ok(SuccLogic.candResult(mkc(16, 0)) === 'fit', '16 ANO → vhodný');
+  ok(SuccLogic.candResult(mkc(10, 6)) === 'notfit', '6 NE → už nedosáhne prahu');
+  ok(SuccLogic.candResult(mkc(10, 3)) === null, 'rozpracováno → bez verdiktu');
+  const kpsC = Store.list('keyPositions');
+  const withCl = kpsC.flatMap(kp => kp.successors || []).filter(s => s.checklist21 && Object.keys(s.checklist21).length);
+  ok(withCl.length >= 1 && SuccLogic.candResult(withCl[0].checklist21) === 'fit', 'seed: nástupce s checklistem 18/21 → vhodný');
+})();
+
+/* --- 11d) červená karta --- */
+(function () {
+  const rcs = Store.list('redCards');
+  ok(rcs.length === 1, `seed redCards (${rcs.length}/1)`);
+  ok(RedCard.rcQuadrant(rcs[0]) === 'nt', 'seed: potřebný potížista');
+  const maps2 = SuccLogic.succMaps();
+  ok(maps2.red[rcs[0].personId] === 'nt', 'červená karta v org overlay mapách');
+  ok(RedCard.rcQuadrant({ needed: false, trouble: false }) === 'dp', 'kvadranty matice potřebnosti');
+  const r7 = fakeEl();
+  TalentViews.renderHr(r7);
+  ok(r7.innerHTML.includes('rc-grid') && !r7.innerHTML.match(/rc\.\w/), 'matice potřebnosti v HR view, klíče přeložené');
+})();
+
+/* --- 11e) 360 zpětná vazba --- */
+(function () {
+  const fs360 = Store.list('feedback360');
+  ok(fs360.length === 2, `seed feedback360 (${fs360.length}/2)`);
+  const closed = fs360.find(f => f.status === 'closed');
+  const agg = Feedback360.aggregate(closed);
+  ok(agg && agg.n >= 3, `agregát z uzavřené 360 (${agg && agg.n} odpovědí)`);
+  ok(agg.ratings.teamwork && ['TN','PO','KV','NR','NU'].includes(agg.ratings.teamwork.label), 'agregovaný rating mapuje na škálu');
+  ok(agg.strengths.length > 0 && agg.growth.length > 0, 'otevřené texty v agregátu (bez atribuce)');
+  /* anonymita: pod 3 odpovědi žádný agregát */
+  const collecting = fs360.find(f => f.status === 'collecting');
+  ok(Feedback360.aggregate(collecting) === null, 'anonymita: <3 odpovědi → žádný agregát');
+  /* pending pro respondenta */
+  const invitee = collecting.respondents[0].personId;
+  ok(Feedback360.pendingFor(invitee).length === 1, 'pendingFor najde pozvánku respondenta');
+  /* vyplnění odpovědi → done, po všech → closed */
+  collecting.respondents.forEach(r8 => {
+    r8.ratings = { teamwork: 'PO', growth: 'KV', quality: 'PO' }; r8.strengths = 'x'; r8.growth = 'y'; r8.status = 'done';
+  });
+  collecting.status = 'closed'; Store.update('feedback360', collecting.id, {});
+  ok(Feedback360.aggregate(collecting) !== null, 'po 3 odpovědích agregát existuje');
+  /* tři pohledy render */
+  const tv = Feedback360Views.threeViewsHtml(closed.subjectId);
+  ok(tv.includes('f360') === false && tv.includes('<table'), 'tři pohledy: tabulka bez nepřeložených klíčů');
 })();
 
 /* --- 12) store migrace: stará DB bez keyPositions --- */

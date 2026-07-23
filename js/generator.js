@@ -513,7 +513,16 @@
       order.forEach((q, j) => { checklist['q' + q] = j < yesN; });
       const reports = people.filter(p => p.managerId === h.id);
       const successors = (i === 1 || yesN < 7) ? [] : reports.slice(0, i === 0 ? 2 : 1)
-        .map((r2, j) => ({ personId: r2.id, level: j === 0 ? 'key' : 'successor', readiness: j === 0 ? 'r1' : 'r12' }));
+        .map((r2, j) => {
+          const s = { personId: r2.id, level: j === 0 ? 'key' : 'successor', readiness: j === 0 ? 'r1' : 'r12' };
+          /* první klíčový nástupce má vyplněný checklist kandidáta (18/21 → vhodný) */
+          if (i === 0 && j === 0) {
+            s.checklist21 = {};
+            const ord = shuffle(Array.from({ length: 21 }, (_, k) => k + 1));
+            ord.forEach((q, k) => { s.checklist21['q' + q] = k < 18; });
+          }
+          return s;
+        });
       keyPositions.push({
         id: uid(), deptKey: h.deptKey, dept: h.dept, title: h.role, holderId: h.id,
         checklist, proposedBy: null, confirmedByHr: true, successors,
@@ -545,7 +554,42 @@
     });
     if (mgrsWithTeam[1]) notifications.push({ id: uid(), text: 'Talent check k debatě: ' + mgrsWithTeam[1].name, forRole: 'hr', at: today - 2 * day, read: false });
 
-    return { reviews, goals, kudos, checkins, notifications, keyPositions, talentChecks };
+    /* červená karta: jeden „potřebný potížista" (drží klíčovou pozici → priorita č. 1) */
+    const redCards = [];
+    const rcHolder = keyPositions.find(kp => kp.successors && !kp.successors.length && kp.holderId);
+    if (rcHolder) redCards.push({
+      id: uid(), personId: rcHolder.holderId, needed: true, trouble: true,
+      note: 'Kritická odbornost a kontakty, ale opakované konflikty v týmu.',
+      byId: null, at: today - 9 * day,
+    });
+
+    /* 360: jedna uzavřená (agregát ze 4 odpovědí) + jedna běžící s pozvánkami */
+    const feedback360 = [];
+    const f360subjA = keyPositions[0] && keyPositions[0].successors[0] ? people.find(p => p.id === keyPositions[0].successors[0].personId) : null;
+    if (f360subjA) {
+      const others = shuffle(employees.filter(p => p.id !== f360subjA.id)).slice(0, 4);
+      feedback360.push({
+        id: uid(), subjectId: f360subjA.id, requestedById: f360subjA.managerId,
+        period: CURRENT_PERIOD, deadline: today - 3 * day, status: 'closed',
+        respondents: others.map(p => ({
+          personId: p.id, group: p.deptKey === f360subjA.deptKey ? 'peer' : 'internal', status: 'done',
+          ratings: { teamwork: pick(['TN','PO','PO','KV']), growth: pick(['PO','KV','KV']), quality: pick(['TN','PO','KV']) },
+          strengths: pick(['Vždy si najde čas pomoct, i když sám hoří.', 'Skvěle vysvětluje složité věci.', 'Drží slovo - na co kývne, to dodá.', 'Klid v krizi, tým se o něj opírá.']),
+          growth: pick(['Víc delegovat, nedělat všechno sám.', 'Říkat si o zpětnou vazbu dřív.', 'Prezentovat výsledky i mimo tým.', 'Nebát se konfliktu, když je věcný.']),
+        })),
+      });
+    }
+    const f360subjB = shuffle(employees.filter(p => !f360subjA || p.id !== f360subjA.id))[0];
+    if (f360subjB) {
+      const invitees = shuffle(employees.filter(p => p.id !== f360subjB.id)).slice(0, 3);
+      feedback360.push({
+        id: uid(), subjectId: f360subjB.id, requestedById: f360subjB.managerId,
+        period: CURRENT_PERIOD, deadline: today + 7 * day, status: 'collecting',
+        respondents: invitees.map(p => ({ personId: p.id, group: p.deptKey === f360subjB.deptKey ? 'peer' : 'internal', status: 'invited', ratings: {}, strengths: '', growth: '' })),
+      });
+    }
+
+    return { reviews, goals, kudos, checkins, notifications, keyPositions, talentChecks, redCards, feedback360 };
   }
 
   /* ---------------- public API ---------------- */
@@ -569,11 +613,13 @@
       Store.replaceAll('notifications', g.notifications);
       Store.replaceAll('keyPositions', g.keyPositions || []);
       Store.replaceAll('talentChecks', g.talentChecks || []);
+      Store.replaceAll('redCards', g.redCards || []);
+      Store.replaceAll('feedback360', g.feedback360 || []);
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','checkins','notifications','keyPositions','talentChecks'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','checkins','notifications','keyPositions','talentChecks','redCards','feedback360'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

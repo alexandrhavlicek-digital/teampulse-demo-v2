@@ -50,6 +50,12 @@ Dashboard procesu (§2) říká, *jak jde papírování*; záložka **Talent & R
 
 **Talent matice (9-box)** — celá firma s filtrem oddělení; osa výkonu z váženého skóre, potenciál z talent sekcí manažerů, šipky = trend, ✎ = posun dohodnutý v talent checku. Klik na člověka otevře talent profil (skóre, flagy, cíle, proklik na hodnocení). Legenda u matice nese doporučenou akci pro každé pole — matice je odpověď na „koho rozvíjet", ne obrázek.
 
+**Checklist kandidáta** — klik na chip nástupce otevře 21 otázek v 7 okruzích; práh (default 16/21) nastavuješ v HR centru. Je doporučený, ne povinný — nástupce bez checklistu má jen jemnou výzvu „podlož checklistem". Vedle otázek vidíš podklady z dat (skóre, trend, pole matice) — odpovědi ale zůstávají úsudkem, ne výpočtem.
+
+**Červená karta — matice potřebnosti** — pro lidi, kteří kontinuitu ohrožují: potřebnost × problémovost, čtyři kvadranty s doporučenou akcí. „Potřebný potížista" je succession priorita č. 1 (⚑ znamená, že drží klíčovou pozici — urychli nástupnictví). Čistě interní označení, v org chartu červený kroužek.
+
+**360° zpětná vazba** — z talent profilu (nebo manažer z Podkladů z období) vyžádáš 360 od 3–6 respondentů. Anonymita tvrdě: jednotlivé odpovědi nevidí nikdo — ani ty; agregát se ukáže až od 3 odevzdaných. Výstup „tři pohledy" (já · okolí · manažer) s vyznačenými rozdíly je nejcennější podklad pro rozhovor.
+
 **Sestava pro poradu** — jedním klikem tisková sestava pro vedení: souhrn pokrytí, klíčové pozice s nástupci, retenční priority, rozložení matice a stav checků. Nahrazuje ruční skládání prezentace.
 
 Dvě zásady na závěr: talent data (potenciál, riziko odchodu, pozice v matici, nástupnictví) **zaměstnancům nikdy neukazuj** — platí stejná logika jako u pásem odměňování. A kalibruj: rozložení potenciálu per manažer ti řekne, kdo nehodnotí stejným metrem.

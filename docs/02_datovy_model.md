@@ -13,7 +13,7 @@ Store.list(coll) / get(coll, id) / insert(coll, item) / update(coll, id, patch)
 Store.remove(coll, id) / replaceAll(coll, items) / resetAll()
 ```
 
-Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`, `keyPositions`, `talentChecks`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
+Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`, `keyPositions`, `talentChecks`, `redCards`, `feedback360`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
 
 ## 2. Entity
 
@@ -64,7 +64,11 @@ confirmedByManager, due, type (personal|company), period
 ### keyPositions / talentChecks (modul Talent & nástupnictví — detail v 08)
 ```
 keyPositions: {id, deptKey, dept, title, holderId, checklist{q1..q12: bool|null},
-               proposedBy, confirmedByHr, successors: [{personId, level, readiness}]}
+               proposedBy, confirmedByHr,
+               successors: [{personId, level, readiness, checklist21{q1..q21}?}]}
+redCards:     {id, personId, needed, trouble, note, byId, at}
+feedback360:  {id, subjectId, requestedById, period, deadline, status,
+               respondents: [{personId, group, status, ratings{}, strengths, growth}]}
 talentChecks: {id, period, managerId, status (draft|debate|final),
                items: [{personId, box|null, source, note, attrition}],
                createdAt, sentAt, discussedAt}
@@ -94,5 +98,7 @@ theme (corp|glass|genz), locale (cs|en|de), onboarded, viewAs {role, personId}
 | notifications | `notifications` + scheduler (pg-boss / Supabase cron) | |
 | keyPositions | `key_positions` + `succession_candidates` | RLS: mgr svůj strom, HR vše; subjekt nikdy |
 | talentChecks | `talent_checks` + `talent_check_items` | draft čitelný JEN autorem; final propisuje overridy do matice |
+| redCards | `red_cards` | jen mgr+HR; subjekt nikdy |
+| feedback360 | `feedback_requests` + `feedback_responses` | respondent vidí jen svou odpověď; agregát (view) od 3 odpovědí pro mgr+HR |
 
 Validace, které musí backend vynucovat serverově (ne jen v UI): součet vah cílů v oblasti = 100; KPI vazba povinná u teamwork/quality; přechody stavového automatu (guardy z funkční specifikace §4); zápis verze při každém přechodu; přechody talent checku draft→debate→final (debate autor, final jen HR) a úplný zákaz přístupu subjektů k talent datům (talent sekce, matice, checky).

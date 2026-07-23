@@ -339,6 +339,13 @@
       if (['manager_done', 'conversation_scheduled', 'conversation_done'].includes(r.status))
         todos.push({ ico: icon('calendar', 16), txt: t('home.actionConversation') + ' - ' + (person(r.subjectId) || {}).name, hash: '#/review/' + r.id, d: ReviewLogic.daysLeft(r) });
     });
+    /* 360: pozvánky k vyplnění pro aktuální osobu */
+    const my360 = me && window.Feedback360 ? Feedback360.pendingFor(me.id) : [];
+    my360.forEach(f2 => todos.push({
+      ico: icon('heartPulse', 16),
+      txt: t('f360.todoFill') + ' - ' + ((person(f2.subjectId) || {}).name || ''),
+      f360: f2.id, d: Math.max(0, Math.ceil((f2.deadline - Date.now()) / 86400000)),
+    }));
     const myGoals = me ? Store.list('goals').filter(g => g.ownerId === me.id) : [];
     const lastKudos = Store.list('kudos').slice(-3).reverse();
     const confirmed = reviews().filter(r => r.period === Generator.CURRENT_PERIOD && ['confirmed', 'closed_by_hr'].includes(r.status)).length;
@@ -351,7 +358,7 @@
         <div class="card">
           <h2>${icon('doc', 18)}${esc(t('home.todo'))}</h2>
           ${todos.length ? todos.map(td => `
-            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" onclick="location.hash='${td.hash}'">
+            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : `onclick="location.hash='${td.hash}'"`}>
               ${td.ico} ${esc(td.txt)} <span class="badge ${td.d <= 7 ? 'b-amber' : ''}" style="margin-left:auto">${td.d} ${esc(t('home.daysLeft'))}</span>
             </button>`).join('') : `<div class="empty">${icon('spark', 52)}<br>${esc(t('home.noTodo'))}</div>`}
         </div>
@@ -374,6 +381,11 @@
             <div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}
         </div>
       </div>` : ''}`;
+
+    root.querySelectorAll('[data-f360]').forEach(b => b.onclick = () => {
+      const f2 = Store.get('feedback360', b.dataset.f360);
+      if (f2) Feedback360Views.respondModal(f2, me.id, render);
+    });
   };
 
   /* ---- my reviews ---- */
@@ -630,9 +642,10 @@
         </button>` : '';
       const kp = succ.kpByHolder[p.id];
       const sl = succ.succLevel[p.id];
+      const rcq = (succ.red || {})[p.id];
       const uncovered = kp && !(kp.successors || []).length;
       return `<div class="org-branch">
-        <div class="org-node ${kp ? 'org-kp' : ''} ${sl === 'key' ? 'org-succ-key' : sl ? 'org-succ-reg' : ''}"
+        <div class="org-node ${kp ? 'org-kp' : ''} ${rcq ? 'org-redcard' : sl === 'key' ? 'org-succ-key' : sl ? 'org-succ-reg' : ''}"
           ${kp ? `title="${esc(t('kp.legend.kp'))}: ${esc(kp.title)}${uncovered ? ' · ' + esc(t('kp.noSucc')) : ''}"` : sl ? `title="${esc(t(sl === 'key' ? 'kp.succKey' : 'kp.succReg'))}"` : ''}>
           ${avatar(p, 40)}<div class="nm">${esc(p.name)}</div><div class="rl">${esc(p.role)}</div>
           ${uncovered ? `<span class="org-flag" title="${esc(t('kp.noSucc'))}">!</span>` : ''}${toggle}</div>
@@ -657,12 +670,13 @@
           </div>
         </div>
       </div>
-      ${showSucc && Store.list('keyPositions').length ? `
+      ${showSucc && (Store.list('keyPositions').length || Store.list('redCards').length) ? `
       <div class="card" style="margin-top:12px">
         <div class="org-legend">
           <span><i class="ol-kp"></i>${esc(t('kp.legend.kp'))}</span>
           <span><i class="ol-key"></i>${esc(t('kp.succKey'))}</span>
           <span><i class="ol-reg"></i>${esc(t('kp.succReg'))}</span>
+          <span><i class="ol-red"></i>${esc(t('rc.legend'))}</span>
           <span><i class="ol-flag">!</i>${esc(t('kp.noSucc'))}</span>
           <span style="margin-left:auto;color:var(--text-muted);font-size:.78rem">${icon('lock', 12)} ${esc(t('kp.legend.privacy'))}</span>
         </div>
@@ -898,6 +912,10 @@
               ${['q', 'semi', 'off'].map(k => `<option value="${k}" ${(((co && co.cycleConfig) || {}).talentCheck || 'q') === k ? 'selected' : ''}>${esc(t('tc.cad.' + k))}</option>`).join('')}
             </select>
           </div>
+          <div class="field" style="display:flex;align-items:center;gap:10px">
+            <label style="flex:1;margin:0">${esc(t('cand.threshold'))} <small style="color:var(--text-muted)">(/21)</small></label>
+            <input class="input" style="width:160px" type="number" min="11" max="21" id="pol-cand" value="${(((co && co.cycleConfig) || {}).candidateThreshold || 16)}">
+          </div>
           <button class="btn btn-sm" id="pol-save">${esc(t('common.save'))}</button>
         </div>
         <div class="card"><h2>${icon('gauge', 18)}${esc(t('hr.compBands'))}</h2>
@@ -964,9 +982,11 @@
       co.goalPolicy = gp;
       const semiEl = root.querySelector('#pol-semi');
       const tcEl = root.querySelector('#pol-tc');
+      const candEl = root.querySelector('#pol-cand');
       co.cycleConfig = Object.assign({ semiEnabled: true }, co.cycleConfig,
         semiEl ? { semiEnabled: semiEl.checked } : {},
-        tcEl ? { talentCheck: tcEl.value } : {});
+        tcEl ? { talentCheck: tcEl.value } : {},
+        candEl ? { candidateThreshold: Math.max(11, Math.min(21, +candEl.value || 16)) } : {});
       Store.setCompany(co); toast(t('common.saved'));
     };
     const cSimple = root.querySelector('#comp-simple');
