@@ -902,3 +902,18 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 .org-legend .ol-key { border: 3px solid var(--ok); }
 .org-legend .ol-reg { border: 3px solid var(--accent-2); }
 .org-legend .ol-flag { background: var(--danger); color: #fff; font-size: .68rem; font-weight: 800; }
+
+/* ===== kvartální talent check ===== */
+.ng-cell.ng-over { outline: 2px dashed var(--accent); outline-offset: -3px; background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+.ng-token[draggable="true"] { cursor: grab; }
+.ng-token[draggable="true"]:active { cursor: grabbing; }
+.ng-mv {
+  position: absolute; left: -6px; top: -6px; font-style: normal;
+  font-size: .62rem; line-height: 1; padding: 2px 3px; border-radius: 6px;
+  background: var(--accent); color: var(--accent-contrast);
+}
+.tc-tray {
+  margin-top: 14px; padding: 12px; border: 1px dashed var(--border);
+  border-radius: var(--radius); font-size: .86rem; background: var(--surface-2);
+}
+.tc-banner { border-color: var(--accent); }

@@ -85,7 +85,7 @@ ok(revSrc.includes("r.type === 'annual' ? talentSectionHtml(f)"), 'talent sekce 
 /* --- 8) i18n úplnost: tal.* a rev.talent.* klíče ve všech jazycích --- */
 const keysUsed = new Set();
 [fs.readFileSync('js/talent.js', 'utf8'), revSrc].forEach(src => {
-  for (const m of src.matchAll(/t\('((?:tal|rev\.talent)[^']*)'/g)) keysUsed.add(m[1]);
+  for (const m of src.matchAll(/(?<![A-Za-z.])t\('((?:tal|rev\.talent)[^']*)'/g)) keysUsed.add(m[1]);
 });
 /* dynamické klíče */
 ['pot.low','pot.mid','pot.high','rd.r1','rd.r12','rd.no','att.low','att.mid','att.high'].forEach(k => keysUsed.add('tal.' + k));
@@ -155,6 +155,46 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   TalentViews.renderHr(r5);
   ok(r5.innerHTML.includes('kp-row') && r5.innerHTML.includes('kp-add-btn'), 'sekce Nástupnictví v HR view');
   ok(!r5.innerHTML.match(/kp\.\w/), 'žádné nepřeložené kp.* klíče');
+})();
+
+/* --- 11b) kvartální talent check --- */
+(function () {
+  const checks = Store.list('talentChecks');
+  ok(checks.length === 2, `seed talentChecks (${checks.length}/2)`);
+  ok(checks.some(c => c.status === 'final') && checks.some(c => c.status === 'debate'), 'stavy final + debate v seedu');
+  /* override z finálního checku se propíše do matice */
+  const fin = checks.find(c => c.status === 'final');
+  const ovItem = fin.items.find(i => i.source === 'override');
+  ok(!!ovItem, 'finální check má override');
+  const e = TalentLogic.entryOf(Store.get('people', ovItem.personId));
+  ok(e.row === ovItem.box.pot && e.col === ovItem.box.perf && e.overridden, 'override se propsal do entryOf');
+  /* period + kadence */
+  ok(/^Q[1-4] \d{4}$/.test(TalentCheck.tcPeriod()), 'tcPeriod formát Q');
+  const co2 = Store.getCompany(); co2.cycleConfig = Object.assign({}, co2.cycleConfig, { talentCheck: 'semi' }); Store.setCompany(co2);
+  ok(/^H[12] \d{4}$/.test(TalentCheck.tcPeriod()), 'tcPeriod formát H při pololetní kadenci');
+  co2.cycleConfig.talentCheck = 'q'; Store.setCompany(co2);
+  /* tcStart vytvoří draft s computed items */
+  const ps3 = Store.list('people');
+  const mgr3 = ps3.find(m => ps3.some(p => p.managerId === m.id) && !TalentCheck.tcOf(m.id));
+  const team3 = ps3.filter(p => p.managerId === mgr3.id);
+  const draft = TalentCheck.tcStart(mgr3, team3);
+  ok(draft.status === 'draft' && draft.items.length === team3.length && draft.items.every(i => i.source === 'computed' && i.box === null), 'tcStart: draft s computed items');
+  /* workflow: draft → debate → final */
+  Store.update('talentChecks', draft.id, { status: 'debate', sentAt: Date.now() });
+  Store.update('talentChecks', draft.id, { status: 'final', discussedAt: Date.now() });
+  ok(TalentCheck.tcOf(mgr3.id).status === 'final', 'přechody stavů fungují');
+  Store.remove('talentChecks', draft.id);
+  /* render checku pro manažera (draft se založí) */
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mgr3.id } });
+  const r6 = fakeEl();
+  try {
+    TalentViews.renderCheck(r6, null);
+    ok(r6.innerHTML.includes('nine-grid') && r6.innerHTML.includes('data-cell'), 'renderCheck: editovatelný grid s drop zónami');
+    ok(!r6.innerHTML.match(/tc\.\w/), 'žádné nepřeložené tc.* klíče');
+  } catch (err) { ok(false, 'renderCheck spadl: ' + err.message); }
+  const created = TalentCheck.tcOf(mgr3.id);
+  if (created) Store.remove('talentChecks', created.id);
+  Store.patchSettings({ viewAs: null });
 })();
 
 /* --- 12) store migrace: stará DB bez keyPositions --- */

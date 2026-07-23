@@ -1,6 +1,6 @@
 # TeamPulse — přehled systému (executive summary)
 
-**Verze dokumentace:** 1.0 · **Datum:** 2026-06-12 · **Stav:** demo v2 (bez AI)
+**Verze dokumentace:** 1.2 · **Datum:** 2026-07-22 · **Stav:** demo v2 (bez AI) + modul Talent & nástupnictví
 
 ## Co je TeamPulse
 
@@ -15,7 +15,9 @@ Performance & Growth platforma pro firmy 15–300 lidí. Digitalizuje hodnoticí
 
 ## Hlavní funkce (demo v2)
 
-Onboarding s generátorem fiktivní firmy (IT / cestovní kancelář / automotive výroba, 15–200 lidí) nebo prázdné prostředí s pozdějším importem. Tři role (hodnocený, hodnotitel, HR) s odlišnou navigací. Hodnoticí workflow v 5 fázích s verzemi v1/v2/v3 a auditní stopou. Šestikrokový wizard sebehodnocení s autosave. Kompetenční rámec: jednoduchý (3 oblasti) / detailní (7 vážených kompetencí dle DER modelu). Správa firemních a týmových KPI. HR centrum: cykly, eskalace, rozložení stavů a ratingů, pravidla cílů, pásma odměňování. Org chart s pan/zoom a sbalováním větví. Kudos, 1:1 check-iny, tisk/PDF, nápověda dle rolí, tři designová témata, jazyky CZ/EN/DE.
+Onboarding s generátorem fiktivní firmy (IT / cestovní kancelář / automotive výroba, 15–200 lidí) nebo prázdné prostředí s pozdějším importem. Tři role (hodnocený, hodnotitel, HR) s odlišnou navigací. Hodnoticí workflow v 5 fázích s verzemi v1/v2/v3 a auditní stopou. Šestikrokový wizard sebehodnocení s autosave. Kompetenční rámec: jednoduchý (3 oblasti) / detailní (7 vážených kompetencí dle DER modelu). Správa firemních a týmových KPI. HR centrum: cykly, eskalace, rozložení stavů a ratingů, pravidla cílů, pásma odměňování. Org chart s pan/zoom a sbalováním větví. Kudos, 1:1 check-iny, tisk/PDF, nápověda dle rolí, čtyři designová témata (brand/corp/glass/genz), jazyky CZ/EN/DE.
+
+**Modul Talent & nástupnictví (2026-07, dle DERTOUR succession metodiky):** soukromá talent sekce v manažerském hodnocení → 9-box matice s fotkovými žetony (HR záložka Talent & Reporty: retenční priority, trend, talent profily), manažerský dashboard Můj tým, klíčové pozice s 12otázkovým checklistem a nástupci (overlay v org chartu), kvartální talent check se stavy draft → debata s HR → zamrazený snapshot (drag & drop posuny s poznámkou) a tisková sestava pro poradu vedení. Zaměstnanec z tohoto modulu nevidí nic — viz 08_talent_succession.md.
 
 ## Mapa dokumentace
 
@@ -28,3 +30,4 @@ Onboarding s generátorem fiktivní firmy (IT / cestovní kancelář / automotiv
 | 05_prirucka_hodnotitel.md | Manažeři | Hodnocení týmu, rozhovor, shoda |
 | 06_prirucka_hr.md | HR | Cykly, KPI, pravidla, odměňování |
 | 07_testovani.md | QA | Testovací scénáře a smoke testy |
+| 08_talent_succession.md | Vývoj | **Realizační dokument** modulu Talent & nástupnictví (API, datový model, stavové automaty, soukromí) |

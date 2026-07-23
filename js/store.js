@@ -30,6 +30,7 @@
         settings: { theme: 'brand', locale: 'cs', onboarded: false, viewAs: null },
         people: [], reviews: [], goals: [], kudos: [], checkins: [], notifications: [],
         keyPositions: [],       // succession: [{id,deptKey,title,holderId,checklist{q1..q12},successors:[{personId,level,readiness}]}]
+        talentChecks: [],       // kvartální talent check: [{id,period,managerId,status:draft|debate|final,items:[{personId,box{pot,perf}|null,source,note,attrition}],createdAt,sentAt,discussedAt}]
       };
     }
     function persist() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }

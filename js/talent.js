@@ -45,16 +45,30 @@
   /* buňky: b{pot}{perf}, pot 3 = vysoký (horní řada) */
   const BOXES = [['b31', 'b32', 'b33'], ['b21', 'b22', 'b23'], ['b11', 'b12', 'b13']];
 
+  /* override z finálního (prodiskutovaného) kvartálního checku má přednost
+     před vypočtenou pozicí - matice ukazuje stav dohodnutý manažerem a HR */
+  function finalOverrideBox(pid) {
+    let best = null;
+    Store.list('talentChecks').forEach(c => {
+      if (c.status !== 'final') return;
+      const it = (c.items || []).find(i => i.personId === pid && i.source === 'override' && i.box);
+      if (it && (!best || (c.discussedAt || 0) > best.at)) best = { box: it.box, at: c.discussedAt || 0 };
+    });
+    return best && best.box;
+  }
+
   function entryOf(p) {
     const ti = talentOf(p.id);
     const si = scoreInfo(p.id);
     const score = si.cur ? si.cur.score : null;
     const trend = si.cur && si.prev ? Math.sign(si.cur.score - si.prev.score) : 0;
+    const ov = finalOverrideBox(p.id);
     return {
       p, tal: ti ? ti.tal : null, review: ti ? ti.review : (si.cur ? si.cur.review : null),
       score, trend,
-      col: perfCol(score),
-      row: ti ? POT_ROW[ti.tal.potential] || null : null,
+      col: ov ? ov.perf : perfCol(score),
+      row: ov ? ov.pot : (ti ? POT_ROW[ti.tal.potential] || null : null),
+      overridden: !!ov,
     };
   }
 
@@ -63,26 +77,30 @@
   /* ---------------- grid component ---------------- */
   /* Sdílená komponenta (HR pohled, později Můj tým + kvartální check).
      entries: výstupy entryOf; opts: {small} */
-  function tokenHtml(e) {
+  function tokenHtml(e, opts) {
+    opts = opts || {};
     const arrow = e.trend > 0 ? `<i class="ng-tr up" title="${esc(t('tal.trendUp'))}">▲</i>`
       : e.trend < 0 ? `<i class="ng-tr down" title="${esc(t('tal.trendDown'))}">▼</i>` : '';
-    return `<button class="ng-token" data-tal-p="${e.p.id}" title="${esc(e.p.name)} · ${esc(e.p.role)}">
-      <span class="ng-ava">${avatar(e.p, 40)}${arrow}</span>
+    const moved = e.moved ? `<i class="ng-mv" title="${esc(t('tc.moved'))}${e.note ? ': ' + esc(e.note) : ''}">✎</i>` : '';
+    return `<button class="ng-token" data-tal-p="${e.p.id}" ${opts.drag ? 'draggable="true"' : ''}
+      title="${esc(e.p.name)} · ${esc(e.p.role)}${e.note ? ' · ' + esc(e.note) : ''}">
+      <span class="ng-ava">${avatar(e.p, 40)}${arrow}${moved}</span>
       <span class="ng-nm">${esc(e.p.firstName)}</span>
     </button>`;
   }
 
-  function gridHtml(entries) {
+  function gridHtml(entries, opts) {
+    opts = opts || {};
     const placed = entries.filter(e => e.row && e.col);
     const cell = (row, col) => {
       const key = BOXES[3 - row][col - 1];
       const items = placed.filter(e => e.row === row && e.col === col);
       const tone = key === 'b33' ? ' ng-best' : key === 'b11' ? ' ng-risk' : '';
-      return `<div class="ng-cell${tone}">
+      return `<div class="ng-cell${tone}" ${opts.drag ? `data-cell="${row}:${col}"` : ''}>
         <div class="ng-head"><h4>${esc(t('tal.box.' + key))}</h4>
           <span class="badge">${items.length}</span></div>
         <div class="ng-act">${esc(t('tal.act.' + key))}</div>
-        <div class="ng-tokens">${items.map(tokenHtml).join('')}</div>
+        <div class="ng-tokens">${items.map(e => tokenHtml(e, opts)).join('')}</div>
       </div>`;
     };
     return `<div class="nine-grid">
@@ -181,6 +199,8 @@
         </div>
       </div>` : ''}
 
+      ${tcHrCardHtml()}
+
       ${successionCardHtml(Store.list('keyPositions').filter(kp => !talUi.dept || kp.deptKey === talUi.dept))}
 
       <div class="card">
@@ -212,6 +232,7 @@
     if (dsel) dsel.onchange = e2 => { talUi.dept = e2.target.value; renderHr(root); };
     root.querySelectorAll('[data-tal-p]').forEach(b => b.onclick = () => profileModal(b.dataset.talP));
     bindSuccessionCard(root, () => renderHr(root));
+    bindTcHrCard(root);
   }
 
   /* ---------------- succession: klíčové pozice ----------------
@@ -438,9 +459,19 @@
     const placed = entries.filter(e => e.row && e.col);
     const retention = placed.filter(e => e.tal && e.tal.potential === 'high' && ['mid', 'high'].includes(e.tal.attrition));
 
+    const check = tcOf(me.id);
     root.innerHTML = `
       <h1 class="page-title">${esc(t('mt.title'))} <span class="badge b-blue">${team.length}</span></h1>
       <p class="page-sub">${esc(t('mt.sub'))}</p>
+      ${tcCadence() !== 'off' && (!check || check.status === 'draft') ? `
+      <div class="card tc-banner">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          ${icon('clock', 22)}
+          <div style="flex:1;min-width:200px"><b>${esc(t('tc.banner'))} · ${esc(tcPeriod())}</b><br>
+            <small style="color:var(--text-muted)">${esc(t('tc.bannerSub'))}</small></div>
+          <button class="btn btn-primary btn-sm" onclick="location.hash='#/talentcheck'">${esc(t(check ? 'tc.continue' : 'tc.start'))} ${icon('arrowR', 14)}</button>
+        </div>
+      </div>` : check && check.status === 'debate' ? `<p class="callout" style="margin-bottom:14px">${icon('checkin', 16)} <span>${esc(t('tc.readonly'))} · ${esc(check.period)}</span></p>` : ''}
       ${retention.length ? `<p class="callout" style="margin-bottom:14px">${icon('alert', 16)}
         <span><b>${esc(t('tal.retention'))}:</b> ${retention.map(e => esc(e.p.name)).join(', ')}</span></p>` : ''}
       <div class="card">
@@ -470,5 +501,273 @@
     root.querySelectorAll('[data-tal-p]').forEach(bn => bn.onclick = () => profileModal(bn.dataset.talP));
   }
 
-  window.TalentViews = { renderHr, renderMyTeam, profileModal };
+  /* ---------------- kvartální talent check ----------------
+     Rytmus z DERTOUR praxe: vynucený moment jednou za kvartál.
+     Stavový model chrání princip „nejdřív sám, pak debata":
+       draft  - vidí JEN manažer (HR jen ví, že je rozpracováno)
+       debate - manažer odeslal, HR vidí obsah, proběhne kalibrační debata
+       final  - HR označí prodiskutováno; overridy se propíší do matice */
+  function tcCadence() {
+    const co = Store.getCompany();
+    return ((co && co.cycleConfig) || {}).talentCheck || 'q'; /* q | semi | off (default zapnuto, rozhodnutí 2026-07-22) */
+  }
+  function tcPeriod(d) {
+    d = d || new Date();
+    return tcCadence() === 'semi'
+      ? 'H' + (d.getMonth() < 6 ? 1 : 2) + ' ' + d.getFullYear()
+      : 'Q' + (Math.floor(d.getMonth() / 3) + 1) + ' ' + d.getFullYear();
+  }
+  function tcOf(managerId, period) {
+    return Store.list('talentChecks').find(c => c.managerId === managerId && c.period === (period || tcPeriod())) || null;
+  }
+  function tcStart(me, team) {
+    /* computed pozice se NEukládají - odvozují se živě z entryOf; ukládá se jen override */
+    const items = team.map(p => {
+      const e = entryOf(p);
+      return { personId: p.id, box: null, source: 'computed', note: '', attrition: e.tal ? e.tal.attrition : null };
+    });
+    return Store.insert('talentChecks', {
+      id: uid(), period: tcPeriod(), managerId: me.id, status: 'draft',
+      items, createdAt: Date.now(), sentAt: null, discussedAt: null,
+    });
+  }
+  window.TalentCheck = { tcCadence, tcPeriod, tcOf, tcStart };
+
+  function tcEntries(check) {
+    return check.items.map(it => {
+      const p = Store.get('people', it.personId); if (!p) return null;
+      const base = entryOf(p);
+      const ov = it.source === 'override' && it.box;
+      return { p, row: ov ? it.box.pot : base.row, col: ov ? it.box.perf : base.col,
+        trend: base.trend, tal: base.tal, score: base.score,
+        moved: !!ov, note: it.note, item: it };
+    }).filter(Boolean);
+  }
+
+  function tcStatusBadge(st) {
+    const cls = { draft: 'b-amber', debate: 'b-blue', final: 'b-green' }[st] || '';
+    return `<span class="badge ${cls}">${esc(t('tc.status.' + (st || 'none')))}</span>`;
+  }
+
+  /* modal nad žetonem v draftu: poznámka k posunu, riziko odchodu, reset */
+  function tcPersonModal(check, item, rerender) {
+    const p = Store.get('people', item.personId); if (!p) return;
+    modal(`<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+        ${avatar(p, 44)}<div><h3 style="margin:0">${esc(p.name)}</h3>
+        <span style="color:var(--text-muted);font-size:.86rem">${esc(p.role)}</span></div></div>
+      ${item.source === 'override' ? `<p class="hint" style="margin-bottom:10px">${icon('alert', 13)} ${esc(t('tc.moved'))}</p>` : ''}
+      <div class="field"><label>${esc(t('tc.note'))}</label>
+        <textarea class="input" id="tcp-note" style="min-height:60px">${esc(item.note || '')}</textarea></div>
+      <div class="field"><label>${esc(t('rev.talent.attrition'))}</label>
+        <div class="scale-row">${['low', 'mid', 'high'].map(a =>
+          `<button type="button" class="scale-opt ${item.attrition === a ? 'sel' : ''}" data-tca="${a}">${esc(t('tal.att.' + a))}</button>`).join('')}</div></div>
+      <div class="wizard-foot">
+        ${item.source === 'override' ? `<button class="btn" id="tcp-reset">${icon('refresh', 13)} ${esc(t('tc.reset'))}</button>` : '<span></span>'}
+        <button class="btn btn-primary" id="tcp-save">${esc(t('common.save'))}</button>
+      </div>`, m => {
+      m.querySelectorAll('[data-tca]').forEach(bn => bn.onclick = () => {
+        m.querySelectorAll('[data-tca]').forEach(x => x.classList.remove('sel'));
+        bn.classList.add('sel'); item.attrition = bn.dataset.tca;
+      });
+      m.querySelector('#tcp-save').onclick = () => {
+        item.note = m.querySelector('#tcp-note').value;
+        Store.update('talentChecks', check.id, {}); closeModal(); rerender();
+      };
+      const rst = m.querySelector('#tcp-reset');
+      if (rst) rst.onclick = () => {
+        item.box = null; item.source = 'computed'; item.note = '';
+        Store.update('talentChecks', check.id, {}); closeModal(); rerender();
+      };
+    });
+  }
+
+  /* manažerský flow (#/talentcheck) - HR sem může jen read-only přes param */
+  function renderCheck(root, managerIdParam) {
+    const va = App.viewAs();
+    const isHrView = va.role === 'hr' && managerIdParam;
+    const me = isHrView ? Store.get('people', managerIdParam) : (va.personId ? Store.get('people', va.personId) : null);
+    const team = me ? Store.list('people').filter(p => p.managerId === me.id) : [];
+    if (!me || !team.length) {
+      root.innerHTML = `<h1 class="page-title">${esc(t('tc.title'))}</h1>
+        <div class="card"><div class="empty">${icon('team', 52)}<br>${esc(t('mt.empty'))}</div></div>`;
+      return;
+    }
+    let check = tcOf(me.id);
+    if (!check) {
+      if (isHrView) { root.innerHTML = `<div class="card"><div class="empty">${icon('clock', 44)}<br>${esc(t('tc.status.none'))}</div></div>`; return; }
+      check = tcStart(me, team);
+    }
+    const editable = !isHrView && check.status === 'draft';
+    const entries = tcEntries(check);
+    const unplaced = entries.filter(e => !(e.row && e.col));
+    const rerender = () => renderCheck(root, managerIdParam);
+
+    /* klíčové pozice týmu k potvrzení */
+    const ids = new Set(team.map(p => p.id).concat(me.id));
+    const myKps = Store.list('keyPositions').filter(kp => kp.holderId && ids.has(kp.holderId) && kpRated(kp) && kpIsKey(kp));
+
+    root.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1 class="page-title" style="margin:0">${esc(t('tc.title'))} · ${esc(check.period)}</h1>
+        ${tcStatusBadge(check.status)}
+        ${isHrView ? `<span class="badge">${icon('team', 12)} ${esc(me.name)}</span>` : ''}
+      </div>
+      <p class="page-sub">${esc(t(editable ? 'tc.sub' : check.status === 'debate' ? 'tc.readonly' : 'tc.finalInfo'))}</p>
+
+      <div class="card">
+        <h2>${icon('grid9', 18)}${esc(t('mt.gridTitle'))}</h2>
+        ${editable ? `<p class="callout" style="margin-bottom:12px">${icon('bulb', 16)} ${esc(t('tc.instructions'))}</p>` : ''}
+        ${gridHtml(entries, { drag: editable })}
+        ${unplaced.length ? `<div class="tc-tray"><b>${esc(t('tal.noEstimate'))}</b> - ${esc(t('tc.trayHint'))}
+          <div class="ng-tokens" style="margin-top:8px">${unplaced.map(e => tokenHtml(e, { drag: editable })).join('')}</div></div>` : ''}
+      </div>
+
+      ${myKps.length ? `<div class="card">
+        <h2>${icon('tree', 18)}${esc(t('tc.succStep'))}</h2>
+        <p class="page-sub" style="margin-bottom:8px">${esc(t('tc.succStepSub'))}</p>
+        ${myKps.map(kp => {
+          const holder = Store.get('people', kp.holderId);
+          return `<div class="kp-row" ${editable ? `data-tc-kp="${kp.id}"` : 'style="cursor:default"'}>
+            <div class="kp-main"><b>${esc(kp.title)}</b>
+              <div class="kp-holder">${holder ? avatar(holder, 24) + ' ' + esc(holder.name) : '-'}</div></div>
+            <div class="kp-succs">${(kp.successors || []).length ? kp.successors.map(succChip).join('') : `<span class="badge b-red">${icon('alert', 12)} ${esc(t('kp.noSucc'))}</span>`}</div>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+
+      <div class="card">
+        <div class="wizard-foot">
+          ${editable ? `<button class="btn" id="tc-save">${esc(t('tc.saveDraft'))}</button>
+            <button class="btn btn-primary" id="tc-send">${esc(t('tc.send'))} ${icon('send', 14)}</button>`
+          : isHrView && check.status === 'debate' ? `<span></span>
+            <button class="btn btn-primary" id="tc-final">${icon('check', 14)} ${esc(t('tc.markDiscussed'))}</button>`
+          : `<span class="page-sub">${check.status === 'final' && check.discussedAt ? esc(t('tc.discussed')) + ' · ' + UI.fmtDate(check.discussedAt) : ''}</span><span></span>`}
+        </div>
+      </div>`;
+
+    /* drag & drop */
+    if (editable) {
+      root.querySelectorAll('.ng-token[draggable]').forEach(tk => {
+        tk.addEventListener('dragstart', ev => ev.dataTransfer.setData('text/plain', tk.dataset.talP));
+      });
+      root.querySelectorAll('.ng-cell[data-cell]').forEach(cellEl => {
+        cellEl.addEventListener('dragover', ev => { ev.preventDefault(); cellEl.classList.add('ng-over'); });
+        cellEl.addEventListener('dragleave', () => cellEl.classList.remove('ng-over'));
+        cellEl.addEventListener('drop', ev => {
+          ev.preventDefault(); cellEl.classList.remove('ng-over');
+          const pid = ev.dataTransfer.getData('text/plain');
+          const [row, col] = cellEl.dataset.cell.split(':').map(Number);
+          const it = check.items.find(i => i.personId === pid);
+          if (it) { it.box = { pot: row, perf: col }; it.source = 'override'; Store.update('talentChecks', check.id, {}); rerender(); }
+        });
+      });
+      root.querySelectorAll('.ng-token').forEach(tk => tk.onclick = () => {
+        const it = check.items.find(i => i.personId === tk.dataset.talP);
+        if (it) tcPersonModal(check, it, rerender);
+      });
+      root.querySelectorAll('[data-tc-kp]').forEach(row2 => row2.onclick = () =>
+        kpEditModal(Store.get('keyPositions', row2.dataset.tcKp), rerender));
+      const sv = root.querySelector('#tc-save');
+      if (sv) sv.onclick = () => { Store.update('talentChecks', check.id, {}); UI.toast(t('common.saved')); };
+      const snd = root.querySelector('#tc-send');
+      if (snd) snd.onclick = () => {
+        Store.update('talentChecks', check.id, { status: 'debate', sentAt: Date.now() });
+        UI.notify(t('tc.notifSent') + ' - ' + me.name, 'hr');
+        UI.toast(t('tc.sent')); rerender();
+      };
+    } else {
+      root.querySelectorAll('.ng-token').forEach(tk => tk.onclick = () => profileModal(tk.dataset.talP));
+      const fin = root.querySelector('#tc-final');
+      if (fin) fin.onclick = () => {
+        Store.update('talentChecks', check.id, { status: 'final', discussedAt: Date.now() });
+        UI.notify(t('tc.notifFinal') + ' - ' + me.name, 'manager');
+        UI.toast(t('tc.discussed')); rerender();
+      };
+    }
+  }
+
+  /* HR karta: stav checků per manažer + kadence */
+  function tcHrCardHtml() {
+    if (tcCadence() === 'off') return '';
+    const ps = Store.list('people');
+    const managers = ps.filter(m => ps.some(p => p.managerId === m.id));
+    const rows = managers.map(m => {
+      const c = tcOf(m.id);
+      return `<div class="kp-row" ${c && c.status !== 'draft' ? `data-tc-open="${m.id}"` : 'style="cursor:default"'}>
+        <div class="kp-main" style="display:flex;gap:8px;align-items:center">${avatar(m, 26)} <b>${esc(m.name)}</b>
+          <small style="color:var(--text-muted)">${ps.filter(p => p.managerId === m.id).length} ${esc(t('ob.people'))}</small></div>
+        <div class="kp-mid">${tcStatusBadge(c ? c.status : null)}</div>
+        <div class="kp-succs">${c && c.status === 'debate' ? `<span class="badge b-blue">${icon('checkin', 12)} ${esc(t('tc.awaitingDebate'))}</span>` : ''}
+          ${c && c.status === 'final' && c.discussedAt ? `<small style="color:var(--text-muted)">${UI.fmtDate(c.discussedAt)}</small>` : ''}</div>
+      </div>`;
+    }).join('');
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">${icon('clock', 18)}${esc(t('tc.hrCard'))} · ${esc(tcPeriod())}</h2>
+        <span style="flex:1"></span>
+        <button class="btn btn-sm" id="tc-print">${icon('print', 14)} ${esc(t('tc.print'))}</button>
+      </div>
+      <p class="page-sub" style="margin:6px 0 8px">${esc(t('tc.hrCardSub'))}</p>
+      ${rows || `<p class="page-sub">-</p>`}
+    </div>`;
+  }
+  function bindTcHrCard(root) {
+    root.querySelectorAll('[data-tc-open]').forEach(r2 => r2.onclick = () => { location.hash = '#/talentcheck/' + r2.dataset.tcOpen; });
+    const pr = root.querySelector('#tc-print');
+    if (pr) pr.onclick = printBoardReport;
+  }
+
+  /* ---------------- tisková sestava pro poradu vedení ---------------- */
+  function printBoardReport() {
+    const co = Store.getCompany();
+    const ps = Store.list('people').filter(p => p.managerId);
+    const entries = ps.map(entryOf);
+    const placed = entries.filter(e => e.row && e.col);
+    const kps = Store.list('keyPositions').filter(kp => kpRated(kp) && kpIsKey(kp));
+    const uncovered = kps.filter(kp => !(kp.successors || []).length);
+    const retention = placed.filter(e => e.tal && e.tal.potential === 'high' && ['mid', 'high'].includes(e.tal.attrition));
+    const managers = Store.list('people').filter(m => Store.list('people').some(p => p.managerId === m.id));
+    const pname = pid => { const p = Store.get('people', pid); return p ? p.name : '?'; };
+
+    const pr = document.getElementById('print-root');
+    pr.innerHTML = `
+      <h1>${esc(co ? co.name : 'TeamPulse')} - ${esc(t('tc.reportTitle'))}</h1>
+      <p class="meta">${esc(tcPeriod())} · ${UI.fmtDate(Date.now())} · ${esc(t('tal.privacyNote'))}</p>
+
+      <h2>${esc(t('tc.reportSummary'))}</h2>
+      <table><tr><th>${esc(t('tal.mapped'))}</th><th>${esc(t('tal.box.b33'))}</th><th>${esc(t('tal.retention'))}</th><th>${esc(t('kp.keyCount'))}</th><th>${esc(t('kp.noSucc'))}</th></tr>
+      <tr><td>${placed.length}/${entries.length}</td><td>${placed.filter(e => e.row === 3 && e.col === 3).length}</td><td>${retention.length}</td><td>${kps.length}</td><td>${uncovered.length}</td></tr></table>
+
+      <h2>${esc(t('kp.sectionTitle'))}</h2>
+      <table><tr><th>${esc(t('kp.title'))}</th><th>${esc(t('people.dept'))}</th><th>${esc(t('kp.holder'))}</th><th>${esc(t('kp.checklist'))}</th><th>${esc(t('kp.succ'))}</th></tr>
+      ${Store.list('keyPositions').map(kp => `<tr>
+        <td>${esc(kp.title)}</td><td>${esc(kp.dept || kp.deptKey || '-')}</td>
+        <td>${kp.holderId ? esc(pname(kp.holderId)) : esc(t('kp.vacancy'))}</td>
+        <td>${kpYes(kp)}/12 ${esc(t('kp.yes'))} - ${esc(t(kpRated(kp) ? (kpIsKey(kp) ? 'kp.result.key' : 'kp.result.notKey') : 'kp.result.unrated'))}</td>
+        <td>${(kp.successors || []).map(s => esc(pname(s.personId)) + ' (' + esc(t(s.level === 'key' ? 'kp.succKey' : 'kp.succReg')) + (s.readiness ? ', ' + esc(t('tal.rd.' + s.readiness)) : '') + ')').join('; ') || (kpRated(kp) && kpIsKey(kp) ? '⚠ ' + esc(t('kp.noSucc')) : '-')}</td>
+      </tr>`).join('')}</table>
+
+      ${retention.length ? `<h2>${esc(t('tal.retention'))}</h2>
+      <table><tr><th>${esc(t('people.name'))}</th><th>${esc(t('people.role'))}</th><th>${esc(t('rev.talent.attrition'))}</th></tr>
+      ${retention.map(e => `<tr><td>${esc(e.p.name)}</td><td>${esc(e.p.role)}</td><td>${esc(t('tal.att.' + e.tal.attrition))}</td></tr>`).join('')}</table>` : ''}
+
+      <h2>${esc(t('tal.gridTitle'))}</h2>
+      <table>${[3, 2, 1].map(row => `<tr>${[1, 2, 3].map(col => {
+        const key = BOXES[3 - row][col - 1];
+        const items = placed.filter(e => e.row === row && e.col === col);
+        return `<td style="vertical-align:top;width:33%"><b>${esc(t('tal.box.' + key))}</b> (${items.length})<br>
+          <small>${items.map(e => esc(e.p.name)).join(', ') || '-'}</small></td>`;
+      }).join('')}</tr>`).join('')}</table>
+
+      <h2>${esc(t('tc.hrCard'))} · ${esc(tcPeriod())}</h2>
+      <table><tr><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.status'))}</th></tr>
+      ${managers.map(m => { const c = tcOf(m.id); return `<tr><td>${esc(m.name)}</td><td>${esc(t('tc.status.' + (c ? c.status : 'none')))}</td></tr>`; }).join('')}</table>
+
+      <p class="meta">TeamPulse · ${esc(t('tc.reportFooter'))}</p>`;
+    pr.hidden = false;
+    window.print();
+    setTimeout(() => { pr.hidden = true; }, 400);
+  }
+
+  window.TalentViews = { renderHr, renderMyTeam, renderCheck, profileModal, printBoardReport };
 })();

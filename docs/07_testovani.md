@@ -1,12 +1,14 @@
 # Testování — scénáře a smoke testy
 
-**Verze:** 1.0 · **Datum:** 2026-06-12
+**Verze:** 1.1 · **Datum:** 2026-07-22
 
 ## 1. Automatizované smoke testy
 
 Headless testy běží přes jsdom (Node 18+): načtou `index.html` + skripty a klikají skutečným DOM. Historie testů pokrývá: onboarding → generování firmy (počty lidí/hodnocení/cílů, váhy oblastí = 100 %), průchod všemi pohledy ve 3 rolích, kompletní lifecycle hodnocení (wizard 6 kroků → manažer → rozhovor → potvrzení → materializace cílů), blokace špatných vah, blokace finalizace bez rozhodnutí/při rozporu, auto-rozpor při neshodě ratingů, kompetenční rámec (přepnutí, validace vah, prefill, skóre), prázdná firma + import, správa firemních KPI, org chart (sbalování, zoom).
 
 Spuštění: `node smoke.js` (vyžaduje `npm i jsdom`). Před release vždy: `node --check js/*.js` + kompletní smoke sada.
+
+**Talent modul: `node test-headless.js`** (bez závislostí, stub DOM). Pokrývá seed talent dat a pozic, prahy matice, override z finálního checku, stavový automat checku, migraci Store, rendery HR/Můj tým/check, pravidla soukromí (talent nikdy zaměstnanci ani do tisku) a úplnost i18n cs/en/de. Vizuální kontrola: Playwright + Chromium (screenshoty všech témat, kontrola `pageerror`). Detail: 08_talent_succession.md §9.
 
 ## 2. Manuální regresní scénáře
 
@@ -35,6 +37,9 @@ Přepni Corp/Glass/GenZ za běhu — žádný stav se neztratí. Tisk z detailu 
 ## 3. Mobilní checklist (≤ 540 px)
 
 Spodní tab-bar místo sidebaru; všechny touch targety ≥ 40 px; wizard použitelný na výšku; org chart pan prstem bez scrollování stránky; modaly scrollovatelné; safe-area na iOS.
+
+### S7 — Talent & nástupnictví
+Jako HR: Talent & Reporty — matice obsazená vč. Hvězdy a Rizika, retenční priority se jmény, Nástupnictví se 4 pozicemi (1 červeně bez nástupce), editor pozice s živým vyhodnocením checklistu. Org chart: rámečky + kroužky + legenda; přepni na zaměstnance → overlay zmizí. Jako manažer: Můj tým (mini matice, karty, banner checku) → Talent check: přetáhni žeton (✎ marker), klik na žeton = poznámka, Odeslat k debatě; jako HR otevři check ze stavové karty a Označ prodiskutováno; ověř, že override zůstal v matici. Sestava pro poradu: tisk obsahuje souhrn, pozice, retenci, rozložení matice.
 
 ## 4. Známá omezení dema
 

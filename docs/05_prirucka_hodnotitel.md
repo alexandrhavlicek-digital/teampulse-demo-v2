@@ -18,9 +18,25 @@ S 15 lidmi v týmu tě hodnoticí cyklus nesmí stát 15 hodin u počítače. Sy
 
 **7. Uzavři ve shodě.** Po rozhovoru klikni „Rozhovor proběhl", aktualizuj formulář podle dohody a přepni všechny rozpory na Souhlasím. Systém tě nepustí dál, dokud nějaký rozpor zůstává otevřený, váhy cílů nedávají 100 %, nebo chybí **termín příštího hodnocení**. Pak pošli k potvrzení — hodnocený uzavírá (Verze 3).
 
+**8. Vyplň talent sekci (roční hodnocení).** V manažerské části najdeš kartu **Talent (soukromá sekce)**: potenciál pro růst, připravenost na další roli, riziko odchodu, mobilita a jazyky. Pár kliků, žádný povinný text. Hodnocený ji **nikdy neuvidí** — stejný režim jako soukromá poznámka. Z těchto odpovědí se kreslí talent matice; když je nevyplníš, tvůj člověk v ní bude viset jako „bez odhadu".
+
 ## Co vidíš jen ty (a HR)
 
-**Soukromá poznámka** — cokoliv si potřebuješ poznamenat (retenční riziko, kontext), hodnocený ji nikdy neuvidí. **Vážené skóre a indikativní pásmo** — systém z ratingů spočítá doporučení pro odměňování (mimořádná prémie / standardní / rozvojový plán / riziko). Je to podklad pro tvoje rozhodnutí a rozhovor s HR, ne automat: skóre nikdy neukazuj jako „výsledek vzorce", vždy ho překládej do konkrétní dohody s člověkem.
+**Soukromá poznámka** — cokoliv si potřebuješ poznamenat (retenční riziko, kontext), hodnocený ji nikdy neuvidí. **Vážené skóre a indikativní pásmo** — systém z ratingů spočítá doporučení pro odměňování (mimořádná prémie / standardní / rozvojový plán / riziko). Je to podklad pro tvoje rozhodnutí a rozhovor s HR, ne automat: skóre nikdy neukazuj jako „výsledek vzorce", vždy ho překládej do konkrétní dohody s člověkem. **Talent data a matice** — potenciál, riziko odchodu i pozice lidí v talent matici jsou výhradně pro tebe a HR.
+
+## Můj tým — příprava na 1:1 za 30 sekund
+
+Pohled **Můj tým** ti ukáže celý tým najednou: mini talent matici s fotkovými žetony a trendem, klíčové pozice tvého týmu s nástupci (červeně svítí pozice bez nástupce) a kartu na každého člověka — skóre s trendem, pásmo, pole matice, zvýšené riziko odchodu, kudos za 60 dní, plnění cílů, poslední check-in a stav hodnocení s prokliky. Karty jsou seřazené podle skóre: nahoře hvězdy, dole lidi, kterým se máš věnovat. Je to čtecí pohled — nic tu nevyplňuješ.
+
+## Talent check — 10 minut jednou za kvartál
+
+Jednou za kvartál (nastavuje HR) tě v Můj tým vyzve banner **Talent check**. Princip je „nejdřív sám, pak debata": tvůj koncept vidíš jen ty.
+
+1. **Matice je předvyplněná** z hodnocení — nic nevyplňuješ od nuly. Když vidíš posun, **přetáhni žeton** do jiného pole (označí se ✎). Klik na žeton = poznámka k posunu (uvidí ji HR při debatě) a aktualizace rizika odchodu. Lidi „bez odhadu" můžeš do matice přetáhnout ručně.
+2. **Potvrď nástupnictví** — klíčové pozice tvého týmu; kliknutím upravíš nástupce.
+3. **Odešli k debatě s HR.** Pak je check jen ke čtení; nad tvým návrhem proběhne kalibrační debata a HR stav kvartálu zamrazí. Tvoje posuny se od té chvíle propisují do firemní matice.
+
+Výstup není tabulka pro tabulku: je to moment, kdy si jednou za kvartál uvědomíš, komu se věnovat víc.
 
 ## Zásady dobrého hodnotitele
 

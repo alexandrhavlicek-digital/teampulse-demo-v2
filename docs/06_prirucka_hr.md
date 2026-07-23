@@ -1,6 +1,6 @@
 # Příručka HR — řízení hodnoticího procesu
 
-HR centrum je velín celého procesu. Tvoje práce má tři vrstvy: **nastavit pravidla** (jednou), **spustit a hlídat cyklus** (každé období) a **pracovat s výstupy** (průběžně).
+HR centrum je velín celého procesu. Tvoje práce má tři vrstvy: **nastavit pravidla** (jednou), **spustit a hlídat cyklus** (každé období) a **pracovat s výstupy** (průběžně). Čtvrtou vrstvou je **talentová agenda** — záložka Talent & Reporty (viz §6).
 
 ## 1. Nastavení pravidel (před prvním cyklem)
 
@@ -11,6 +11,8 @@ HR centrum je velín celého procesu. Tvoje práce má tři vrstvy: **nastavit p
 **Týmové KPI** — totéž na úrovni oddělení. Generátor je předvyplní, reálné firmě je nastav s vedoucími.
 
 **Kompetenční rámec** — Jednoduchý (3 oblasti, doporučeno do ~100 lidí) nebo Detailní (7 vážených kompetencí: spolupráce, leadership, analýza, sebeřízení, orientace na zákazníka, odbornost, dosahování výsledků; mapované na oblasti, váhy editovatelné, součet 100 %). Detailní režim formulář neprodlužuje — nahrazuje hodnocení oblastí. Přepnutí platí pro nově otevřená hodnocení.
+
+**Talent check (kadence)** — tamtéž v Pravidlech cílů: Kvartálně (výchozí) / Pololetně / Vypnuto. Určuje, jak často manažeři dostávají výzvu k talent checku (§6).
 
 ## 2. Spuštění a řízení cyklu
 
@@ -30,6 +32,24 @@ HR centrum je velín celého procesu. Tvoje práce má tři vrstvy: **nastavit p
 
 Lidé: přidávání, oddělení, hodnoticí vztah (Nadřízený = kdo hodnotí). Org chart se z vztahů kreslí sám. Při změně manažera uprav `Nadřízený` — běžící hodnocení zůstává původnímu hodnotiteli (převod řeš individuálně). Odchod zaměstnance v průběhu cyklu: hodnocení zruš (stav Zrušeno).
 
+V org chartu vidíš (jen ty a manažeři) **succession overlay**: rámeček = klíčová pozice, zelený kroužek = klíčový nástupce, oranžový = nástupce, červený vykřičník = klíčová pozice bez nástupce. Zaměstnancům se označení nevykresluje.
+
 ## 5. Zásady procesu (metodika)
 
 Hodnocení se uzavírá výhradně shodou obou stran — nikdy je neuzavírej administrativně místo dohody, výjimkou je offboarding. První hodnocení nového člověka patří týden před konec zkušební doby; dál minimálně 1× ročně, doporučeně 2×. Periodicitu závazně určuje nadřízený. A pamatuj, že systém je nástroj rozhovorů, ne jejich náhrada — měř úspěch procesu počtem kvalitních 1:1, ne počtem vyplněných formulářů.
+
+## 6. Talent & Reporty — vrstva lidí
+
+Dashboard procesu (§2) říká, *jak jde papírování*; záložka **Talent & Reporty** říká, *co se děje s lidmi*. Odshora:
+
+**Retenční priority** — průnik vysokého potenciálu a zvýšeného rizika odchodu. Tady začni: jsou to jména, u kterých má smysl jednat dřív, než přijde výpověď.
+
+**Talent check — stav** — kdo z manažerů odevzdal svůj kvartální pohled na tým. Draft manažera je soukromý (vidíš jen „Rozpracováno"); po odeslání check otevřeš, projdete ho spolu na kalibrační debatě (posuny mají poznámky manažera) a tlačítkem **Označit prodiskutováno** stav kvartálu zamrazíš. Od té chvíle se manažerovy posuny propisují do matice. Tenhle rytmus je jádro metodiky: manažer nejdřív sám, pak debata s tebou, výstup je uvědomění, komu se věnovat.
+
+**Nástupnictví — klíčové pozice** — pozice, jejichž výpadek bolí. Novou pozici založíš checklistem (12 otázek ve 4 okruzích; většina ANO → klíčová — checklist je filtr proti inflaci „všechno je klíčové"). Ke klíčovým pozicím přiřazuj nástupce (klíčový / nástupce + horizont připravenosti). **Klíčová pozice bez nástupce svítí červeně** — to je nejdůležitější výstup celé agendy.
+
+**Talent matice (9-box)** — celá firma s filtrem oddělení; osa výkonu z váženého skóre, potenciál z talent sekcí manažerů, šipky = trend, ✎ = posun dohodnutý v talent checku. Klik na člověka otevře talent profil (skóre, flagy, cíle, proklik na hodnocení). Legenda u matice nese doporučenou akci pro každé pole — matice je odpověď na „koho rozvíjet", ne obrázek.
+
+**Sestava pro poradu** — jedním klikem tisková sestava pro vedení: souhrn pokrytí, klíčové pozice s nástupci, retenční priority, rozložení matice a stav checků. Nahrazuje ruční skládání prezentace.
+
+Dvě zásady na závěr: talent data (potenciál, riziko odchodu, pozice v matici, nástupnictví) **zaměstnancům nikdy neukazuj** — platí stejná logika jako u pásem odměňování. A kalibruj: rozložení potenciálu per manažer ti řekne, kdo nehodnotí stejným metrem.

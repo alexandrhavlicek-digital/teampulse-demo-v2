@@ -520,7 +520,32 @@
       });
     });
 
-    return { reviews, goals, kudos, checkins, notifications, keyPositions };
+    /* kvartální talent checky v různých stavech (ať HR karta při demu žije):
+       1. manažer = final s jedním overridem, 2. = debate (čeká na HR), zbytek bez checku */
+    const talentChecks = [];
+    const qNow = 'Q' + (Math.floor(new Date().getMonth() / 3) + 1) + ' ' + new Date().getFullYear();
+    const mgrsWithTeam = people.filter(m => people.some(p => p.managerId === m.id) && m.managerId).slice(0, 2);
+    mgrsWithTeam.forEach((m, i) => {
+      const team = people.filter(p => p.managerId === m.id);
+      const items = team.map((p, j) => {
+        const override = i === 0 && j === 0; /* první člověk prvního manažera posunut nahoru */
+        return {
+          personId: p.id,
+          box: override ? { pot: 3, perf: 2 } : null, /* computed pozice se doplní za běhu; override je explicitní */
+          source: override ? 'override' : 'computed',
+          note: override ? 'Výrazný posun po převzetí projektu - navrhuju vyšší potenciál.' : '',
+          attrition: null,
+        };
+      });
+      talentChecks.push({
+        id: uid(), period: qNow, managerId: m.id, status: i === 0 ? 'final' : 'debate',
+        items, createdAt: today - (12 - i * 3) * day, sentAt: today - (8 - i * 3) * day,
+        discussedAt: i === 0 ? today - 5 * day : null,
+      });
+    });
+    if (mgrsWithTeam[1]) notifications.push({ id: uid(), text: 'Talent check k debatě: ' + mgrsWithTeam[1].name, forRole: 'hr', at: today - 2 * day, read: false });
+
+    return { reviews, goals, kudos, checkins, notifications, keyPositions, talentChecks };
   }
 
   /* ---------------- public API ---------------- */
@@ -543,11 +568,12 @@
       Store.replaceAll('checkins', g.checkins);
       Store.replaceAll('notifications', g.notifications);
       Store.replaceAll('keyPositions', g.keyPositions || []);
+      Store.replaceAll('talentChecks', g.talentChecks || []);
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','checkins','notifications','keyPositions'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','checkins','notifications','keyPositions','talentChecks'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

@@ -1,6 +1,6 @@
 # Funkční specifikace — hodnoticí proces
 
-**Verze:** 1.0 · **Datum:** 2026-06-12 · **Zdroj pravdy:** kód v `demo-v2/js/`
+**Verze:** 1.1 · **Datum:** 2026-07-22 · **Zdroj pravdy:** kód v `demo-v2/js/`
 
 ## 1. Role a oprávnění
 
@@ -74,6 +74,10 @@ Spuštění cyklu vytvoří `pending_self` hodnocení všem zaměstnancům bez b
 
 Pravidla pololetního checku: změna váhy cíle je **návrh**, který potvrzuje manažer (Souhlasím / K rozhovoru); váhy v oblasti musí i po změně dát 100 %; po potvrzení hodnoceným (v3) se schválené váhy a progress propíšou do cílů. Nové cíle se v checku nezakládají. Cíle nováčka se po potvrzení zakládají do **běžícího** období (vyhodnotí se při dalším pravidelném hodnocení); u ročního do období následujícího. Typ cyklu volí HR při spuštění; probation cyklus cílí jen na lidi ve zkušební době.
 
-## 11. Mimo scope dema (plán produkce)
+## 11. Talent & nástupnictví (2026-07)
 
-Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), talent otázky (mobilita/jazyky dle DER), kalibrační session, CMS pro tutoriály/dokumenty.
+Nad procesem hodnocení stojí talentová vrstva: talent sekce v manažerské části ročního hodnocení (potenciál, připravenost, riziko odchodu, mobilita, jazyky — původně „mimo scope", nyní implementováno), 9-box matice, Můj tým, klíčové pozice s nástupci a kvartální talent check se stavovým automatem draft → debate → final. Kompletní funkční i technický popis: **08_talent_succession.md**. Pro tento dokument platí jediné doplňkové pravidlo rolí: veškerá talent data vidí pouze hodnotitel (svůj tým) a HR — hodnocený nikdy, ani v tisku.
+
+## 12. Mimo scope dema (plán produkce)
+
+Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), kalibrační session, CMS pro tutoriály/dokumenty. Z talent modulu dále: checklist kandidáta na nástupce (21 otázek), červená karta + matice potřebnosti, 360 zpětná vazba (koncepty v kořeni repa).

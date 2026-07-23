@@ -1,6 +1,6 @@
 # Architektura a nasazení
 
-**Verze:** 1.0 · **Datum:** 2026-06-12
+**Verze:** 1.1 · **Datum:** 2026-07-22
 
 ## 1. Stack dema
 
@@ -15,15 +15,17 @@ demo-v2/
   js/store.js       ★ datová vrstva (viz 02_datovy_model.md)
   js/generator.js   generátor firem, KPI, kompetenční knihovna, seed dat
   js/reviews.js     workflow hodnocení + sdílené UI helpery (window.UI, ReviewLogic)
+  js/talent.js      ★ modul Talent & nástupnictví (TalentLogic/Grid/Views, SuccLogic, TalentCheck) — viz 08
   js/app.js         router, shell, onboarding, ostatní pohledy
+  test-headless.js  automatizované smoke testy (node, bez závislostí)
   docs/             tato dokumentace
 ```
 
-Pořadí načítání skriptů je závazné: i18n → icons → store → generator → reviews → app.
+Pořadí načítání skriptů je závazné: i18n → icons → store → generator → reviews → talent → app. Cache bust: query `?v=RRRRMMDD[a-z]` u všech assetů — při každé změně bumpni v index.html.
 
 ## 2. Témata
 
-Tři vizuální světy přepínané za běhu atributem `data-theme` na `<html>`: **corp** (editorial enterprise), **glass** (liquid glass, Apple-like — plovoucí dock sidebar, blur, spekulární hrany), **genz** (neon brutalism — tvrdé stíny, gradient text). Témata nesou i strukturální rozdíly (tvar navigace, radiusy, typografická škála) přes CSS proměnné + per-téma selektory. Nové komponenty: vždy stavět na proměnných (`--accent`, `--surface`, `--hairline`, `--radius`…), nikdy na napevno daných barvách.
+Čtyři vizuální světy (brand je výchozí — oficiální identita dle BRAND.md) přepínané za běhu atributem `data-theme` na `<html>`: **corp** (editorial enterprise), **glass** (liquid glass, Apple-like — plovoucí dock sidebar, blur, spekulární hrany), **genz** (neon brutalism — tvrdé stíny, gradient text). Témata nesou i strukturální rozdíly (tvar navigace, radiusy, typografická škála) přes CSS proměnné + per-téma selektory. Nové komponenty: vždy stavět na proměnných (`--accent`, `--surface`, `--hairline`, `--radius`…), nikdy na napevno daných barvách.
 
 ## 3. Nasazení — Cloudflare Pages přes GitHub
 

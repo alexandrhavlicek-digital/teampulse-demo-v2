@@ -892,6 +892,12 @@
           <label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:.9rem;cursor:pointer">
             <input type="checkbox" id="pol-semi" ${((co && co.cycleConfig) || { semiEnabled: true }).semiEnabled ? 'checked' : ''}>
             ${esc(t('hr.semiEnabled'))}</label>
+          <div class="field" style="display:flex;align-items:center;gap:10px">
+            <label style="flex:1;margin:0">${esc(t('tc.cadence'))}</label>
+            <select class="input" style="width:160px" id="pol-tc">
+              ${['q', 'semi', 'off'].map(k => `<option value="${k}" ${(((co && co.cycleConfig) || {}).talentCheck || 'q') === k ? 'selected' : ''}>${esc(t('tc.cad.' + k))}</option>`).join('')}
+            </select>
+          </div>
           <button class="btn btn-sm" id="pol-save">${esc(t('common.save'))}</button>
         </div>
         <div class="card"><h2>${icon('gauge', 18)}${esc(t('hr.compBands'))}</h2>
@@ -957,7 +963,10 @@
       root.querySelectorAll('[data-pol]').forEach(el => gp[el.dataset.pol] = Math.max(2, Math.min(5, +el.value || 2)));
       co.goalPolicy = gp;
       const semiEl = root.querySelector('#pol-semi');
-      co.cycleConfig = Object.assign({ semiEnabled: true }, co.cycleConfig, semiEl ? { semiEnabled: semiEl.checked } : {});
+      const tcEl = root.querySelector('#pol-tc');
+      co.cycleConfig = Object.assign({ semiEnabled: true }, co.cycleConfig,
+        semiEl ? { semiEnabled: semiEl.checked } : {},
+        tcEl ? { talentCheck: tcEl.value } : {});
       Store.setCompany(co); toast(t('common.saved'));
     };
     const cSimple = root.querySelector('#comp-simple');
@@ -1101,6 +1110,14 @@
 
   /* ---- můj tým (jen manažer) ---- */
   views.myteam = root => TalentViews.renderMyTeam(root);
+
+  /* ---- kvartální talent check (manažer; HR read-only přes /talentcheck/<managerId>) ---- */
+  views.talentcheck = (root, param) => {
+    const va = viewAs();
+    if (va.role === 'employee') { location.hash = '#/home'; return; } /* zaměstnanec nikdy */
+    if (va.role === 'hr' && !param) { location.hash = '#/talent'; return; }
+    TalentViews.renderCheck(root, va.role === 'hr' ? param : null);
+  };
 
   /* ---- help (role-based) ---- */
   let helpTab = null;

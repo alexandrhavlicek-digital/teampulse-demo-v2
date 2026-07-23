@@ -1,6 +1,6 @@
 # Datový model a rozhraní Store
 
-**Verze:** 1.0 · **Datum:** 2026-06-12 · **Zdroj pravdy:** `js/store.js`, `js/generator.js`
+**Verze:** 1.1 · **Datum:** 2026-07-22 · **Zdroj pravdy:** `js/store.js`, `js/generator.js`, `js/talent.js`
 
 ## 1. Princip
 
@@ -13,7 +13,7 @@ Store.list(coll) / get(coll, id) / insert(coll, item) / update(coll, id, patch)
 Store.remove(coll, id) / replaceAll(coll, items) / resetAll()
 ```
 
-Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`.
+Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`, `keyPositions`, `talentChecks`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
 
 ## 2. Entity
 
@@ -31,7 +31,7 @@ competencies: null | [{key, title, weight, areaKey}]                   // kompet
 ```
 id, firstName, lastName, name, initials, hue, female
 role, deptKey, dept, managerId (→people.id | null), isHead, isLead
-email, hiredMonthsAgo
+email, hiredMonthsAgo, photoUrl?   // volitelná fotka; avatar() má fallback na iniciály
 ```
 Org chart se odvozuje z `managerId` (kořen = bez manažera).
 
@@ -47,6 +47,7 @@ form: {
   goalsEval: [{goalId, title, areaKey, weight, kpiRef, outcome, rating,
                mgrRating, mgrNote, mgrDecision (null|agree|discuss), mgrConfirmed}],
   newGoals:  [{id, areaKey, title, desc, weight, kpiRef, mgrDecision, mgrConfirmed}],
+  mgr.talent: {potential, readiness, attrition, mobility, languages},  // soukromá talent sekce, jen annual; viz 08
   trainings: [string], employeeComment, conversationDate, nextReviewDate,
   versions: [{label: v1_self|v2_draft|v2_final|v3_confirmed, at}]
 }
@@ -58,6 +59,15 @@ id, ownerId, areaKey (teamwork|growth|quality), title, desc
 weight (Σ v oblasti = 100), progress (0-100)
 kpiRef: null | {type: company|team, id}
 confirmedByManager, due, type (personal|company), period
+```
+
+### keyPositions / talentChecks (modul Talent & nástupnictví — detail v 08)
+```
+keyPositions: {id, deptKey, dept, title, holderId, checklist{q1..q12: bool|null},
+               proposedBy, confirmedByHr, successors: [{personId, level, readiness}]}
+talentChecks: {id, period, managerId, status (draft|debate|final),
+               items: [{personId, box|null, source, note, attrition}],
+               createdAt, sentAt, discussedAt}
 ```
 
 ### kudos / checkins / notifications
@@ -82,5 +92,7 @@ theme (corp|glass|genz), locale (cs|en|de), onboarded, viewAs {role, personId}
 | goals | `goals` | FK `kpi_id` nullable + check constraint na KPI_REQUIRED dle oblasti |
 | kudos / checkins | `feedback` (typ kudos) / `checkins` | |
 | notifications | `notifications` + scheduler (pg-boss / Supabase cron) | |
+| keyPositions | `key_positions` + `succession_candidates` | RLS: mgr svůj strom, HR vše; subjekt nikdy |
+| talentChecks | `talent_checks` + `talent_check_items` | draft čitelný JEN autorem; final propisuje overridy do matice |
 
-Validace, které musí backend vynucovat serverově (ne jen v UI): součet vah cílů v oblasti = 100; KPI vazba povinná u teamwork/quality; přechody stavového automatu (guardy z funkční specifikace §4); zápis verze při každém přechodu.
+Validace, které musí backend vynucovat serverově (ne jen v UI): součet vah cílů v oblasti = 100; KPI vazba povinná u teamwork/quality; přechody stavového automatu (guardy z funkční specifikace §4); zápis verze při každém přechodu; přechody talent checku draft→debate→final (debate autor, final jen HR) a úplný zákaz přístupu subjektů k talent datům (talent sekce, matice, checky).
