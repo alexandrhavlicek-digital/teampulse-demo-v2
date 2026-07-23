@@ -249,6 +249,15 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(tv.includes('f360') === false && tv.includes('<table'), 'tři pohledy: tabulka bez nepřeložených klíčů');
 })();
 
+/* --- 11f) filtry + karta člověka: i18n klíče kompletní --- */
+(function () {
+  const need = ['flt.person', 'flt.reset', 'flt.noMatch', 'pc.manager', 'pc.reviews', 'pc.evidence', 'pc.holdsKey', 'pc.succOf', 'pc.no360'];
+  let miss = [];
+  ['cs', 'en', 'de'].forEach(loc => { I18N.setLocale(loc); need.forEach(k => { if (t(k) === k) miss.push(loc + ':' + k); }); });
+  I18N.setLocale('cs');
+  ok(miss.length === 0, miss.length ? 'chybí: ' + miss.join(', ') : 'flt.* + pc.* klíče kompletní (cs/en/de)');
+})();
+
 /* --- 12) store migrace: stará DB bez keyPositions --- */
 (function () {
   const raw = JSON.parse(localStorage.getItem('teampulse_demo_v2'));

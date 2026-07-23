@@ -20,6 +20,8 @@ Nad existujícím hodnoticím procesem (dokumenty 01–02) staví vrstvu **lidí
 7. **Checklist kandidáta** — 21 otázek / 7 okruhů na dvojici kandidát × pozice; práh nastavuje HR (default 16/21). Doporučený, ne povinný — chip nástupce bez checklistu jen jemně vyzývá.
 8. **Červená karta + matice potřebnosti** — potřebnost × problémovost, 4 kvadranty s akcemi; „potřebný potížista" = succession priorita č. 1 (⚑ když drží klíčovou pozici). Červený kroužek v org chartu.
 9. **360° zpětná vazba** (`js/feedback360.js`) — on-demand, 3–6 respondentů, stejná škála, anonymní agregát od 3 odpovědí, výstup „tři pohledy" (já · okolí · manažer) v talent profilu a Podkladech z období.
+10. **Karta člověka** (`profileModal`, modal-wide) — vše o hodnoceném na jednom místě: skóre + trend + pásmo, talent flagy, nástupnictví (drží/je nástupcem), červená karta, běžící hodnocení + historie skóre, cíle s průměrem, poslední check-in a kudos, 360 tři pohledy, rychlé akce. Otevírá se z Můj tým, Talent & Reporty, žetonů matice i řádku v Lidech (jen mgr+HR).
+11. **Filtry seznamů** (`app.js`: `fltState`/`personMatch`/`filterBarHtml`/`bindFilterBar`, export `window.AppFilters`) — hledání člověka/role + select oddělení u 1:1 check-inů, kudos, hodnocení týmu, cílů (HR) a lidí. Překresluje se jen kontejner seznamu (input neztrácí fokus); stav filtru drží per stránka v paměti session.
 
 ### Závazný princip: soukromí
 

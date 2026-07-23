@@ -317,6 +317,41 @@
     document.addEventListener('click', () => { dd.hidden = true; }, { once: true });
   }
 
+  /* ================= sdílený filtr seznamů (člověk + tým) ================= */
+  const listF = {};
+  function fltState(page) { return listF[page] || (listF[page] = { q: '', dept: '' }); }
+  function personMatch(p, f) {
+    if (!p) return false;
+    if (f.dept && p.deptKey !== f.dept) return false;
+    if (f.q && !((p.name || '') + ' ' + (p.role || '')).toLowerCase().includes(f.q.toLowerCase())) return false;
+    return true;
+  }
+  function filterBarHtml(page) {
+    const f = fltState(page);
+    const co = Store.getCompany();
+    return `<div class="filterbar">
+      ${icon('search', 15)}
+      <input class="input" data-fq="${page}" placeholder="${esc(t('flt.person'))}" value="${esc(f.q)}">
+      <select class="input" data-fd="${page}">
+        <option value="">${esc(t('tal.allDepts'))}</option>
+        ${((co && co.departments) || []).map(d => `<option value="${d.key}" ${f.dept === d.key ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm" data-fx="${page}" ${f.q || f.dept ? '' : 'hidden'} title="${esc(t('flt.reset'))}">✕</button>
+    </div>`;
+  }
+  /* redraw překresluje JEN kontejner seznamu - input neztrácí fokus */
+  function bindFilterBar(root, page, redraw) {
+    const f = fltState(page);
+    const q = root.querySelector(`[data-fq="${page}"]`);
+    const d = root.querySelector(`[data-fd="${page}"]`);
+    const x = root.querySelector(`[data-fx="${page}"]`);
+    const sync = () => { if (x) x.hidden = !(f.q || f.dept); redraw(); };
+    if (q) q.oninput = () => { f.q = q.value; sync(); };
+    if (d) d.onchange = () => { f.dept = d.value; sync(); };
+    if (x) x.onclick = () => { f.q = ''; f.dept = ''; if (q) q.value = ''; if (d) d.value = ''; sync(); };
+  }
+  window.AppFilters = { fltState, personMatch }; /* reuse v talent.js */
+
   /* ================= views ================= */
   const views = {};
 
@@ -412,12 +447,17 @@
   /* ---- team reviews ---- */
   views.team = root => {
     const va = viewAs();
-    let list = reviews().filter(r => r.period === Generator.CURRENT_PERIOD);
-    if (va.role === 'manager') list = list.filter(r => r.evaluatorId === va.personId);
-    list.sort((a, b) => a.startedAt - b.startedAt);
+    const f = fltState('team');
     root.innerHTML = `
       <h1 class="page-title">${esc(t('rev.teamTitle'))}</h1><p class="page-sub">${esc(t('rev.teamSub'))}</p>
-      <div class="card">${list.length ? `<table class="table">
+      ${filterBarHtml('team')}
+      <div class="card" id="tm-list"></div>`;
+    const draw = () => {
+      let list = reviews().filter(r => r.period === Generator.CURRENT_PERIOD);
+      if (va.role === 'manager') list = list.filter(r => r.evaluatorId === va.personId);
+      if (f.q || f.dept) list = list.filter(r => personMatch(person(r.subjectId), f));
+      list.sort((a, b) => a.startedAt - b.startedAt);
+      root.querySelector('#tm-list').innerHTML = list.length ? `<table class="table">
         <tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('people.dept'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
         ${list.map(r => {
           const p = person(r.subjectId); if (!p) return '';
@@ -427,8 +467,10 @@
             <td>${esc(p.dept)}</td><td>${stBadge(r.status)}</td>
             <td><span class="badge ${rk === 'blocked' ? 'b-red' : rk === 'risk' ? 'b-amber' : ''}">${d} d</span></td>
             <td><button class="btn btn-sm">${esc(['self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done'].includes(r.status) ? t('rev.evaluate') : t('rev.view'))}</button></td></tr>`;
-        }).join('')}</table>` : `<div class="empty">${icon('team', 52)}<br>${esc(t('rev.noHistory'))}</div>`}
-      </div>`;
+        }).join('')}</table>` : `<div class="empty">${icon('team', 52)}<br>${esc(t('flt.noMatch'))}</div>`;
+    };
+    draw();
+    bindFilterBar(root, 'team', draw);
   };
 
   /* ---- review detail ---- */
@@ -457,15 +499,15 @@
         <b style="width:42px;text-align:right">${g.progress}%</b></div>`;
     };
 
-    const areaSection = a => {
-      const items = personal.filter(g => g.areaKey === a);
+    const areaSection = (a, pool) => {
+      const items = pool.filter(g => g.areaKey === a);
       const mineSum = me ? items.filter(g => g.ownerId === me.id).reduce((s2, g) => s2 + g.weight, 0) : 0;
       return `<div class="card"><h2>${icon('target', 18)}${esc(t('rev.area.' + a))}
           <span class="badge" style="margin-left:8px">${policy[a] || 2}×</span>
           ${Generator.KPI_REQUIRED[a] ? `<span class="badge b-blue">${esc(t('goals.kpi'))}</span>` : ''}
           ${va.role !== 'hr' && items.length ? `<span class="badge ${mineSum === 100 ? 'b-green' : 'b-amber'}">${esc(t('goals.sum'))}: ${mineSum} %</span>` : ''}
         </h2>
-        ${items.length ? items.slice(0, va.role === 'hr' ? 10 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>`;
+        ${items.length ? items.slice(0, va.role === 'hr' ? 30 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>`;
     };
 
     root.innerHTML = `
@@ -483,12 +525,21 @@
         <div class="bars">${teamK.map(k => `
           <div class="brow"><span><span class="badge">${esc(k.dept)}</span> ${esc(k.title)}</span>
           <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div></div>` : ''}
-      ${['teamwork', 'growth', 'quality'].map(areaSection).join('')}`;
+      ${va.role === 'hr' ? filterBarHtml('goals') : ''}
+      <div id="g-areas"></div>`;
 
-    root.querySelectorAll('[data-gp]').forEach(sl => sl.onchange = () => {
-      Store.update('goals', sl.dataset.gp, { progress: +sl.value });
-      toast(t('common.saved')); render();
-    });
+    const fG = fltState('goals');
+    const drawAreas = () => {
+      const pool = (va.role === 'hr' && (fG.q || fG.dept))
+        ? personal.filter(g => personMatch(person(g.ownerId), fG)) : personal;
+      root.querySelector('#g-areas').innerHTML = ['teamwork', 'growth', 'quality'].map(a => areaSection(a, pool)).join('');
+      root.querySelectorAll('[data-gp]').forEach(sl => sl.onchange = () => {
+        Store.update('goals', sl.dataset.gp, { progress: +sl.value });
+        toast(t('common.saved')); render();
+      });
+    };
+    drawAreas();
+    if (va.role === 'hr') bindFilterBar(root, 'goals', drawAreas);
     root.querySelector('#g-add').onclick = () => {
       const owner = va.personId || (personas().hr || {}).id;
       const kpiOpts = `<option value="">${esc(t('goals.kpiNone'))}</option>
@@ -540,23 +591,38 @@
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
           <button class="btn btn-primary" id="p-add2">${icon('plus', 15)} ${esc(t('people.addPerson'))}</button>
           <button class="btn" id="p-import2">${icon('importBox', 15)} ${esc(t('people.import'))}</button></div></div></div>`
-      : `<div class="card"><input class="input" id="p-search" placeholder="${esc(t('common.search'))}" style="margin-bottom:12px">
+      : `<div class="card">
+         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+           <input class="input" id="p-search" placeholder="${esc(t('common.search'))}" style="flex:2;min-width:180px">
+           <select class="input" id="p-dept" style="flex:1;min-width:150px">
+             <option value="">${esc(t('tal.allDepts'))}</option>
+             ${((co && co.departments) || []).map(d => `<option value="${d.key}">${esc(d.name)}</option>`).join('')}
+           </select>
+         </div>
          <div id="p-table"></div></div>`}`;
 
-    function tableHtml(filter) {
+    const canCard = ['hr', 'manager'].includes(viewAs().role); /* karta člověka jen mgr+HR */
+    function tableHtml(filter, deptKey) {
       const f = (filter || '').toLowerCase();
-      const list = ps.filter(p => !f || p.name.toLowerCase().includes(f) || p.role.toLowerCase().includes(f) || p.dept.toLowerCase().includes(f));
+      const list = ps.filter(p => (!deptKey || p.deptKey === deptKey)
+        && (!f || p.name.toLowerCase().includes(f) || p.role.toLowerCase().includes(f) || p.dept.toLowerCase().includes(f)));
       return `<table class="table">
         <tr><th>${esc(t('people.name'))}</th><th>${esc(t('people.role'))}</th><th>${esc(t('people.dept'))}</th><th>${esc(t('people.manager'))}</th></tr>
-        ${list.slice(0, 120).map(p => `<tr>
+        ${list.slice(0, 120).map(p => `<tr ${canCard ? `class="clickable" data-pc="${p.id}" title="${esc(t('mt.profile'))}"` : ''}>
           <td>${avatar(p, 32)} <b>${esc(p.name)}</b><br><small style="color:var(--text-muted)">${esc(p.email)}</small></td>
           <td>${esc(p.role)}</td><td><span class="badge">${esc(p.dept)}</span></td>
           <td>${p.managerId ? esc((person(p.managerId) || {}).name || '-') : '-'}</td></tr>`).join('')}</table>`;
     }
     const tbl = root.querySelector('#p-table');
     if (tbl) {
-      tbl.innerHTML = tableHtml('');
-      root.querySelector('#p-search').oninput = e => tbl.innerHTML = tableHtml(e.target.value);
+      const srch = root.querySelector('#p-search'), dsel = root.querySelector('#p-dept');
+      const redrawP = () => {
+        tbl.innerHTML = tableHtml(srch.value, dsel.value);
+        tbl.querySelectorAll('[data-pc]').forEach(tr => tr.onclick = () => TalentViews.profileModal(tr.dataset.pc));
+      };
+      redrawP();
+      srch.oninput = redrawP;
+      dsel.onchange = redrawP;
     }
 
     const importFn = () => {
@@ -739,8 +805,8 @@
 
   /* ---- kudos ---- */
   views.kudos = root => {
-    const list = Store.list('kudos').slice().reverse();
     const va = viewAs();
+    const f = fltState('kudos');
     const VAL = { team: 'kudos.value.team', quality: 'kudos.value.quality', growth: 'kudos.value.growth', client: 'kudos.value.client' };
     const KICON = { team: 'link2', quality: 'gem', growth: 'sprout', client: 'heart' };
     root.innerHTML = `
@@ -748,7 +814,12 @@
         <h1 class="page-title" style="margin:0">${esc(t('kudos.title'))}</h1><span style="flex:1"></span>
         <button class="btn btn-primary btn-sm" id="k-give">${icon('heartPulse', 15)} ${esc(t('kudos.give'))}</button></div>
       <p class="page-sub">${esc(t('kudos.sub'))}</p>
-      ${list.length ? list.map(k => {
+      ${filterBarHtml('kudos')}
+      <div id="k-list"></div>`;
+    const draw = () => {
+      let list = Store.list('kudos').slice().reverse();
+      if (f.q || f.dept) list = list.filter(k => [person(k.fromId), person(k.toId)].some(p => personMatch(p, f)));
+      root.querySelector('#k-list').innerHTML = list.length ? list.map(k => {
         const from = person(k.fromId), to = person(k.toId);
         return `<div class="card kudo" style="margin-bottom:12px">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -756,7 +827,10 @@
             <span class="badge b-blue">${icon(KICON[k.value] || 'link2', 13)} ${esc(t(VAL[k.value] || VAL.team))}</span>
             <span style="margin-left:auto;color:var(--text-muted);font-size:.8rem">${fmtDate(k.at)}</span></div>
           <p style="margin-top:8px">${esc(k.msg)}</p></div>`;
-      }).join('') : `<div class="card"><div class="empty">${icon('heartPulse', 52)}</div></div>`}`;
+      }).join('') : `<div class="card"><div class="empty">${icon('heartPulse', 52)}<br>${esc(t('flt.noMatch'))}</div></div>`;
+    };
+    draw();
+    bindFilterBar(root, 'kudos', draw);
     root.querySelector('#k-give').onclick = () => {
       const ps = people();
       modal(`<h3>${icon('heartPulse', 18)}${esc(t('kudos.give'))}</h3>
@@ -785,14 +859,19 @@
   /* ---- check-ins ---- */
   views.checkins = root => {
     const va = viewAs();
-    let list = Store.list('checkins').slice().reverse();
-    if (va.role === 'manager') list = list.filter(c => c.managerId === va.personId);
+    const f = fltState('checkins');
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <h1 class="page-title" style="margin:0">${esc(t('ci.title'))}</h1><span style="flex:1"></span>
         <button class="btn btn-primary btn-sm" id="ci-new">${icon('plus', 15)} ${esc(t('ci.new'))}</button></div>
       <p class="page-sub">${esc(t('ci.sub'))}</p>
-      ${list.length ? list.map(c => {
+      ${filterBarHtml('checkins')}
+      <div id="ci-list"></div>`;
+    const draw = () => {
+      let list = Store.list('checkins').slice().reverse();
+      if (va.role === 'manager') list = list.filter(c => c.managerId === va.personId);
+      if (f.q || f.dept) list = list.filter(c => [person(c.employeeId), person(c.managerId)].some(p => personMatch(p, f)));
+      root.querySelector('#ci-list').innerHTML = list.length ? list.map(c => {
         const m = person(c.managerId), e = person(c.employeeId);
         return `<div class="card" style="margin-bottom:12px">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -800,7 +879,10 @@
             <span style="margin-left:auto;color:var(--text-muted);font-size:.8rem">${fmtDate(c.at)}</span></div>
           <p style="margin-top:8px">${esc(c.notes)}</p>
           <p style="margin-top:4px;font-size:.85rem;color:var(--text-muted)">→ ${esc(c.next)}</p></div>`;
-      }).join('') : `<div class="card"><div class="empty">${icon('checkin', 52)}</div></div>`}`;
+      }).join('') : `<div class="card"><div class="empty">${icon('checkin', 52)}<br>${esc(t('flt.noMatch'))}</div></div>`;
+    };
+    draw();
+    bindFilterBar(root, 'checkins', draw);
     root.querySelector('#ci-new').onclick = () => {
       const ps = people();
       modal(`<h3>${icon('plus', 18)}${esc(t('ci.new'))}</h3>

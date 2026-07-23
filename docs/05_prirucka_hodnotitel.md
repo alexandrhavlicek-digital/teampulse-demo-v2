@@ -38,6 +38,12 @@ Jednou za kvartál (nastavuje HR) tě v Můj tým vyzve banner **Talent check**.
 
 Výstup není tabulka pro tabulku: je to moment, kdy si jednou za kvartál uvědomíš, komu se věnovat víc.
 
+## Karta člověka — všechno na jeden klik
+
+Kdekoli potkáš člověka (Můj tým, matice, seznam Lidé), klik otevře jeho **kartu**: skóre s trendem a pásmem, talent flagy, běžící hodnocení s proklikem, historii skóre po obdobích, plnění cílů, poslední check-in a kudos, 360 tři pohledy a nástupnické souvislosti (drží klíčovou pozici / je nástupcem). Dole rychlé akce — otevřít hodnocení nebo vyžádat 360. Před 1:1 nebo hodnocením ti stačí tahle jedna karta.
+
+V seznamech (1:1 check-iny, kudos, hodnocení týmu) navíc filtruj hledáním jména/role nebo výběrem oddělení — filtr drží, dokud ho křížkem nezrušíš.
+
 ## Zásady dobrého hodnotitele
 
 Hodnoť celé období, ne posledních 14 dní — od toho máš podklady. Konkrétní příklady místo dojmů. Neshodu neobrušuj smírným ratingem — označ ji k rozhovoru, od toho proces je. A nezapomeň: hodnocení potvrzené pod nátlakem se ti vrátí ve fluktuaci.

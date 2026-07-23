@@ -114,48 +114,108 @@
 
   window.TalentGrid = { gridHtml, tokenHtml };
 
-  /* ---------------- talent profile modal ---------------- */
+  /* ---------------- karta člověka ----------------
+     Vše o hodnoceném na jednom místě - manažerova příprava na cokoliv
+     za 30 sekund: skóre + historie, cíle, poslední podklady, talent,
+     nástupnictví, 360, rychlé akce. Jen mgr + HR. */
   function profileModal(pid) {
     const p = Store.get('people', pid); if (!p) return;
     const e = entryOf(p);
     const b = e.score != null ? ReviewLogic.band(e.score) : null;
     const tal = e.tal || {};
+    const mgr = p.managerId ? Store.get('people', p.managerId) : null;
+    const flag = (label, val, cls) => val ? `<span class="badge ${cls || 'b-blue'}">${esc(label)}: ${esc(val)}</span>` : '';
+
+    /* hodnocení: běžící + historie skóre */
+    const revs = Store.list('reviews').filter(r => r.subjectId === pid).sort((a, b2) => b2.startedAt - a.startedAt);
+    const curRev = revs.find(r => r.period === Generator.CURRENT_PERIOD);
+    const history = revs.filter(r => ['confirmed', 'closed_by_hr'].includes(r.status))
+      .map(r => ({ r, s: ReviewLogic.computeScore(r.form) })).filter(x => x.s != null).slice(0, 4);
+
+    /* cíle */
     const goals = Store.list('goals').filter(g => g.ownerId === pid && g.type === 'personal' && g.period === Generator.CURRENT_PERIOD);
-    const flag = (label, val) => val ? `<span class="badge b-blue">${esc(label)}: ${esc(val)}</span>` : '';
-    modal(`
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
-        ${avatar(p, 52)}
-        <div><h3 style="margin:0">${esc(p.name)}</h3>
-        <span style="color:var(--text-muted);font-size:.88rem">${esc(p.role)} · ${esc(p.dept)}</span></div>
+    const avgG = goals.length ? Math.round(goals.reduce((s2, g) => s2 + g.progress, 0) / goals.length) : null;
+
+    /* podklady */
+    const cis = Store.list('checkins').filter(c => c.employeeId === pid).sort((a, b2) => b2.at - a.at).slice(0, 2);
+    const kuds = Store.list('kudos').filter(k => k.toId === pid).sort((a, b2) => b2.at - a.at);
+
+    /* nástupnictví */
+    const kps = Store.list('keyPositions');
+    const holds = kps.filter(kp => kp.holderId === pid && kpRated(kp) && kpIsKey(kp));
+    const succOf = kps.filter(kp => (kp.successors || []).some(s => s.personId === pid));
+    const rc = rcOf(pid);
+
+    modal(`<div class="person-card">
+      <div class="pc-head">
+        ${avatar(p, 56)}
+        <div style="min-width:0;flex:1">
+          <h3 style="margin:0">${esc(p.name)}</h3>
+          <span style="color:var(--text-muted);font-size:.88rem">${esc(p.role)} · ${esc(p.dept)}${mgr ? ` · ${esc(t('pc.manager'))}: ${esc(mgr.name)}` : ''}</span>
+        </div>
+        <div class="pc-score">
+          ${e.score != null ? `<b>${e.score.toFixed(2)}${e.trend > 0 ? ' <i class="up">▲</i>' : e.trend < 0 ? ' <i class="down">▼</i>' : ''}</b>` : `<span class="badge">${esc(t('tal.noScore'))}</span>`}
+          ${b ? `<span class="badge ${b.cls}">${esc(t('band.' + b.key))}</span>` : ''}
+        </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-        ${e.score != null ? `<span class="badge b-green">${esc(t('rev.score'))}: ${e.score.toFixed(2)}${e.trend ? (e.trend > 0 ? ' ▲' : ' ▼') : ''}</span>` : `<span class="badge">${esc(t('tal.noScore'))}</span>`}
-        ${b ? `<span class="badge">${esc(t('band.' + b.key))}</span>` : ''}
-        ${e.row && e.col ? `<span class="badge b-amber">${esc(t('tal.box.' + BOXES[3 - e.row][e.col - 1]))}</span>` : ''}
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+
+      <div class="pc-flags">
+        ${e.row && e.col ? `<span class="badge b-amber">${esc(t('tal.box.' + BOXES[3 - e.row][e.col - 1]))}${e.overridden ? ' ✎' : ''}</span>` : ''}
         ${flag(t('rev.talent.potential'), tal.potential ? t('tal.pot.' + tal.potential) : '')}
         ${flag(t('rev.talent.readiness'), tal.readiness ? t('tal.rd.' + tal.readiness) : '')}
-        ${flag(t('rev.talent.attrition'), tal.attrition ? t('tal.att.' + tal.attrition) : '')}
+        ${flag(t('rev.talent.attrition'), tal.attrition ? t('tal.att.' + tal.attrition) : '', tal.attrition === 'high' ? 'b-red' : tal.attrition === 'mid' ? 'b-amber' : 'b-blue')}
         ${tal.mobility ? `<span class="badge b-blue">${esc(t('rev.talent.mobility'))}</span>` : ''}
         ${flag(t('rev.talent.languages'), tal.languages && tal.languages !== '-' ? tal.languages : '')}
-        ${rcOf(pid) ? `<span class="badge b-red">${esc(t('rc.legend'))}: ${esc(t('rc.q.' + rcQuadrant(rcOf(pid))))}</span>` : ''}
+        ${holds.map(kp => `<span class="badge b-blue">${icon('tree', 11)} ${esc(t('pc.holdsKey'))}: ${esc(kp.title)}${!(kp.successors || []).length ? ' · ⚠ ' + esc(t('kp.noSucc')) : ''}</span>`).join('')}
+        ${succOf.map(kp => `<span class="badge b-green">${icon('tree', 11)} ${esc(t('pc.succOf'))}: ${esc(kp.title)}</span>`).join('')}
+        ${rc ? `<span class="badge b-red">${esc(t('rc.legend'))}: ${esc(t('rc.q.' + rcQuadrant(rc)))}</span>` : ''}
         ${window.Feedback360Views ? Feedback360Views.statusLineHtml(pid) : ''}
       </div>
-      ${window.Feedback360Views ? Feedback360Views.threeViewsHtml(pid) : ''}
-      ${goals.length ? `<div class="bars" style="margin-bottom:12px">${goals.slice(0, 4).map(g => `
-        <div class="brow"><span>${esc(g.title)}</span>
-        <div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}</div>` : ''}
+
+      <div class="pc-grid">
+        <div class="pc-sec">
+          <h4>${icon('doc', 15)}${esc(t('pc.reviews'))}</h4>
+          ${curRev ? `<div class="pc-row">${UI.stBadge(curRev.status)}
+            <button class="btn btn-sm" data-pc-rev="${curRev.id}">${esc(t('rev.view'))}</button></div>` : `<p class="pc-muted">-</p>`}
+          ${history.length ? `<div class="pc-hist">${history.map(x =>
+            `<span>${esc(x.r.period)} <b>${x.s.toFixed(2)}</b></span>`).join('')}</div>` : ''}
+        </div>
+
+        <div class="pc-sec">
+          <h4>${icon('target', 15)}${esc(t('mt.goals'))}${avgG != null ? ` <span class="badge">${avgG} %</span>` : ''}</h4>
+          ${goals.length ? `<div class="bars">${goals.slice(0, 5).map(g => `
+            <div class="brow"><span>${esc(g.title)}</span>
+            <div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}</div>` : `<p class="pc-muted">-</p>`}
+        </div>
+
+        <div class="pc-sec">
+          <h4>${icon('checkin', 15)}${esc(t('pc.evidence'))}</h4>
+          ${cis.map(c => `<p class="pc-item">${c.mood} <small>${UI.fmtDate(c.at)}</small> ${esc(c.notes)}</p>`).join('')}
+          ${kuds.slice(0, 2).map(k => { const fr = Store.get('people', k.fromId); return `<p class="pc-item">${icon('heart', 12)} <b>${esc(fr ? fr.firstName : '?')}</b>: ${esc(k.msg)}</p>`; }).join('')}
+          ${kuds.length > 2 ? `<p class="pc-muted">+${kuds.length - 2} ${esc(t('kudos.title').toLowerCase())}</p>` : ''}
+          ${!cis.length && !kuds.length ? `<p class="pc-muted">-</p>` : ''}
+        </div>
+
+        <div class="pc-sec">
+          <h4>${icon('team', 15)}360°</h4>
+          ${window.Feedback360Views ? (Feedback360Views.threeViewsHtml(pid) || `<p class="pc-muted">${esc(t('pc.no360'))}</p>`) : ''}
+        </div>
+      </div>
+
       <div class="wizard-foot">
         ${window.Feedback360 && !Store.list('feedback360').some(x => x.subjectId === pid && x.status === 'collecting')
           ? `<button class="btn btn-sm" id="tp-f360">${icon('team', 13)} ${esc(t('f360.request'))}</button>` : '<span></span>'}
         <div style="display:flex;gap:8px">
-          ${e.review ? `<button class="btn btn-sm" id="tp-open">${icon('doc', 14)} ${esc(t('rev.view'))}</button>` : ''}
+          ${curRev ? `<button class="btn btn-sm" id="tp-open">${icon('doc', 14)} ${esc(t('rev.view'))}</button>` : ''}
           <button class="btn btn-primary btn-sm" id="tp-close">${esc(t('common.close'))}</button>
-        </div></div>`, m => {
+        </div></div>
+    </div>`, m => {
+      if (m && m.classList) m.classList.add('modal-wide');
       m.querySelector('#tp-close').onclick = closeModal;
+      const goRev = id => { closeModal(); location.hash = '#/review/' + id; };
       const open = m.querySelector('#tp-open');
-      if (open) open.onclick = () => { closeModal(); location.hash = '#/review/' + e.review.id; };
+      if (open) open.onclick = () => goRev(curRev.id);
+      m.querySelectorAll('[data-pc-rev]').forEach(bn => bn.onclick = () => goRev(bn.dataset.pcRev));
       const f3 = m.querySelector('#tp-f360');
       if (f3) f3.onclick = () => { closeModal(); Feedback360Views.requestModal(pid, () => {}); };
     });
