@@ -42,7 +42,7 @@ Výstup není tabulka pro tabulku: je to moment, kdy si jednou za kvartál uvěd
 
 Kdekoli potkáš člověka (Můj tým, matice, seznam Lidé), klik otevře jeho **kartu**: skóre s trendem a pásmem, talent flagy, běžící hodnocení s proklikem, historii skóre po obdobích, plnění cílů, poslední check-in a kudos, 360 tři pohledy a nástupnické souvislosti (drží klíčovou pozici / je nástupcem). Dole rychlé akce — otevřít hodnocení nebo vyžádat 360. Před 1:1 nebo hodnocením ti stačí tahle jedna karta.
 
-V seznamech (1:1 check-iny, kudos, hodnocení týmu) navíc filtruj hledáním jména/role nebo výběrem oddělení — filtr drží, dokud ho křížkem nezrušíš.
+V seznamech (1:1 check-iny, kudos, hodnocení týmu) navíc filtruj hledáním jména/role nebo výběrem oddělení — filtr drží, dokud ho křížkem nezrušíš. Tabulky (Hodnocení týmu, Moje hodnocení, Lidé) řadíš klikem na hlavičku sloupce: první klik vzestupně, druhý sestupně — stav se řadí podle postupu procesu, termín podle dní do deadlinu.
 
 ## Zásady dobrého hodnotitele
 

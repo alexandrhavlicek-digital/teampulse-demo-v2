@@ -969,3 +969,8 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 .person-card .pc-muted { color: var(--text-muted); font-size: .84rem; }
 .person-card .table { font-size: .82rem; }
 @media (max-width: 700px) { .person-card .pc-grid { grid-template-columns: 1fr; } }
+
+/* ===== řazení tabulek ===== */
+.th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.th-sort:hover { color: var(--accent); }
+.th-sort .ts-arr { display: inline-block; width: 14px; font-size: .68rem; margin-left: 3px; color: var(--accent); }

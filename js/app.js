@@ -350,7 +350,35 @@
     if (d) d.onchange = () => { f.dept = d.value; sync(); };
     if (x) x.onclick = () => { f.q = ''; f.dept = ''; if (q) q.value = ''; if (d) d.value = ''; sync(); };
   }
-  window.AppFilters = { fltState, personMatch }; /* reuse v talent.js */
+  /* ---- řazení tabulek kliknutím na hlavičku (1. klik ↑, 2. klik ↓) ---- */
+  const STATUS_ORDER = ['pending_self', 'self_in_progress', 'self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done', 'awaiting_employee_confirmation', 'confirmed', 'closed_by_hr', 'cancelled'];
+  function sortState(page) { const f = fltState(page); f.sort = f.sort || { key: null, dir: 1 }; return f.sort; }
+  function thSort(page, key, label) {
+    const s = sortState(page);
+    return `<th class="th-sort" data-ts="${page}:${key}" title="${esc(t('flt.sort'))}">${esc(label)}<span class="ts-arr">${s.key === key ? (s.dir > 0 ? '▲' : '▼') : ''}</span></th>`;
+  }
+  function applySort(list, page, getters) {
+    const s = sortState(page);
+    if (!s.key || !getters[s.key]) return list;
+    const g = getters[s.key];
+    return list.slice().sort((a, b) => {
+      const x = g(a), y = g(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      const c = typeof x === 'string' ? x.localeCompare(y, I18N.locale) : x - y;
+      return c * s.dir;
+    });
+  }
+  function bindSort(container, page, redraw) {
+    container.querySelectorAll('[data-ts]').forEach(th => th.onclick = () => {
+      const key = th.dataset.ts.split(':')[1];
+      const s = sortState(page);
+      if (s.key === key) s.dir = -s.dir; else { s.key = key; s.dir = 1; }
+      redraw();
+    });
+  }
+  window.AppFilters = { fltState, personMatch, applySort, sortState, STATUS_ORDER }; /* reuse v talent.js + testy */
 
   /* ================= views ================= */
   const views = {};
@@ -427,11 +455,18 @@
   views.myreviews = root => {
     const va = viewAs();
     const me = va.personId ? person(va.personId) : null;
-    const my = me ? reviews().filter(r => r.subjectId === me.id).sort((a, b) => b.startedAt - a.startedAt) : [];
     root.innerHTML = `
       <h1 class="page-title">${esc(t('rev.title'))}</h1><p class="page-sub">${esc(t('rev.sub'))}</p>
-      <div class="card">${my.length ? `<table class="table">
-        <tr><th>${esc(t('rev.period'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.status'))}</th><th></th></tr>
+      <div class="card" id="mr-list"></div>`;
+    const draw = () => {
+      let my = me ? reviews().filter(r => r.subjectId === me.id).sort((a, b) => b.startedAt - a.startedAt) : [];
+      my = applySort(my, 'myreviews', {
+        period: r => r.period,
+        evaluator: r => (person(r.evaluatorId) || {}).name || '',
+        status: r => STATUS_ORDER.indexOf(r.status),
+      });
+      root.querySelector('#mr-list').innerHTML = my.length ? `<table class="table">
+        <tr>${thSort('myreviews', 'period', t('rev.period'))}${thSort('myreviews', 'evaluator', t('rev.evaluator'))}${thSort('myreviews', 'status', t('rev.status'))}<th></th></tr>
         ${my.map(r => {
           const action = ['pending_self', 'self_in_progress'].includes(r.status) ? t('rev.openWizard')
             : r.status === 'awaiting_employee_confirmation' ? t('rev.confirm') : t('rev.view');
@@ -440,8 +475,10 @@
             <td>${avatar(person(r.evaluatorId), 26)} ${esc((person(r.evaluatorId) || {}).name || '-')}</td>
             <td>${stBadge(r.status)}</td>
             <td><button class="btn btn-sm btn-primary">${esc(action)}</button></td></tr>`;
-        }).join('')}</table>` : `<div class="empty">${icon('inbox', 52)}<br>${esc(t('rev.noHistory'))}</div>`}
-      </div>`;
+        }).join('')}</table>` : `<div class="empty">${icon('inbox', 52)}<br>${esc(t('rev.noHistory'))}</div>`;
+      bindSort(root.querySelector('#mr-list'), 'myreviews', draw);
+    };
+    draw();
   };
 
   /* ---- team reviews ---- */
@@ -457,8 +494,14 @@
       if (va.role === 'manager') list = list.filter(r => r.evaluatorId === va.personId);
       if (f.q || f.dept) list = list.filter(r => personMatch(person(r.subjectId), f));
       list.sort((a, b) => a.startedAt - b.startedAt);
+      list = applySort(list, 'team', {
+        name: r => (person(r.subjectId) || {}).name || '',
+        dept: r => (person(r.subjectId) || {}).dept || '',
+        status: r => STATUS_ORDER.indexOf(r.status),
+        deadline: r => ReviewLogic.daysLeft(r),
+      });
       root.querySelector('#tm-list').innerHTML = list.length ? `<table class="table">
-        <tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('people.dept'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
+        <tr>${thSort('team', 'name', t('rev.subject'))}${thSort('team', 'dept', t('people.dept'))}${thSort('team', 'status', t('rev.status'))}${thSort('team', 'deadline', t('rev.deadline'))}<th></th></tr>
         ${list.map(r => {
           const p = person(r.subjectId); if (!p) return '';
           const d = ReviewLogic.daysLeft(r), rk = ReviewLogic.risk(r);
@@ -468,6 +511,7 @@
             <td><span class="badge ${rk === 'blocked' ? 'b-red' : rk === 'risk' ? 'b-amber' : ''}">${d} d</span></td>
             <td><button class="btn btn-sm">${esc(['self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done'].includes(r.status) ? t('rev.evaluate') : t('rev.view'))}</button></td></tr>`;
         }).join('')}</table>` : `<div class="empty">${icon('team', 52)}<br>${esc(t('flt.noMatch'))}</div>`;
+      bindSort(root.querySelector('#tm-list'), 'team', draw);
     };
     draw();
     bindFilterBar(root, 'team', draw);
@@ -604,10 +648,14 @@
     const canCard = ['hr', 'manager'].includes(viewAs().role); /* karta člověka jen mgr+HR */
     function tableHtml(filter, deptKey) {
       const f = (filter || '').toLowerCase();
-      const list = ps.filter(p => (!deptKey || p.deptKey === deptKey)
+      let list = ps.filter(p => (!deptKey || p.deptKey === deptKey)
         && (!f || p.name.toLowerCase().includes(f) || p.role.toLowerCase().includes(f) || p.dept.toLowerCase().includes(f)));
+      list = applySort(list, 'people', {
+        name: p => p.name, role: p => p.role, dept: p => p.dept,
+        manager: p => p.managerId ? (person(p.managerId) || {}).name || '' : null,
+      });
       return `<table class="table">
-        <tr><th>${esc(t('people.name'))}</th><th>${esc(t('people.role'))}</th><th>${esc(t('people.dept'))}</th><th>${esc(t('people.manager'))}</th></tr>
+        <tr>${thSort('people', 'name', t('people.name'))}${thSort('people', 'role', t('people.role'))}${thSort('people', 'dept', t('people.dept'))}${thSort('people', 'manager', t('people.manager'))}</tr>
         ${list.slice(0, 120).map(p => `<tr ${canCard ? `class="clickable" data-pc="${p.id}" title="${esc(t('mt.profile'))}"` : ''}>
           <td>${avatar(p, 32)} <b>${esc(p.name)}</b><br><small style="color:var(--text-muted)">${esc(p.email)}</small></td>
           <td>${esc(p.role)}</td><td><span class="badge">${esc(p.dept)}</span></td>
@@ -619,6 +667,7 @@
       const redrawP = () => {
         tbl.innerHTML = tableHtml(srch.value, dsel.value);
         tbl.querySelectorAll('[data-pc]').forEach(tr => tr.onclick = () => TalentViews.profileModal(tr.dataset.pc));
+        bindSort(tbl, 'people', redrawP);
       };
       redrawP();
       srch.oninput = redrawP;

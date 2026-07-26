@@ -32,6 +32,7 @@ load('js/generator.js');
 load('js/reviews.js');
 load('js/talent.js');
 load('js/feedback360.js');
+load('js/app.js'); /* boot proběhne proti stub DOM (onboarding větev) - dává window.App a AppFilters */
 
 let failed = 0;
 const ok = (cond, msg) => { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); if (!cond) failed++; };
@@ -256,6 +257,22 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ['cs', 'en', 'de'].forEach(loc => { I18N.setLocale(loc); need.forEach(k => { if (t(k) === k) miss.push(loc + ':' + k); }); });
   I18N.setLocale('cs');
   ok(miss.length === 0, miss.length ? 'chybí: ' + miss.join(', ') : 'flt.* + pc.* klíče kompletní (cs/en/de)');
+})();
+
+/* --- 11g) řazení tabulek: applySort --- */
+(function () {
+  const items = [{ n: 'B', v: 2 }, { n: 'A', v: null }, { n: 'C', v: 1 }];
+  AppFilters.sortState('t1').key = 'v'; AppFilters.sortState('t1').dir = 1;
+  const sorted = AppFilters.applySort(items, 't1', { v: x => x.v });
+  ok(sorted[0].v === 1 && sorted[1].v === 2 && sorted[2].v === null, 'applySort: čísla vzestupně, null na konec');
+  AppFilters.sortState('t1').dir = -1;
+  const desc = AppFilters.applySort(items, 't1', { v: x => x.v });
+  ok(desc[0].v === 2 && desc[1].v === 1, 'applySort: sestupně po druhém kliku');
+  AppFilters.sortState('t2').key = 'n'; AppFilters.sortState('t2').dir = 1;
+  const byName = AppFilters.applySort(items, 't2', { n: x => x.n });
+  ok(byName.map(x => x.n).join('') === 'ABC', 'applySort: řetězce přes localeCompare');
+  ok(AppFilters.STATUS_ORDER.indexOf('pending_self') < AppFilters.STATUS_ORDER.indexOf('confirmed'), 'STATUS_ORDER drží pořadí procesu');
+  ok(t('flt.sort') !== 'flt.sort', 'flt.sort přeložen');
 })();
 
 /* --- 12) store migrace: stará DB bez keyPositions --- */
