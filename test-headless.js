@@ -275,6 +275,21 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(t('flt.sort') !== 'flt.sort', 'flt.sort přeložen');
 })();
 
+/* --- 11h) manažerský velín: podstrom a scope --- */
+(function () {
+  const ps4 = Store.list('people');
+  /* najdi manažera manažerů (jeho přímý podřízený sám někoho vede) */
+  const mm = ps4.find(m => ps4.some(p => p.managerId === m.id && ps4.some(x => x.managerId === p.id)));
+  if (!mm) { ok(true, 'velín: žádný manažer manažerů v seedu (přeskočeno)'); return; }
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mm.id } });
+  const r9 = fakeEl();
+  TalentViews.renderMyTeam(r9);
+  ok(r9.innerHTML.includes('data-mt-scope="sub"'), 'velín: přepínač podtýmů se nabízí');
+  ok(r9.innerHTML.includes('kpi-num'), 'velín: KPI řádek vyrenderován');
+  ok(!r9.innerHTML.match(/mt\.\w/), 'žádné nepřeložené mt.* klíče ve velínu');
+  Store.patchSettings({ viewAs: null });
+})();
+
 /* --- 12) store migrace: stará DB bez keyPositions --- */
 (function () {
   const raw = JSON.parse(localStorage.getItem('teampulse_demo_v2'));

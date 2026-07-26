@@ -13,7 +13,7 @@ Nad existujícím hodnoticím procesem (dokumenty 01–02) staví vrstvu **lidí
 
 1. **Talent sekce** — soukromá část manažerského ročního hodnocení (potenciál, připravenost na další roli, riziko odchodu, mobilita, jazyky).
 2. **9-box matice** (HR záložka *Talent & Reporty*) — výkon × potenciál, fotkové žetony, trend, retenční priority.
-3. **Můj tým** — manažerský read-only dashboard: mini matice + karty lidí.
+3. **Můj tým** — manažerský „velín": přepínač přímý tým / včetně podtýmů (`subtreeOf` = rekurzivní podstrom dle `managerId`), KPI řádek (účastníci, dokončenost, rizika, Ø skóre), rozpad po podtýmech (per vedoucí: lidí, dokončenost, rizika, Ø skóre, stav talent checku; klik = karta vedoucího), riziková hodnocení s upomínkou, stavová distribuce — plus mini matice, klíčové pozice a karty lidí. Talent check zůstává vždy nad přímým týmem.
 4. **Klíčové pozice + nástupci** — 12otázkový checklist (většina ANO → klíčová), přiřazení nástupců, overlay v org chartu.
 5. **Kvartální talent check** — vynucený moment: manažer potvrdí/posune lidi v matici (drag & drop), odešle, proběhne debata s HR, stav se zamrazí.
 6. **Tisková sestava pro poradu vedení** — souhrn talentu a nástupnictví na jeden tisk.

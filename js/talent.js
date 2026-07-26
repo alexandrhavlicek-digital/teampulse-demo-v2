@@ -601,24 +601,108 @@
     </div>`;
   }
 
+  /* manažerský „velín": scope přímý tým vs. celý podstrom (podtýmy) */
+  const mtUi = { scope: 'direct' };
+  function subtreeOf(rootId) {
+    const ps = Store.list('people');
+    const out = [];
+    const walk = id => ps.filter(p => p.managerId === id).forEach(p => { out.push(p); walk(p.id); });
+    walk(rootId);
+    return out;
+  }
+  function teamStats(members) {
+    const ids = new Set(members.map(p => p.id));
+    const cur = Store.list('reviews').filter(r => r.period === Generator.CURRENT_PERIOD && ids.has(r.subjectId));
+    const done = cur.filter(r => ['confirmed', 'closed_by_hr'].includes(r.status)).length;
+    const atRisk = cur.filter(r => ['risk', 'blocked'].includes(ReviewLogic.risk(r)));
+    const scores = members.map(p => entryOf(p).score).filter(s => s != null);
+    return {
+      cur, done, atRisk,
+      completion: cur.length ? Math.round(done / cur.length * 100) : null,
+      avgScore: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
+    };
+  }
+
   function renderMyTeam(root) {
     const va = App.viewAs();
     const me = va.personId ? Store.get('people', va.personId) : null;
-    const team = me ? Store.list('people').filter(p => p.managerId === me.id) : [];
-    if (!team.length) {
+    const direct = me ? Store.list('people').filter(p => p.managerId === me.id) : [];
+    if (!direct.length) {
       root.innerHTML = `<h1 class="page-title">${esc(t('mt.title'))}</h1>
         <div class="card"><div class="empty">${icon('team', 52)}<br>${esc(t('mt.empty'))}</div></div>`;
       return;
     }
+    const sub = subtreeOf(me.id);
+    const hasSubteams = sub.length > direct.length;
+    if (!hasSubteams) mtUi.scope = 'direct';
+    const team = mtUi.scope === 'sub' ? sub : direct;
+    const st = teamStats(team);
+    /* podtýmy: přímí podřízení, kteří sami vedou lidi */
+    const subLeads = direct.filter(m => Store.list('people').some(p => p.managerId === m.id));
+
     const entries = team.map(entryOf)
       .sort((a, b) => (b.score != null) - (a.score != null) || (b.score || 0) - (a.score || 0));
     const placed = entries.filter(e => e.row && e.col);
     const retention = placed.filter(e => e.tal && e.tal.potential === 'high' && ['mid', 'high'].includes(e.tal.attrition));
 
     const check = tcOf(me.id);
+    const stOrder = ['pending_self', 'self_in_progress', 'self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done', 'awaiting_employee_confirmation', 'confirmed', 'closed_by_hr'];
+    const dist = stOrder.map(s2 => [s2, st.cur.filter(r => r.status === s2).length]).filter(([, n]) => n > 0);
+
     root.innerHTML = `
-      <h1 class="page-title">${esc(t('mt.title'))} <span class="badge b-blue">${team.length}</span></h1>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h1 class="page-title" style="margin:0">${esc(t('mt.title'))} <span class="badge b-blue">${team.length}</span></h1>
+        ${hasSubteams ? `<span class="lang-seg">
+          <button data-mt-scope="direct" class="${mtUi.scope === 'direct' ? 'on' : ''}">${esc(t('mt.scopeDirect'))} (${direct.length})</button>
+          <button data-mt-scope="sub" class="${mtUi.scope === 'sub' ? 'on' : ''}">${esc(t('mt.scopeSub'))} (${sub.length})</button>
+        </span>` : ''}
+      </div>
       <p class="page-sub">${esc(t('mt.sub'))}</p>
+
+      <div class="grid cols-4">
+        <div class="card"><div class="kpi-num">${st.cur.length}</div><div class="kpi-label">${esc(t('hr.participants'))} · ${esc(Generator.CURRENT_PERIOD)}</div></div>
+        <div class="card"><div class="kpi-num">${st.completion != null ? st.completion + '%' : '-'}</div><div class="kpi-label">${esc(t('hr.completion'))}</div></div>
+        <div class="card"><div class="kpi-num" style="color:${st.atRisk.length ? 'var(--warn)' : 'var(--ok)'}">${st.atRisk.length}</div><div class="kpi-label">${esc(t('hr.atRisk'))}</div></div>
+        <div class="card"><div class="kpi-num">${st.avgScore != null ? st.avgScore.toFixed(2) : '-'}</div><div class="kpi-label">${esc(t('mt.avgScore'))}</div></div>
+      </div>
+
+      ${subLeads.length ? `<div class="card">
+        <h2>${icon('tree', 18)}${esc(t('mt.subteams'))}</h2>
+        <p class="page-sub" style="margin-bottom:8px">${esc(t('mt.subteamsSub'))}</p>
+        <table class="table"><tr><th>${esc(t('mt.subLead'))}</th><th>${esc(t('ob.people'))}</th><th>${esc(t('hr.completion'))}</th><th>${esc(t('hr.atRisk'))}</th><th>${esc(t('mt.avgScore'))}</th><th>${esc(t('tc.title'))}</th></tr>
+        ${subLeads.map(m => {
+          const mem = subtreeOf(m.id);
+          const s3 = teamStats(mem.concat(m));
+          const c3 = tcOf(m.id);
+          return `<tr class="clickable" data-tal-p="${m.id}">
+            <td>${avatar(m, 28)} <b>${esc(m.name)}</b><br><small style="color:var(--text-muted)">${esc(m.role)}</small></td>
+            <td>${mem.length}</td>
+            <td>${s3.completion != null ? s3.completion + ' %' : '-'}</td>
+            <td>${s3.atRisk.length ? `<span class="badge b-amber">${s3.atRisk.length}</span>` : '0'}</td>
+            <td>${s3.avgScore != null ? s3.avgScore.toFixed(2) : '-'}</td>
+            <td>${tcStatusBadge(c3 ? c3.status : null)}</td></tr>`;
+        }).join('')}</table>
+      </div>` : ''}
+
+      <div class="card">
+        <h2>${icon('alert', 18)}${esc(t('hr.atRisk'))}</h2>
+        ${st.atRisk.length ? `<table class="table"><tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
+          ${st.atRisk.slice(0, 10).map(r => {
+            const p = Store.get('people', r.subjectId);
+            const d = ReviewLogic.daysLeft(r);
+            return `<tr><td>${avatar(p, 28)} ${esc(p ? p.name : '')}</td><td>${stBadge(r.status)}</td>
+              <td><span class="badge ${d < 0 ? 'b-red' : 'b-amber'}">${d} d</span></td>
+              <td style="white-space:nowrap"><button class="btn btn-sm" data-mt-remind="${r.id}">${icon('send', 13)} ${esc(t('hr.remind'))}</button>
+                <button class="btn btn-sm" onclick="location.hash='#/review/${r.id}'">${esc(t('rev.view'))}</button></td></tr>`;
+          }).join('')}</table>` : `<p class="page-sub">${esc(t('hr.noRisk'))}</p>`}
+      </div>
+
+      ${dist.length ? `<div class="card">
+        <h2>${icon('gauge', 18)}${esc(t('hr.statusDist'))}</h2>
+        <div class="bars">${dist.map(([s2, n]) => `
+          <div class="brow"><span>${esc(t('st.' + s2))}</span>
+          <div class="progressbar"><div style="width:${n / Math.max(1, st.cur.length) * 100}%"></div></div><b>${n}</b></div>`).join('')}</div>
+      </div>` : ''}
       ${tcCadence() !== 'off' && (!check || check.status === 'draft') ? `
       <div class="card tc-banner">
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -655,6 +739,11 @@
       <div class="mt-cards">${entries.map(teamCardHtml).join('')}</div>`;
 
     root.querySelectorAll('[data-tal-p]').forEach(bn => bn.onclick = () => profileModal(bn.dataset.talP));
+    root.querySelectorAll('[data-mt-scope]').forEach(bn => bn.onclick = () => { mtUi.scope = bn.dataset.mtScope; renderMyTeam(root); });
+    root.querySelectorAll('[data-mt-remind]').forEach(bn => bn.onclick = ev => {
+      ev.stopPropagation();
+      UI.notify(t('hr.reminded'), 'all'); UI.toast(t('hr.reminded'));
+    });
   }
 
   /* ---------------- červená karta + matice potřebnosti ----------------

@@ -26,7 +26,7 @@ S 15 lidmi v týmu tě hodnoticí cyklus nesmí stát 15 hodin u počítače. Sy
 
 ## Můj tým — příprava na 1:1 za 30 sekund
 
-Pohled **Můj tým** ti ukáže celý tým najednou: mini talent matici s fotkovými žetony a trendem, klíčové pozice tvého týmu s nástupci (červeně svítí pozice bez nástupce) a kartu na každého člověka — skóre s trendem, pásmo, pole matice, zvýšené riziko odchodu, kudos za 60 dní, plnění cílů, poslední check-in a stav hodnocení s prokliky. Karty jsou seřazené podle skóre: nahoře hvězdy, dole lidi, kterým se máš věnovat. Je to čtecí pohled — nic tu nevyplňuješ.
+Pohled **Můj tým** je tvůj velín. Nahoře přepínáš **Přímý tým / Včetně podtýmů** (celý tvůj podstrom) a vidíš čísla jako HR, jen za sebe: kolik hodnocení běží, dokončenost, rizika termínů (s tlačítkem Připomenout) a průměrné skóre. Pokud tvoji lidé sami vedou týmy, tabulka **Podtýmy** ukáže, jak je na tom každý vedoucí — lidí, dokončenost, rizika, Ø skóre a stav jeho talent checku; klik otevře jeho kartu. Pod tím mini talent matice, klíčové pozice tvého týmu s nástupci (červeně svítí pozice bez nástupce) a karta na každého člověka — skóre s trendem, pásmo, pole matice, riziko odchodu, kudos, plnění cílů, poslední check-in a stav hodnocení s prokliky. Karty jsou seřazené podle skóre: nahoře hvězdy, dole lidi, kterým se máš věnovat.
 
 ## Talent check — 10 minut jednou za kvartál
 
