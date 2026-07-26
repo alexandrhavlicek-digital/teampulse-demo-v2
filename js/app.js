@@ -1429,6 +1429,7 @@
   views.help = root => {
     if (!helpTab) helpTab = viewAs().role || 'employee';
     const STEPS = { employee: 7, manager: 8, hr: 7 };
+    const MODN = { employee: 4, manager: 8, hr: 8 };
     const TAB_ICO = { employee: 'doc', manager: 'target', hr: 'gauge' };
     root.innerHTML = `
       <h1 class="page-title">${esc(t('help.title'))}</h1><p class="page-sub">${esc(t('help.sub'))} ${esc(t('help.roleIntro'))}</p>
@@ -1438,6 +1439,12 @@
       <div class="card"><h2>${icon(TAB_ICO[helpTab], 18)}${esc(t('help.' + helpTab + '.title'))}</h2>
         <ul class="timeline">${Array.from({ length: STEPS[helpTab] }, (_, i) =>
           `<li><span class="tday">${i + 1}.</span>${esc(t('help.' + helpTab + '.' + (i + 1)))}</li>`).join('')}</ul>
+      </div>
+
+      <div class="card"><h2>${icon('grid9', 18)}${esc(t('help.mod.title'))}</h2>
+        <p class="page-sub" style="margin-bottom:10px">${esc(t('help.mod.sub'))}</p>
+        <ul class="timeline">${Array.from({ length: MODN[helpTab] }, (_, i) =>
+          `<li><span class="tday">·</span>${esc(t('help.mod.' + helpTab + '.' + (i + 1)))}</li>`).join('')}</ul>
       </div>
 
       <div class="card"><h2>${icon('calendar', 18)}${esc(t('help.types.title'))}</h2>
