@@ -32,7 +32,9 @@ HR centrum je velín celého procesu. Tvoje práce má tři vrstvy: **nastavit p
 
 Lidé: přidávání, oddělení, hodnoticí vztah (Nadřízený = kdo hodnotí). Org chart se z vztahů kreslí sám. Při změně manažera uprav `Nadřízený` — běžící hodnocení zůstává původnímu hodnotiteli (převod řeš individuálně). Odchod zaměstnance v průběhu cyklu: hodnocení zruš (stav Zrušeno).
 
-V org chartu vidíš (jen ty a manažeři) **succession overlay**: rámeček = klíčová pozice, zelený kroužek = klíčový nástupce, oranžový = nástupce, červený vykřičník = klíčová pozice bez nástupce. Zaměstnancům se označení nevykresluje.
+V org chartu vidíš (jen ty a manažeři) **succession overlay**: rámeček = klíčová pozice, zelený kroužek = klíčový nástupce, oranžový = nástupce, červený vykřičník = klíčová pozice bez nástupce. Zaměstnancům se označení nevykresluje. Hierarchii spojují viditelné linky; po najetí na žeton se objeví **„i"** — otevře kartu člověka (stejnou jako v Lidé), takže od struktury k detailu je jeden klik. Tlačítkem v pravém horním rohu plátna přepneš org chart **na celou obrazovku** (Esc ho vrátí).
+
+Náladu z 1:1 sleduj v sekci **1:1 check-iny → tab Přehled**: Ø nálada firmy za 90 dní, vývoj po měsících a tabulka po týmech (vedoucí, počet 1:1, Ø, trend, poslední aktivita). Klesající tým nebo vedoucí, který 1:1 nedělá (sloupec 90 d = 0×, „Nikdy"), je signál pro tvůj rozhovor s ním — data z eNPS ti řeknou *jak je firmě*, tohle ti řekne *jestli manažeři s lidmi mluví*.
 
 ## 5. Zásady procesu (metodika)
 

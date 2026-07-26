@@ -1029,3 +1029,37 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 }
 .sb-collapsed .sidebar .nav-item { border-radius: var(--radius); }
 [data-theme="glass"] .sb-collapsed .sidebar { width: 72px; flex: 0 0 72px; }
+
+/* ===== org chart: viditelné konektory + ⓘ + fullscreen ===== */
+:root { --org-line: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.org-vline { width: 2px; height: 18px; background: var(--org-line); }
+.org-children { position: relative; padding-top: 18px; }
+/* svislý přívod ke každému dítěti */
+.org-children > .org-branch::before {
+  content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-1px);
+  width: 2px; height: 18px; background: var(--org-line);
+}
+/* vodorovná sběrnice nad sourozenci (u krajních jen půlka, u jedináčka nic) */
+.org-children > .org-branch::after {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--org-line);
+}
+.org-children > .org-branch:first-child::after { left: 50%; }
+.org-children > .org-branch:last-child::after { right: 50%; }
+.org-children > .org-branch:only-child::after { display: none; }
+.org-children > .org-branch { padding: 0 7px; } /* ať sběrnice navazuje přes mezery */
+
+.org-info {
+  position: absolute; top: -8px; left: -8px; width: 20px; height: 20px;
+  border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface); color: var(--accent);
+  font-size: .72rem; font-weight: 800; font-style: italic;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); opacity: 0; transition: opacity .12s ease;
+}
+.org-node:hover .org-info { opacity: 1; }
+.org-info:hover { background: var(--accent); color: var(--accent-contrast); }
+
+.card:fullscreen { border-radius: 0; overflow: auto; background: var(--bg); }
+.card:fullscreen .org-canvas { height: calc(100vh - 24px); }
+.org-children { gap: 0; } /* mezery řeší padding větví - sběrnice je souvislá */
+.ci-moods { font-size: 1.05rem; letter-spacing: 2px; white-space: nowrap; }

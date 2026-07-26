@@ -319,6 +319,20 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(NPS.engagement({ dims: { work: 8, growth: 6, support: 7 } }) === 7, 'engagement = průměr dimenzí');
 })();
 
+/* --- 11j) 1:1 check-iny: seed s historií pro tab Přehled --- */
+(function () {
+  const cis = Store.list('checkins');
+  ok(cis.length > 0, `seed checkins (${cis.length}×)`);
+  const DAY = 24 * 3600 * 1000;
+  const span = Math.max(...cis.map(c => c.at)) - Math.min(...cis.map(c => c.at));
+  ok(span > 90 * DAY, `historie 1:1 přes 90 dní (span ${Math.round(span / DAY)} d) — graf po měsících má data`);
+  ok(cis.every(c => ['😟', '😐', '🙂', '😄'].includes(c.mood)), 'všechny nálady z platné škály');
+  /* každý pár manažer×report má sérii (trend spočitatelný) */
+  const byPair = {};
+  cis.forEach(c => { const k = c.managerId + '|' + c.employeeId; byPair[k] = (byPair[k] || 0) + 1; });
+  ok(Object.values(byPair).every(n => n >= 5), 'každý seedovaný pár má min. 5 záznamů');
+})();
+
 /* --- 12) store migrace: stará DB bez keyPositions --- */
 (function () {
   const raw = JSON.parse(localStorage.getItem('teampulse_demo_v2'));

@@ -190,7 +190,7 @@ Vstupy do flow: banner v **Můj tým** (když check pro aktuální období neexi
 | `#/myteam` | manager | banner checku, retenční callout, mini 9-box, klíčové pozice týmu, karty lidí |
 | `#/talentcheck` | manager | check aktuálního období (založí draft, pokud není) |
 | `#/talentcheck/<managerId>` | hr | read-only obsah checku + finalizace (jen debate/final) |
-| `#/org` | všichni | overlay + legenda **jen pro hr/manager** |
+| `#/org` | všichni | overlay + legenda **jen pro hr/manager**; hover „i" na žetonu → `TalentViews.profileModal` (kreslí se jen pro hr/manager); fullscreen tlačítko `#oz-fs` |
 | Manažerský editor hodnocení | evaluator | talent sekce (jen typ annual) |
 | Tisk: `TalentViews.printBoardReport()` | hr | sestava pro poradu (print-root) |
 

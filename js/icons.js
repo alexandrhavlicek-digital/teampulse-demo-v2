@@ -46,6 +46,9 @@
     inbox: '<path d="M4 4.8h16v14.4H4z"/><path d="M4 13.2h4.4l1.6 2.6h4l1.6-2.6H20"/>',
     globe: '<circle cx="12" cy="12" r="8.2"/><path d="M3.8 12h16.4"/><path d="M12 3.8c2.6 2.2 3.9 5 3.9 8.2s-1.3 6-3.9 8.2c-2.6-2.2-3.9-5-3.9-8.2s1.3-6 3.9-8.2z"/>',
     db: '<ellipse cx="12" cy="6" rx="7.6" ry="2.8"/><path d="M4.4 6v12c0 1.5 3.4 2.8 7.6 2.8s7.6-1.3 7.6-2.8V6"/><path d="M4.4 12c0 1.5 3.4 2.8 7.6 2.8s7.6-1.3 7.6-2.8"/>',
+    /* fullscreen */
+    expand: '<path d="M9 4H4v5"/><path d="M15 4h5v5"/><path d="M9 20H4v-5"/><path d="M15 20h5v-5"/>',
+
     /* talent 9-box grid */
     grid9: '<rect x="4" y="4" width="16" height="16" rx="2.2"/><path d="M9.4 4v16M14.6 4v16M4 9.4h16M4 14.6h16"/>',
 

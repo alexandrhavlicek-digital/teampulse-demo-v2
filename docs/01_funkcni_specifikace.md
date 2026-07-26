@@ -78,6 +78,15 @@ Pravidla pololetního checku: změna váhy cíle je **návrh**, který potvrzuje
 
 Nad procesem hodnocení stojí talentová vrstva: talent sekce v manažerské části ročního hodnocení (potenciál, připravenost, riziko odchodu, mobilita, jazyky — původně „mimo scope", nyní implementováno), 9-box matice, Můj tým, klíčové pozice s nástupci a kvartální talent check se stavovým automatem draft → debate → final. Kompletní funkční i technický popis: **08_talent_succession.md**. Pro tento dokument platí jediné doplňkové pravidlo rolí: veškerá talent data vidí pouze hodnotitel (svůj tým) a HR — hodnocený nikdy, ani v tisku.
 
-## 12. Mimo scope dema (plán produkce)
+## 12. 1:1 check-iny (2026-07)
 
-Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), kalibrační session, CMS pro tutoriály/dokumenty. Z talent modulu dále: checklist kandidáta na nástupce (21 otázek), červená karta + matice potřebnosti, 360 zpětná vazba (koncepty v kořeni repa).
+Sekce `#/checkins` má dva taby (`ciUi.tab`, výchozí Přehled):
+
+- **Přehled** — analytika nálad ze smajlíků (😟=1 … 😄=4). KPI řádek za 90 dní: počet 1:1, Ø nálada (barevně: ≥3,2 ok / ≥2,5 accent / ≥2 warn / jinak danger), trend (novější vs. starší polovina okna, práh ±0,15) a počet lidí **bez 1:1 přes 30 dní** (do 8 jmen vypsaných v calloutu). Graf **Vývoj nálady po měsících** čte delší okno 6 měsíců (KPI zůstávají na 90 dnech). Manažer pod tím vidí tabulku **po lidech** (posledních 5 nálad jako řada smajlíků, Ø, poslední 1:1 s odznakem počtu dní — přes 30 dní oranžově, „Nikdy" červeně, počet za 90 dní), HR tabulku **po týmech** (vedoucí, velikost týmu, počet, Ø, trend, poslední aktivita). Klik na řádek otevírá kartu člověka.
+- **Záznamy** — dosavadní evidence rozhovorů (nálada, poznámka, další krok) s filtrem jméno/oddělení.
+
+Rozsah dat podle role: manažer vidí jen svoje 1:1, HR všechny. Zaměstnanec sekci nemá v navigaci.
+
+## 13. Mimo scope dema (plán produkce)
+
+Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), kalibrační session, CMS pro tutoriály/dokumenty. Talent modul je implementovaný celý včetně checklistu kandidáta, červené karty a 360 (viz §11 a 08_talent_succession.md); kandidáti na další iterace jsou v 08 §10.

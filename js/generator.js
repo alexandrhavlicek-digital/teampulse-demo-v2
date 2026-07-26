@@ -488,17 +488,23 @@
       });
     }
 
-    /* check-ins for managers */
-    people.filter(p => p.isHead || p.isLead).forEach(m => {
+    /* check-ins for managers - ~5 mesicu historie, aby tab Prehled ukazoval vyvoj nalady v case */
+    const MOOD_LADDER = ['😟', '😐', '🙂', '😄'];
+    people.filter(p => p.isHead || p.isLead).forEach((m, mi) => {
       const reports = people.filter(p => p.managerId === m.id);
-      reports.slice(0, 2).forEach(r => {
-        checkins.push({
-          id: uid(), managerId: m.id, employeeId: r.id,
-          at: today - Math.floor(rnd() * 14) * day,
-          mood: pick(['🙂', '😄', '😐']),
-          notes: pick(['Kapacita OK, chce víc zpětné vazby k novému úkolu.', 'Probráno workload - domluvena priorita A/B.', 'Spokojenost dobrá, zájem o školení.']),
-          next: pick(['Poslat tipy na kurz', 'Zarezervovat follow-up za 2 týdny', 'Propojit s kolegou z druhého týmu']),
-        });
+      reports.slice(0, 2).forEach((r, ri) => {
+        const base = 1 + ((mi + ri) % 2);            // vychozi nalada 😐/🙂
+        const dir = mi % 3 === 2 ? -1 : 1;           // vetsina tymu se zlepsuje, obcas klesa
+        for (let k = 4; k >= 0; k--) {               // 5 mesicnich 1:1 (4 mesice zpet az ted)
+          const idx = Math.max(0, Math.min(3, base + dir * Math.round((4 - k) / 2)));
+          checkins.push({
+            id: uid(), managerId: m.id, employeeId: r.id,
+            at: today - (k * 30 + Math.floor(rnd() * 10)) * day,
+            mood: MOOD_LADDER[idx],
+            notes: pick(['Kapacita OK, chce víc zpětné vazby k novému úkolu.', 'Probráno workload - domluvena priorita A/B.', 'Spokojenost dobrá, zájem o školení.']),
+            next: pick(['Poslat tipy na kurz', 'Zarezervovat follow-up za 2 týdny', 'Propojit s kolegou z druhého týmu']),
+          });
+        }
       });
     });
 

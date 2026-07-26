@@ -46,6 +46,10 @@ V Můj tým vidíš i anonymní náladu týmu: eNPS skóre, rozložení detrakto
 
 Kdekoli potkáš člověka (Můj tým, matice, seznam Lidé), klik otevře jeho **kartu**: skóre s trendem a pásmem, talent flagy, běžící hodnocení s proklikem, historii skóre po obdobích, plnění cílů, poslední check-in a kudos, 360 tři pohledy a nástupnické souvislosti (drží klíčovou pozici / je nástupcem). Dole rychlé akce — otevřít hodnocení nebo vyžádat 360. Před 1:1 nebo hodnocením ti stačí tahle jedna karta.
 
+## 1:1 check-iny — tab Přehled
+
+Sekce 1:1 check-iny má dva taby. **Přehled** ti na první pohled řekne, jestli jsou tvoje 1:1 v pořádku a kam se nálada týmu vyvíjí: Ø nálada za 90 dní (barevně), trend šipkou, vývoj po měsících a hlavně seznam lidí **bez 1:1 přes 30 dní** — to je tvůj úkolníček. Tabulka po lidech ukazuje posledních 5 nálad jako řadu smajlíků (čti zleva doprava — klesající řada je signál), Ø a datum posledního rozhovoru; klik na řádek otevře kartu člověka. **Záznamy** jsou evidence jednotlivých rozhovorů. Náladu zapisuj poctivě podle toho, jak rozhovor skutečně vyzněl — analytika je jen tak dobrá, jak pravdivá data do ní dáš.
+
 V seznamech (1:1 check-iny, kudos, hodnocení týmu) navíc filtruj hledáním jména/role nebo výběrem oddělení — filtr drží, dokud ho křížkem nezrušíš. Tabulky (Hodnocení týmu, Moje hodnocení, Lidé) řadíš klikem na hlavičku sloupce: první klik vzestupně, druhý sestupně — stav se řadí podle postupu procesu, termín podle dní do deadlinu.
 
 ## Zásady dobrého hodnotitele

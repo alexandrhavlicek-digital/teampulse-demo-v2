@@ -780,6 +780,7 @@
         <div class="org-node ${kp ? 'org-kp' : ''} ${rcq ? 'org-redcard' : sl === 'key' ? 'org-succ-key' : sl ? 'org-succ-reg' : ''}"
           ${kp ? `title="${esc(t('kp.legend.kp'))}: ${esc(kp.title)}${uncovered ? ' · ' + esc(t('kp.noSucc')) : ''}"` : sl ? `title="${esc(t(sl === 'key' ? 'kp.succKey' : 'kp.succReg'))}"` : ''}>
           ${avatar(p, 40)}<div class="nm">${esc(p.name)}</div><div class="rl">${esc(p.role)}</div>
+          ${showSucc ? `<button class="org-info" data-org-info="${p.id}" title="${esc(t('mt.profile'))}">i</button>` : ''}
           ${uncovered ? `<span class="org-flag" title="${esc(t('kp.noSucc'))}">!</span>` : ''}${toggle}</div>
         ${kids.length && !isCollapsed ? `<div class="org-vline"></div><div class="org-children">
           ${kids.map(nodeHtml).join('')}</div>` : ''}
@@ -795,6 +796,7 @@
           <button class="iconbtn" id="oz-in" title="+">${icon('plus', 16)}</button>
           <button class="iconbtn" id="oz-out" title="-"><svg class="pi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.2 12h13.6"/></svg></button>
           <button class="iconbtn" id="oz-fit" title="reset">${icon('refresh', 15)}</button>
+          <button class="iconbtn" id="oz-fs" title="${esc(t('org.fullscreen'))}">${icon('expand', 15)}</button>
         </div>
         <div class="org-canvas" id="org-canvas">
           <div class="org-stage" id="org-stage" style="transform:translate(${orgUi.x}px,${orgUi.y}px) scale(${orgUi.z})">
@@ -833,7 +835,7 @@
     /* pan - pointer events (myš i dotyk), klik na ＋/- zůstává klikem */
     let drag = null;
     canvas.addEventListener('pointerdown', e => {
-      if (e.target.closest('.org-toggle')) return;
+      if (e.target.closest('.org-toggle') || e.target.closest('.org-info')) return;
       drag = { sx: e.clientX, sy: e.clientY, ox: orgUi.x, oy: orgUi.y, moved: false };
       canvas.setPointerCapture(e.pointerId);
       canvas.classList.add('grabbing');
@@ -859,6 +861,17 @@
     root.querySelector('#oz-in').onclick = () => setZoom(orgUi.z * 1.2);
     root.querySelector('#oz-out').onclick = () => setZoom(orgUi.z / 1.2);
     root.querySelector('#oz-fit').onclick = () => { orgUi.x = 24; orgUi.y = 16; orgUi.z = 1; apply(); };
+    /* fullscreen celé karty s org chartem */
+    const fsCard = canvas.closest('.card');
+    root.querySelector('#oz-fs').onclick = () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (fsCard && fsCard.requestFullscreen) fsCard.requestFullscreen();
+    };
+    /* ⓘ na uzlu → karta člověka (jen mgr+HR - tlačítko se jinak nerenderuje) */
+    root.querySelectorAll('[data-org-info]').forEach(bi => bi.onclick = e => {
+      e.stopPropagation();
+      TalentViews.profileModal(bi.dataset.orgInfo);
+    });
 
     /* collapse / expand */
     root.querySelectorAll('[data-org-toggle]').forEach(btn => btn.onclick = e => {
@@ -923,32 +936,156 @@
   };
 
   /* ---- check-ins ---- */
+  /* ---------- 1:1: nálada (smajlíci) → čísla pro přehled ---------- */
+  const MOOD_VAL = { '😄': 4, '🙂': 3, '😐': 2, '😟': 1 };
+  const MOODS = ['😟', '😐', '🙂', '😄'];
+  const moodOf = v => MOODS[Math.max(0, Math.min(3, Math.round(v) - 1))];
+  const moodColor = v => (v >= 3.2 ? 'var(--ok)' : v >= 2.5 ? 'var(--accent)' : v >= 2 ? 'var(--warn)' : 'var(--danger)');
+  function moodAvg(list) {
+    const vs = list.map(c => MOOD_VAL[c.mood]).filter(Boolean);
+    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+  }
+  /* trend: novější polovina záznamů vs. starší (chronologicky) */
+  function moodTrend(listAsc) {
+    const vs = listAsc.map(c => MOOD_VAL[c.mood]).filter(Boolean);
+    if (vs.length < 4) return 0;
+    const half = Math.floor(vs.length / 2);
+    const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const d = avg(vs.slice(-half)) - avg(vs.slice(0, half));
+    return d > 0.15 ? 1 : d < -0.15 ? -1 : 0;
+  }
+  const trendArrow = tr => tr > 0 ? '<i style="color:var(--ok);font-style:normal">▲</i>' : tr < 0 ? '<i style="color:var(--danger);font-style:normal">▼</i>' : '<i style="color:var(--text-muted);font-style:normal">→</i>';
+  /* měsíční vývoj Ø nálady (posledních 6 měsíců) */
+  function moodMonthlyHtml(list) {
+    const byM = {};
+    list.forEach(c => {
+      const d = new Date(c.at);
+      const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      (byM[k] = byM[k] || []).push(c);
+    });
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+    }
+    const pts = months.map(k => ({ k, v: moodAvg(byM[k] || []), n: (byM[k] || []).length }));
+    if (!pts.some(x => x.v != null)) return '';
+    return `<div class="nps-trend">${pts.map(x => x.v == null
+      ? `<div class="nps-tcol"><b style="color:var(--text-muted)">·</b><i style="height:6px;background:var(--hairline)"></i><small>${esc(x.k.slice(5))}</small></div>`
+      : `<div class="nps-tcol" title="${esc(x.k)}: Ø ${x.v.toFixed(1)} (${x.n}×)">
+          <b>${moodOf(x.v)}</b><i style="height:${Math.round(x.v / 4 * 46)}px;background:${moodColor(x.v)}"></i><small>${esc(x.k.slice(5))}</small></div>`).join('')}</div>`;
+  }
+  const lastNMoods = (listDesc, n) => `<span class="ci-moods">${listDesc.slice(0, n).map(c => c.mood).reverse().join('')}</span>`;
+
+  const ciUi = { tab: 'overview' };
   views.checkins = root => {
     const va = viewAs();
     const f = fltState('checkins');
+    const DAY = 86400000;
     root.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <h1 class="page-title" style="margin:0">${esc(t('ci.title'))}</h1><span style="flex:1"></span>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h1 class="page-title" style="margin:0">${esc(t('ci.title'))}</h1>
+        <span class="lang-seg">
+          <button data-ci-tab="overview" class="${ciUi.tab === 'overview' ? 'on' : ''}">${esc(t('ci.tabOverview'))}</button>
+          <button data-ci-tab="records" class="${ciUi.tab === 'records' ? 'on' : ''}">${esc(t('ci.tabRecords'))}</button>
+        </span>
+        <span style="flex:1"></span>
         <button class="btn btn-primary btn-sm" id="ci-new">${icon('plus', 15)} ${esc(t('ci.new'))}</button></div>
       <p class="page-sub">${esc(t('ci.sub'))}</p>
-      ${filterBarHtml('checkins')}
-      <div id="ci-list"></div>`;
-    const draw = () => {
-      let list = Store.list('checkins').slice().reverse();
-      if (va.role === 'manager') list = list.filter(c => c.managerId === va.personId);
-      if (f.q || f.dept) list = list.filter(c => [person(c.employeeId), person(c.managerId)].some(p => personMatch(p, f)));
-      root.querySelector('#ci-list').innerHTML = list.length ? list.map(c => {
-        const m = person(c.managerId), e = person(c.employeeId);
-        return `<div class="card" style="margin-bottom:12px">
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <span style="font-size:1.4rem">${c.mood}</span> ${avatar(m, 30)} <b>${esc(m ? m.name : '?')}</b> × ${avatar(e, 30)} <b>${esc(e ? e.name : '?')}</b>
-            <span style="margin-left:auto;color:var(--text-muted);font-size:.8rem">${fmtDate(c.at)}</span></div>
-          <p style="margin-top:8px">${esc(c.notes)}</p>
-          <p style="margin-top:4px;font-size:.85rem;color:var(--text-muted)">→ ${esc(c.next)}</p></div>`;
-      }).join('') : `<div class="card"><div class="empty">${icon('checkin', 52)}<br>${esc(t('flt.noMatch'))}</div></div>`;
+      <div id="ci-body"></div>`;
+    const body = root.querySelector('#ci-body');
+
+    const drawRecords = () => {
+      body.innerHTML = `${filterBarHtml('checkins')}<div id="ci-list"></div>`;
+      const drawList = () => {
+        let list = Store.list('checkins').slice().reverse();
+        if (va.role === 'manager') list = list.filter(c => c.managerId === va.personId);
+        if (f.q || f.dept) list = list.filter(c => [person(c.employeeId), person(c.managerId)].some(p => personMatch(p, f)));
+        body.querySelector('#ci-list').innerHTML = list.length ? list.map(c => {
+          const m = person(c.managerId), e = person(c.employeeId);
+          return `<div class="card" style="margin-bottom:12px">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:1.4rem">${c.mood}</span> ${avatar(m, 30)} <b>${esc(m ? m.name : '?')}</b> × ${avatar(e, 30)} <b>${esc(e ? e.name : '?')}</b>
+              <span style="margin-left:auto;color:var(--text-muted);font-size:.8rem">${fmtDate(c.at)}</span></div>
+            <p style="margin-top:8px">${esc(c.notes)}</p>
+            <p style="margin-top:4px;font-size:.85rem;color:var(--text-muted)">→ ${esc(c.next)}</p></div>`;
+        }).join('') : `<div class="card"><div class="empty">${icon('checkin', 52)}<br>${esc(t('flt.noMatch'))}</div></div>`;
+      };
+      drawList();
+      bindFilterBar(body, 'checkins', drawList);
     };
-    draw();
-    bindFilterBar(root, 'checkins', draw);
+
+    const drawOverview = () => {
+      const all = Store.list('checkins');
+      const win = all.filter(c => c.at > Date.now() - 90 * DAY);
+      const scoped = va.role === 'manager' ? win.filter(c => c.managerId === va.personId) : win;
+      /* mesicni graf ma delsi okno (6 mesicu), KPI zustavaji na 90 dnech */
+      const win180 = all.filter(c => c.at > Date.now() - 180 * DAY);
+      const scoped180 = va.role === 'manager' ? win180.filter(c => c.managerId === va.personId) : win180;
+      const scopedAsc = scoped.slice().sort((a, b) => a.at - b.at);
+      const avg = moodAvg(scoped);
+      const tr = moodTrend(scopedAsc);
+      /* lidé bez 1:1 déle než 30 dní (v mém týmu / ve firmě) */
+      const scopePeople = va.role === 'manager'
+        ? people().filter(p => p.managerId === va.personId)
+        : people().filter(p => p.managerId);
+      const lastByEmp = {};
+      all.forEach(c => { if (!lastByEmp[c.employeeId] || c.at > lastByEmp[c.employeeId]) lastByEmp[c.employeeId] = c.at; });
+      const stale = scopePeople.filter(p => !lastByEmp[p.id] || lastByEmp[p.id] < Date.now() - 30 * DAY);
+
+      let tableHtml2 = '';
+      if (va.role === 'manager') {
+        /* per člověk: posledních 5 nálad, Ø, poslední, dny */
+        tableHtml2 = `<div class="card"><h2>${icon('team', 18)}${esc(t('ci.perPerson'))}</h2>
+          <table class="table"><tr><th>${esc(t('people.name'))}</th><th>${esc(t('ci.lastMoods'))}</th><th>Ø</th><th>${esc(t('ci.lastOne'))}</th><th>90 d</th></tr>
+          ${scopePeople.map(p => {
+            const mine = all.filter(c => c.employeeId === p.id).sort((a, b) => b.at - a.at);
+            const a90 = mine.filter(c => c.at > Date.now() - 90 * DAY);
+            const av = moodAvg(a90);
+            const days = mine.length ? Math.floor((Date.now() - mine[0].at) / DAY) : null;
+            return `<tr class="clickable" data-tal-p="${p.id}">
+              <td>${avatar(p, 28)} <b>${esc(p.name)}</b></td>
+              <td>${mine.length ? lastNMoods(mine, 5) : '-'}</td>
+              <td>${av != null ? `<span style="color:${moodColor(av)};font-weight:700">${moodOf(av)} ${av.toFixed(1)}</span>` : '-'}</td>
+              <td>${days == null ? `<span class="badge b-red">${esc(t('ci.never'))}</span>` : `${fmtDate(mine[0].at)} <span class="badge ${days > 30 ? 'b-amber' : ''}">${days} d</span>`}</td>
+              <td>${a90.length}×</td></tr>`;
+          }).join('')}</table></div>`;
+      } else {
+        /* HR: per tým (manažer) */
+        const mgrs = people().filter(m => people().some(p => p.managerId === m.id));
+        tableHtml2 = `<div class="card"><h2>${icon('team', 18)}${esc(t('ci.perTeam'))}</h2>
+          <table class="table"><tr><th>${esc(t('mt.subLead'))}</th><th>${esc(t('ob.people'))}</th><th>90 d</th><th>Ø</th><th>${esc(t('ci.trend'))}</th><th>${esc(t('ci.lastOne'))}</th></tr>
+          ${mgrs.map(m => {
+            const teamN = people().filter(p => p.managerId === m.id).length;
+            const tw = win.filter(c => c.managerId === m.id);
+            const twAsc = tw.slice().sort((a, b) => a.at - b.at);
+            const av = moodAvg(tw);
+            const lastAt = tw.length ? Math.max(...tw.map(c => c.at)) : null;
+            return `<tr class="clickable" data-tal-p="${m.id}">
+              <td>${avatar(m, 28)} <b>${esc(m.name)}</b><br><small style="color:var(--text-muted)">${esc(m.dept)}</small></td>
+              <td>${teamN}</td><td>${tw.length}×</td>
+              <td>${av != null ? `<span style="color:${moodColor(av)};font-weight:700">${moodOf(av)} ${av.toFixed(1)}</span>` : '-'}</td>
+              <td>${trendArrow(moodTrend(twAsc))}</td>
+              <td>${lastAt ? fmtDate(lastAt) : `<span class="badge b-red">${esc(t('ci.never'))}</span>`}</td></tr>`;
+          }).join('')}</table></div>`;
+      }
+
+      body.innerHTML = `
+        <div class="grid cols-4">
+          <div class="card"><div class="kpi-num">${scoped.length}</div><div class="kpi-label">${esc(t('ci.count90'))}</div></div>
+          <div class="card"><div class="kpi-num" style="color:${avg != null ? moodColor(avg) : 'inherit'}">${avg != null ? moodOf(avg) + ' ' + avg.toFixed(1) : '-'}</div><div class="kpi-label">${esc(t('ci.avgMood'))}</div></div>
+          <div class="card"><div class="kpi-num">${trendArrow(tr)}</div><div class="kpi-label">${esc(t('ci.trend'))}</div></div>
+          <div class="card"><div class="kpi-num" style="color:${stale.length ? 'var(--warn)' : 'var(--ok)'}">${stale.length}</div><div class="kpi-label">${esc(t('ci.stale'))}</div></div>
+        </div>
+        ${stale.length && stale.length <= 8 ? `<p class="callout" style="margin-bottom:14px">${icon('alert', 15)} <span><b>${esc(t('ci.stale'))}:</b> ${stale.map(p => esc(p.name)).join(', ')}</span></p>` : ''}
+        <div class="card"><h2>${icon('gauge', 18)}${esc(t('ci.monthly'))}</h2>${moodMonthlyHtml(scoped180) || `<p class="page-sub">-</p>`}</div>
+        ${tableHtml2}`;
+      body.querySelectorAll('[data-tal-p]').forEach(tr2 => tr2.onclick = () => TalentViews.profileModal(tr2.dataset.talP));
+    };
+
+    root.querySelectorAll('[data-ci-tab]').forEach(b => b.onclick = () => { ciUi.tab = b.dataset.ciTab; views.checkins(root); });
+    if (ciUi.tab === 'overview') drawOverview(); else drawRecords();
     root.querySelector('#ci-new').onclick = () => {
       const ps = people();
       modal(`<h3>${icon('plus', 18)}${esc(t('ci.new'))}</h3>
