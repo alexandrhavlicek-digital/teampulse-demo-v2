@@ -235,13 +235,17 @@
     const { page } = route();
     const visible = NAV.filter(n => n.sec || n.roles.includes(va.role));
 
+    const collapsed = !!Store.getSettings().sidebarCollapsed;
+    document.getElementById('app').classList.toggle('sb-collapsed', collapsed);
     document.getElementById('sidebar').innerHTML = `
       <div class="brand"><span class="logo-dot">${icon('logo', 18)}</span><b>TeamPulse</b>
         <span class="badge b-amber" style="margin-left:auto">${esc(t('common.demo'))}</span></div>
       ${visible.map(n => n.sec
         ? `<div class="nav-section">${esc(t(n.sec))}</div>`
-        : `<button class="nav-item ${page === n.id ? 'active' : ''}" data-nav="${n.id}">
-             ${icon(n.ico, 19)} ${esc(t(n.label))}</button>`).join('')}`;
+        : `<button class="nav-item ${page === n.id ? 'active' : ''}" data-nav="${n.id}" title="${esc(t(n.label))}">
+             ${icon(n.ico, 19)} <span class="nav-lbl">${esc(t(n.label))}</span></button>`).join('')}
+      <button class="nav-item sb-toggle" id="sb-toggle" title="${esc(t(collapsed ? 'nav.expand' : 'nav.collapse'))}">
+        ${icon(collapsed ? 'arrowR' : 'arrowL', 19)} <span class="nav-lbl">${esc(t('nav.collapse'))}</span></button>`;
 
     const me = va.personId ? person(va.personId) : null;
     const unread = Store.list('notifications').filter(n => !n.read).length;
@@ -277,6 +281,8 @@
         ${icon(n.ico, 20)}${esc(t(n.label))}</button>`).join('');
 
     document.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => location.hash = '#/' + b.dataset.nav);
+    const sbT = document.getElementById('sb-toggle');
+    if (sbT) sbT.onclick = () => { Store.patchSettings({ sidebarCollapsed: !collapsed }); render(); };
     bindLangSwitch(document.getElementById('topbar'), render);
     bindDropdown('theme-btn', 'theme-dd');
     bindDropdown('ntf-btn', 'ntf-dd', () => {

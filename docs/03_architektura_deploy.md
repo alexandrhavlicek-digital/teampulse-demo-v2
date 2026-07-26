@@ -21,7 +21,9 @@ demo-v2/
   docs/             tato dokumentace
 ```
 
-Pořadí načítání skriptů je závazné: i18n → icons → store → generator → reviews → talent → app. Cache bust: query `?v=RRRRMMDD[a-z]` u všech assetů — při každé změně bumpni v index.html.
+Pořadí načítání skriptů je závazné: i18n → icons → store → generator → reviews → talent → feedback360 → nps → app. Cache bust: query `?v=RRRRMMDD[a-z]` u všech assetů — při každé změně bumpni v index.html.
+
+Sidebar je sbalitelný na ikonky (tlačítko dole; stav `settings.sidebarCollapsed`, třída `.sb-collapsed` na `#app`, popisky přes `title`) — víc plochy pro reporty a matice.
 
 ## 2. Témata
 

@@ -51,6 +51,8 @@
       'nav.kudos': 'Uznání', 'nav.checkins': '1:1 check-iny', 'nav.hr': 'HR centrum',
       'nav.talent': 'Talent & Reporty',
       'nav.myteam': 'Můj tým',
+      'nav.collapse': 'Sbalit menu',
+      'nav.expand': 'Rozbalit menu',
       // můj tým (manažerský pohled)
       'mt.title': 'Můj tým',
       'mt.sub': 'Celý tým na jedné obrazovce - příprava na 1:1 a hodnocení za 30 sekund.',
@@ -555,6 +557,8 @@
       'nav.kudos': 'Kudos', 'nav.checkins': '1:1 check-ins', 'nav.hr': 'HR center',
       'nav.talent': 'Talent & Reports',
       'nav.myteam': 'My team',
+      'nav.collapse': 'Collapse menu',
+      'nav.expand': 'Expand menu',
       // my team (manager view)
       'mt.title': 'My team',
       'mt.sub': 'The whole team on one screen - 1:1 and review prep in 30 seconds.',
@@ -1046,6 +1050,8 @@
       'nav.kudos': 'Anerkennung', 'nav.checkins': '1:1 Check-ins', 'nav.hr': 'HR-Zentrum',
       'nav.talent': 'Talent & Berichte',
       'nav.myteam': 'Mein Team',
+      'nav.collapse': 'Menü einklappen',
+      'nav.expand': 'Menü ausklappen',
       // mein Team (Führungskraft-Ansicht)
       'mt.title': 'Mein Team',
       'mt.sub': 'Das ganze Team auf einem Bildschirm - 1:1- und Bewertungsvorbereitung in 30 Sekunden.',
