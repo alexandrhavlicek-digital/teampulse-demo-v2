@@ -21,7 +21,8 @@ Nad existujícím hodnoticím procesem (dokumenty 01–02) staví vrstvu **lidí
 8. **Červená karta + matice potřebnosti** — potřebnost × problémovost, 4 kvadranty s akcemi; „potřebný potížista" = succession priorita č. 1 (⚑ když drží klíčovou pozici). Červený kroužek v org chartu.
 9. **360° zpětná vazba** (`js/feedback360.js`) — on-demand, 3–6 respondentů, stejná škála, anonymní agregát od 3 odpovědí, výstup „tři pohledy" (já · okolí · manažer) v talent profilu a Podkladech z období.
 10. **Karta člověka** (`profileModal`, modal-wide) — vše o hodnoceném na jednom místě: skóre + trend + pásmo, talent flagy, nástupnictví (drží/je nástupcem), červená karta, běžící hodnocení + historie skóre, cíle s průměrem, poslední check-in a kudos, 360 tři pohledy, rychlé akce. Otevírá se z Můj tým, Talent & Reporty, žetonů matice i řádku v Lidech (jen mgr+HR).
-11. **Filtry a řazení seznamů** (`app.js`: `fltState`/`personMatch`/`filterBarHtml`/`bindFilterBar`, export `window.AppFilters`) — hledání člověka/role + select oddělení u 1:1 check-inů, kudos, hodnocení týmu, cílů (HR) a lidí; tabulky (Hodnocení týmu, Moje hodnocení, Lidé) mají navíc **řazení klikem na hlavičku** (`thSort`/`applySort`/`bindSort`, 1. klik ↑ / 2. klik ↓; stav řadí `STATUS_ORDER` = pořadí procesu, termín dle `daysLeft`). Překresluje se jen kontejner seznamu (input neztrácí fokus); stav filtru i řazení drží per stránka v paměti session.
+11. **eNPS pulse** (`js/nps.js`) — pravidelné anonymní vlny s posuvníky: NPS otázka 0-10 (detraktor 0-6 / pasivní 7-8 / promotér 9-10), tři dimenze engagementu, volitelné téma vlny (vlastní otázka, např. zákaznická orientace), volitelný komentář. eNPS = %promotérů − %detraktorů. Odpovědi se ukládají **bez identity** (jen deptKey + teamId); kdo odpověděl, drží oddělený `respondedIds` (todo + response rate, nikdy se nespojuje s obsahem). Agregáty (číslo, matice doporučení × engagement s anonymními tečkami, komentáře dedup bez atribuce, trend přes vlny) až od `MIN_N = 3` v daném výřezu. HR karta v Talent & Reporty (firma + rozpad po odděleních + spuštění vlny s tématem), manažerská karta v Můj tým (tým/podstrom dle přepínače), zaměstnanec vyplňuje z todo na Přehledu.
+12. **Filtry a řazení seznamů** (`app.js`: `fltState`/`personMatch`/`filterBarHtml`/`bindFilterBar`, export `window.AppFilters`) — hledání člověka/role + select oddělení u 1:1 check-inů, kudos, hodnocení týmu, cílů (HR) a lidí; tabulky (Hodnocení týmu, Moje hodnocení, Lidé) mají navíc **řazení klikem na hlavičku** (`thSort`/`applySort`/`bindSort`, 1. klik ↑ / 2. klik ↓; stav řadí `STATUS_ORDER` = pořadí procesu, termín dle `daysLeft`). Překresluje se jen kontejner seznamu (input neztrácí fokus); stav filtru i řazení drží per stránka v paměti session.
 
 ### Závazný princip: soukromí
 
@@ -107,6 +108,17 @@ Odvozené (nikdy neukládat): `isKey = kpYes ≥ 7`, `rated = kpAnswered ≥ 7`,
 
 ### successors[i].checklist21 (checklist kandidáta)
 `{q1..q21: true|false|null}` na dvojici kandidát × pozice (tentýž člověk může být vhodný pro jednu roli a nevhodný pro jinou). Verdikt: `fit` při dosažení prahu, `notfit` když počet NE přesáhne 21−práh (prahu už nejde dosáhnout), jinak rozpracováno.
+
+### npsWaves (eNPS pulse)
+```
+{ id, label ('2026-08'), theme|null, themeQ|null, startedAt, deadline,
+  status: 'collecting'|'closed',
+  responses: [{ id, deptKey, teamId,          // BEZ personId - anonymita!
+                nps: 0-10, dims: {work, growth, support}: 0-10,
+                theme: 0-10|null, comment, at }],
+  respondedIds: [personId] }                  // ODDĚLENĚ od responses
+```
+V Supabase: `nps_waves` + `nps_responses` (bez FK na users!) + `nps_respondents` (jen pro rate/todo; DB-úrovní zákaz JOINu s odpověďmi — oddělené role/RLS). Agregační view s HAVING count(*) >= 3.
 
 ### redCards
 `{id, personId, needed: bool, trouble: bool, note, byId, at}` — kvadrant se odvozuje (`rcQuadrant`), jedna aktivní karta na osobu. V org overlay má červený kroužek přednost před kroužkem nástupce.

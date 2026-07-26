@@ -589,7 +589,72 @@
       });
     }
 
-    return { reviews, goals, kudos, checkins, notifications, keyPositions, talentChecks, redCards, feedback360 };
+    /* eNPS pulse: 3 uzavřené vlny (trend zlepšení) + běžící vlna s tématem.
+       Odpovědi BEZ identity - jen deptKey + teamId; respondedIds odděleně. */
+    const npsWaves = [];
+    const now2 = new Date();
+    const mkLabel = back => {
+      const d2 = new Date(now2.getFullYear(), now2.getMonth() - back, 1);
+      return d2.getFullYear() + '-' + String(d2.getMonth() + 1).padStart(2, '0');
+    };
+    const npsDims = base => ({
+      work: Math.max(0, Math.min(10, base + Math.floor(rnd() * 4) - 1)),
+      growth: Math.max(0, Math.min(10, base + Math.floor(rnd() * 4) - 2)),
+      support: Math.max(0, Math.min(10, base + Math.floor(rnd() * 4) - 1)),
+    });
+    const NPS_COMMENTS = [
+      'Chybí mi víc zpětné vazby mimo hodnocení.',
+      'Oceňuju flexibilitu a důvěru.',
+      'Porady by mohly být kratší.',
+      'Konečně vím, kam firma směřuje.',
+      'Chtělo by to lepší onboarding nováčků.',
+      'Skvělý tým, kvůli lidem tu jsem.',
+    ];
+    [3, 2, 1].forEach((back, wi) => {
+      const responses = [];
+      shuffle(employees).slice(0, Math.ceil(employees.length * (0.6 + wi * 0.08))).forEach(p => {
+        /* trend: novější vlny mírně lepší */
+        const roll = rnd();
+        const base = roll < 0.18 - wi * 0.03 ? 3 : roll < 0.5 - wi * 0.05 ? 7 : 9;
+        const nps2 = Math.max(0, Math.min(10, base + Math.floor(rnd() * 2)));
+        responses.push({
+          id: uid(), deptKey: p.deptKey, teamId: p.managerId,
+          nps: nps2, dims: npsDims(Math.max(3, nps2 - 1)),
+          theme: null, comment: rnd() < 0.25 ? pick(NPS_COMMENTS) : '',
+          at: today - back * 30 * day + Math.floor(rnd() * 10) * day,
+        });
+      });
+      npsWaves.push({
+        id: uid(), label: mkLabel(back), theme: back === 2 ? 'Spolupráce týmů' : null,
+        themeQ: back === 2 ? 'Spolupráce mezi odděleními u nás funguje hladce.' : null,
+        startedAt: today - back * 30 * day, deadline: today - back * 30 * day + 14 * day,
+        status: 'closed', responses, respondedIds: [],
+      });
+    });
+    /* běžící vlna s tématem zákaznické orientace - část lidí už odpověděla */
+    const curResp = [];
+    const curIds = [];
+    shuffle(employees).slice(0, Math.ceil(employees.length * 0.4)).forEach(p => {
+      const roll = rnd();
+      const base = roll < 0.12 ? 4 : roll < 0.4 ? 7 : 9;
+      const nps2 = Math.max(0, Math.min(10, base + Math.floor(rnd() * 2)));
+      curResp.push({
+        id: uid(), deptKey: p.deptKey, teamId: p.managerId,
+        nps: nps2, dims: npsDims(Math.max(3, nps2 - 1)),
+        theme: Math.max(0, Math.min(10, nps2 - 1 + Math.floor(rnd() * 3))),
+        comment: rnd() < 0.2 ? pick(NPS_COMMENTS) : '',
+        at: today - Math.floor(rnd() * 6) * day,
+      });
+      curIds.push(p.id);
+    });
+    npsWaves.push({
+      id: uid(), label: mkLabel(0), theme: 'Zákaznická orientace',
+      themeQ: 'Věřím, že u nás zákazník stojí na prvním místě.',
+      startedAt: today - 6 * day, deadline: today + 8 * day,
+      status: 'collecting', responses: curResp, respondedIds: curIds,
+    });
+
+    return { reviews, goals, kudos, checkins, notifications, keyPositions, talentChecks, redCards, feedback360, npsWaves };
   }
 
   /* ---------------- public API ---------------- */
@@ -615,11 +680,12 @@
       Store.replaceAll('talentChecks', g.talentChecks || []);
       Store.replaceAll('redCards', g.redCards || []);
       Store.replaceAll('feedback360', g.feedback360 || []);
+      Store.replaceAll('npsWaves', g.npsWaves || []);
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','checkins','notifications','keyPositions','talentChecks','redCards','feedback360'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

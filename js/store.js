@@ -33,6 +33,7 @@
         talentChecks: [],       // kvartální talent check: [{id,period,managerId,status:draft|debate|final,items:[{personId,box{pot,perf}|null,source,note,attrition}],createdAt,sentAt,discussedAt}]
         redCards: [],           // červená karta: [{id,personId,needed:bool,trouble:bool,note,byId,at}] - jen mgr+HR
         feedback360: [],        // 360: [{id,subjectId,requestedById,period,deadline,status:collecting|closed,respondents:[{personId,group,status:invited|done,ratings{key:rating},strengths,growth}]}]
+        npsWaves: [],           // eNPS pulse: [{id,label,theme,themeQ,startedAt,deadline,status,responses:[{id,deptKey,teamId,nps,dims{},theme,comment,at}] BEZ personId, respondedIds:[personId] odděleně}]
       };
     }
     function persist() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }

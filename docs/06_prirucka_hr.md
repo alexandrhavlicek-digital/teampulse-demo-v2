@@ -42,6 +42,8 @@ Hodnocení se uzavírá výhradně shodou obou stran — nikdy je neuzavírej ad
 
 Dashboard procesu (§2) říká, *jak jde papírování*; záložka **Talent & Reporty** říká, *co se děje s lidmi*. Odshora:
 
+**eNPS pulse — nálada firmy** — krátký anonymní dotazník (2 minuty, posuvníky): „Doporučil/a bys nás jako zaměstnavatele?" 0-10 + tři dimenze engagementu + volitelné téma vlny s vlastní otázkou (např. zákaznická orientace) + komentář. Vlnu spouštíš tlačítkem; doporučený rytmus dle metodiky: tři měsíční vlny po sobě, pak pauza. Výstup: eNPS skóre (% promotérů − % detraktorů), matice doporučení × engagement (vlevo dole detraktoři, vpravo nahoře promotéři — anonymní tečky bez jmen), trend přes vlny, rozpad po odděleních a komentáře bez atribuce. Anonymita tvrdě: odpovědi se ukládají bez identity a jakýkoli výřez se ukáže až od 3 odpovědí — u menších týmů data neuvidíš ani ty. Manažeři vidí totéž za svůj tým v Můj tým.
+
 **Retenční priority** — průnik vysokého potenciálu a zvýšeného rizika odchodu. Tady začni: jsou to jména, u kterých má smysl jednat dřív, než přijde výpověď.
 
 **Talent check — stav** — kdo z manažerů odevzdal svůj kvartální pohled na tým. Draft manažera je soukromý (vidíš jen „Rozpracováno"); po odeslání check otevřeš, projdete ho spolu na kalibrační debatě (posuny mají poznámky manažera) a tlačítkem **Označit prodiskutováno** stav kvartálu zamrazíš. Od té chvíle se manažerovy posuny propisují do matice. Tenhle rytmus je jádro metodiky: manažer nejdřív sám, pak debata s tebou, výstup je uvědomění, komu se věnovat.

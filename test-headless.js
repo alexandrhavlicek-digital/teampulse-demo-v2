@@ -290,6 +290,35 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   Store.patchSettings({ viewAs: null });
 })();
 
+/* --- 11i) eNPS pulse --- */
+(function () {
+  load('js/nps.js');
+  const ws = Store.list('npsWaves');
+  ok(ws.length === 4, `seed npsWaves (${ws.length}/4)`);
+  ok(ws.filter(w => w.status === 'closed').length === 3 && !!NPS.openWave(), '3 uzavřené + 1 běžící vlna');
+  /* ANONYMITA: odpovědi nesmí nést identitu */
+  ok(ws.every(w => w.responses.every(r => !('personId' in r) && !('name' in r))), 'odpovědi bez identity (žádné personId)');
+  /* kategorie a výpočet */
+  ok(NPS.npsCat(6) === 'det' && NPS.npsCat(7) === 'pass' && NPS.npsCat(9) === 'prom', 'kategorie 0-6/7-8/9-10');
+  ok(NPS.enps([{nps:9},{nps:9},{nps:2}]) === 33, 'eNPS = %prom - %det');
+  ok(NPS.enps([{nps:9},{nps:9}]) === null, 'guard: pod 3 odpovědi žádné číslo');
+  const last = NPS.closedWaves().slice(-1)[0];
+  const firmScore = NPS.enps(NPS.slice(last, null));
+  ok(firmScore != null && firmScore >= -100 && firmScore <= 100, `firemní eNPS spočítán (${firmScore})`);
+  /* malý tým → tooFew (žádný únik) */
+  const tiny = NPS.slice(last, { teamIds: new Set(['neexistujici']) });
+  ok(NPS.enps(tiny) === null, 'malý/prázdný tým → žádná data');
+  /* pending pro zaměstnance, který neodpověděl */
+  const emp = Store.list('people').find(p => p.managerId && !(NPS.openWave().respondedIds || []).includes(p.id));
+  ok(!!NPS.pendingWaveFor(emp.id), 'pendingWaveFor najde běžící vlnu');
+  /* HR karta render + i18n */
+  const html = NPSViews.hrCardHtml();
+  ok(html.includes('nps-matrix') && html.includes('nps-dist'), 'HR karta: matice + rozložení');
+  ok(!html.match(/nps\.\w/), 'žádné nepřeložené nps.* klíče');
+  /* engagement */
+  ok(NPS.engagement({ dims: { work: 8, growth: 6, support: 7 } }) === 7, 'engagement = průměr dimenzí');
+})();
+
 /* --- 12) store migrace: stará DB bez keyPositions --- */
 (function () {
   const raw = JSON.parse(localStorage.getItem('teampulse_demo_v2'));

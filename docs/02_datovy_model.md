@@ -13,7 +13,7 @@ Store.list(coll) / get(coll, id) / insert(coll, item) / update(coll, id, patch)
 Store.remove(coll, id) / replaceAll(coll, items) / resetAll()
 ```
 
-Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`, `keyPositions`, `talentChecks`, `redCards`, `feedback360`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
+Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`, `keyPositions`, `talentChecks`, `redCards`, `feedback360`, `npsWaves`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
 
 ## 2. Entity
 
@@ -100,5 +100,6 @@ theme (corp|glass|genz), locale (cs|en|de), onboarded, viewAs {role, personId}
 | talentChecks | `talent_checks` + `talent_check_items` | draft čitelný JEN autorem; final propisuje overridy do matice |
 | redCards | `red_cards` | jen mgr+HR; subjekt nikdy |
 | feedback360 | `feedback_requests` + `feedback_responses` | respondent vidí jen svou odpověď; agregát (view) od 3 odpovědí pro mgr+HR |
+| npsWaves | `nps_waves` + `nps_responses` (bez FK na users) + `nps_respondents` | odpovědi bez identity; agregáty od 3; zákaz JOINu respondents×responses |
 
 Validace, které musí backend vynucovat serverově (ne jen v UI): součet vah cílů v oblasti = 100; KPI vazba povinná u teamwork/quality; přechody stavového automatu (guardy z funkční specifikace §4); zápis verze při každém přechodu; přechody talent checku draft→debate→final (debate autor, final jen HR) a úplný zákaz přístupu subjektů k talent datům (talent sekce, matice, checky).

@@ -409,6 +409,13 @@
       txt: t('f360.todoFill') + ' - ' + ((person(f2.subjectId) || {}).name || ''),
       f360: f2.id, d: Math.max(0, Math.ceil((f2.deadline - Date.now()) / 86400000)),
     }));
+    /* eNPS pulse: běžící vlna, na kterou jsem ještě neodpověděl */
+    const myNps = me && window.NPS ? NPS.pendingWaveFor(me.id) : null;
+    if (myNps) todos.push({
+      ico: icon('gauge', 16),
+      txt: t('nps.todoFill') + (myNps.theme ? ' · ' + myNps.theme : ''),
+      nps: myNps.id, d: Math.max(0, Math.ceil((myNps.deadline - Date.now()) / 86400000)),
+    });
     const myGoals = me ? Store.list('goals').filter(g => g.ownerId === me.id) : [];
     const lastKudos = Store.list('kudos').slice(-3).reverse();
     const confirmed = reviews().filter(r => r.period === Generator.CURRENT_PERIOD && ['confirmed', 'closed_by_hr'].includes(r.status)).length;
@@ -421,7 +428,7 @@
         <div class="card">
           <h2>${icon('doc', 18)}${esc(t('home.todo'))}</h2>
           ${todos.length ? todos.map(td => `
-            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : `onclick="location.hash='${td.hash}'"`}>
+            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : td.nps ? `data-nps="${td.nps}"` : `onclick="location.hash='${td.hash}'"`}>
               ${td.ico} ${esc(td.txt)} <span class="badge ${td.d <= 7 ? 'b-amber' : ''}" style="margin-left:auto">${td.d} ${esc(t('home.daysLeft'))}</span>
             </button>`).join('') : `<div class="empty">${icon('spark', 52)}<br>${esc(t('home.noTodo'))}</div>`}
         </div>
@@ -448,6 +455,10 @@
     root.querySelectorAll('[data-f360]').forEach(b => b.onclick = () => {
       const f2 = Store.get('feedback360', b.dataset.f360);
       if (f2) Feedback360Views.respondModal(f2, me.id, render);
+    });
+    root.querySelectorAll('[data-nps]').forEach(b => b.onclick = () => {
+      const w2 = Store.get('npsWaves', b.dataset.nps);
+      if (w2) NPSViews.respondModal(w2, me.id, render);
     });
   };
 

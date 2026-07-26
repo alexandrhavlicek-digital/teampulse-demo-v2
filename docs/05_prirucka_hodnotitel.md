@@ -38,6 +38,10 @@ Jednou za kvartál (nastavuje HR) tě v Můj tým vyzve banner **Talent check**.
 
 Výstup není tabulka pro tabulku: je to moment, kdy si jednou za kvartál uvědomíš, komu se věnovat víc.
 
+## Pulse týmu (eNPS)
+
+V Můj tým vidíš i anonymní náladu týmu: eNPS skóre, rozložení detraktoři/pasivní/promotéři, matici doporučení × engagement (anonymní tečky — schválně bez jmen) a trend přes vlny. Data se ukážou jen od 3 odpovědí, aby nešlo poznat, kdo co odpověděl — u malého týmu tedy nic neuvidíš, a to je správně. Sleduj trend a kvadrant vlevo dole; konkrétní příčiny hledej v 1:1, ne v datech.
+
 ## Karta člověka — všechno na jeden klik
 
 Kdekoli potkáš člověka (Můj tým, matice, seznam Lidé), klik otevře jeho **kartu**: skóre s trendem a pásmem, talent flagy, běžící hodnocení s proklikem, historii skóre po obdobích, plnění cílů, poslední check-in a kudos, 360 tři pohledy a nástupnické souvislosti (drží klíčovou pozici / je nástupcem). Dole rychlé akce — otevřít hodnocení nebo vyžádat 360. Před 1:1 nebo hodnocením ti stačí tahle jedna karta.

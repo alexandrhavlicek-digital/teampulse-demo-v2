@@ -266,6 +266,8 @@
         </div>
       </div>` : ''}
 
+      ${window.NPSViews ? NPSViews.hrCardHtml() : ''}
+
       ${tcHrCardHtml()}
 
       ${successionCardHtml(Store.list('keyPositions').filter(kp => !talUi.dept || kp.deptKey === talUi.dept))}
@@ -303,6 +305,7 @@
     bindSuccessionCard(root, () => renderHr(root));
     bindRcCard(root, () => renderHr(root));
     bindTcHrCard(root);
+    if (window.NPSViews) NPSViews.bindHrCard(root, () => renderHr(root));
   }
 
   /* ---------------- succession: klíčové pozice ----------------
@@ -703,6 +706,8 @@
           <div class="brow"><span>${esc(t('st.' + s2))}</span>
           <div class="progressbar"><div style="width:${n / Math.max(1, st.cur.length) * 100}%"></div></div><b>${n}</b></div>`).join('')}</div>
       </div>` : ''}
+
+      ${window.NPSViews ? NPSViews.teamCardHtml(new Set([me.id].concat(subLeads.length && mtUi.scope === 'sub' ? sub.filter(p => Store.list('people').some(x => x.managerId === p.id)).map(p => p.id) : []))) : ''}
       ${tcCadence() !== 'off' && (!check || check.status === 'draft') ? `
       <div class="card tc-banner">
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
