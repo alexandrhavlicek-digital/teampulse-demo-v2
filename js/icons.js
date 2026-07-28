@@ -13,6 +13,8 @@
     team: '<circle cx="9" cy="9" r="3.1"/><path d="M3.6 19.5c0-3.1 2.4-5.1 5.4-5.1s5.4 2 5.4 5.1"/><path d="M15.2 6.9a2.7 2.7 0 1 1 1.4 5.1"/><path d="M16.4 14.6c2.6.4 4 2.2 4 4.9"/>',
     target: '<circle cx="12" cy="12" r="7.6"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r=".4" fill="currentColor" stroke="none"/>',
     checkin: '<path d="M4 5.5h16v10.2H9.4L4 19.8z"/><polyline points="7 10.6 9 10.6 10.4 8.2 12.4 12.6 13.8 10.2 17 10.2"/>',
+    /* copilot — chat bublina s pulzem + jiskra (AI parťák) */
+    copilot: '<path d="M3.8 6.6A2.6 2.6 0 0 1 6.4 4h11.2a2.6 2.6 0 0 1 2.6 2.6v6.8a2.6 2.6 0 0 1-2.6 2.6h-4.4l-4 3.8V16h-2.8a2.6 2.6 0 0 1-2.6-2.6z"/><polyline points="6.8 10.4 8.8 10.4 10.1 8.3 11.9 12.3 13.2 10.1 15.4 10.1"/><path d="M18.6 18.4l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z" fill="currentColor" stroke="none"/>',
     heart: '<path d="M12 20.2S5.2 16 3.4 11.6C2 8.2 4.4 5 7.8 5c1.9 0 3.3 1 4.2 2.6C12.9 6 14.3 5 16.2 5c3.4 0 5.8 3.2 4.4 6.6C18.8 16 12 20.2 12 20.2z"/>',
     heartPulse: '<path d="M12 20.2S5.2 16 3.4 11.6C2 8.2 4.4 5 7.8 5c1.9 0 3.3 1 4.2 2.6C12.9 6 14.3 5 16.2 5c3.4 0 5.8 3.2 4.4 6.6C18.8 16 12 20.2 12 20.2z"/><polyline points="6.5 11.8 9 11.8 10.4 9.6 12.6 13.6 14 11.4 17.5 11.4"/>',
     people: '<circle cx="10" cy="8.4" r="3.4"/><path d="M4.2 20c0-3.4 2.6-5.4 5.8-5.4s5.8 2 5.8 5.4"/><path d="M18.3 9.3h4.2"/><path d="M20.4 7.2v4.2"/>',
@@ -25,6 +27,7 @@
     bell: '<path d="M6.2 16.2v-5.4a5.8 5.8 0 0 1 11.6 0v5.4l1.6 2.6H4.6z"/><path d="M10.4 21.2a1.8 1.8 0 0 0 3.2 0"/>',
     palette: '<path d="M12 3.6a8.4 8.4 0 1 0 .2 16.8c1.5 0 1.9-1 1.4-2-.7-1.4.3-2.6 1.9-2.6h1.9c1.7 0 3-1.4 3-3.2C20.4 7.2 16.6 3.6 12 3.6z"/><circle cx="8.2" cy="9.4" r="1" fill="currentColor" stroke="none"/><circle cx="12.2" cy="7.4" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="9.8" r="1" fill="currentColor" stroke="none"/>',
     swap: '<path d="M6.8 8.2h10.4l-3-3"/><path d="M17.2 15.8H6.8l3 3"/>',
+    more: '<circle cx="5.4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.6" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
     search: '<circle cx="10.6" cy="10.6" r="5.6"/><path d="M15.2 15.2 20.4 20.4"/>',
     plus: '<path d="M12 5.2v13.6M5.2 12h13.6"/>',
     arrowR: '<path d="M4.8 12h13.6"/><path d="M13.2 6.4 18.8 12l-5.6 5.6"/>',

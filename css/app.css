@@ -1063,3 +1063,108 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 .card:fullscreen .org-canvas { height: calc(100vh - 24px); }
 .org-children { gap: 0; } /* mezery řeší padding větví - sběrnice je souvislá */
 .ci-moods { font-size: 1.05rem; letter-spacing: 2px; white-space: nowrap; }
+
+/* ====================== Copilot (chat parťák) ====================== */
+.cop-wrap {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px;
+  height: calc(100vh - 130px); min-height: 460px;
+}
+.cop-side { overflow: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.cop-side-sec {
+  font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-muted); margin: 12px 4px 4px;
+}
+.cop-thread {
+  display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+  border-radius: var(--radius); cursor: pointer; font-size: .85rem;
+  border: 1px solid transparent;
+}
+.cop-thread:hover { background: var(--surface-2); }
+.cop-thread.on { background: var(--accent-soft); border-color: var(--accent); }
+.cop-th-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.cop-thread .cop-mini { opacity: 0; }
+.cop-thread:hover .cop-mini { opacity: .75; }
+.cop-mini { border: 0; background: none; cursor: pointer; font-size: .78rem; padding: 2px; }
+.cop-mini:hover { opacity: 1 !important; }
+.cop-empty-side { font-size: .78rem; color: var(--text-muted); padding: 4px 8px; }
+
+.cop-main { display: flex; flex-direction: column; overflow: hidden; padding: 0 !important; min-height: 0; }
+.cop-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline); flex-wrap: wrap;
+}
+.cop-head small { display: block; color: var(--text-muted); font-size: .78rem; }
+.cop-ava {
+  width: 32px; height: 32px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent); position: relative;
+}
+.cop-msg.bot .cop-ava::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  border: 1px solid var(--accent); opacity: .35;
+}
+.cop-msgs {
+  flex: 1; overflow-y: auto; padding: 18px;
+  display: flex; flex-direction: column; gap: 14px; min-height: 0;
+  scroll-behavior: smooth;
+}
+.cop-msg { display: flex; gap: 10px; max-width: min(88%, 640px); align-items: flex-start; }
+.cop-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.cop-bubble {
+  background: var(--surface-2); border-radius: var(--radius-lg);
+  padding: 10px 14px; font-size: .92rem; line-height: 1.5;
+  border: 1px solid var(--hairline); min-width: 0; overflow-wrap: anywhere;
+}
+.cop-msg.user .cop-bubble {
+  background: var(--accent); color: var(--accent-contrast); border-color: transparent;
+}
+.cop-bubble ul { margin: 6px 0 0 18px; }
+.cop-bubble li { margin-bottom: 3px; }
+.cop-bubble .brow { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(80px, 2fr) auto; gap: 8px; align-items: center; margin-top: 8px; font-size: .85rem; }
+.cop-recs { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--accent-soft); }
+.cop-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cop-chip {
+  border: 1px solid var(--accent); color: var(--accent); background: transparent;
+  border-radius: 999px; padding: 6px 12px; font-size: .8rem; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.cop-chip:hover:not(:disabled) { background: var(--accent-soft); }
+.cop-chip:disabled { opacity: .38; cursor: default; border-color: var(--hairline); color: var(--text-muted); }
+.cop-typing { display: inline-flex; gap: 4px; align-items: center; padding: 14px; }
+.cop-typing i {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  animation: cop-blink 1.2s infinite; font-style: normal;
+}
+.cop-typing i:nth-child(2) { animation-delay: .2s; }
+.cop-typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes cop-blink { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+.cop-input {
+  display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--hairline);
+  align-items: flex-end;
+}
+.cop-input textarea { flex: 1; resize: none; max-height: 120px; min-height: 42px; }
+
+/* témata */
+[data-theme="brand"] .cop-msg.user .cop-bubble { background: var(--accent); }
+[data-theme="brand"] .cop-chip { border-radius: 999px; }
+[data-theme="glass"] .cop-bubble { backdrop-filter: blur(14px); background: rgba(255, 255, 255, .5); }
+[data-theme="glass"] .cop-msg.user .cop-bubble { background: var(--accent); }
+[data-theme="genz"] .cop-bubble { border: 2px solid var(--text); box-shadow: 3px 3px 0 var(--text); border-radius: 12px; }
+[data-theme="genz"] .cop-msg.user .cop-bubble { box-shadow: 3px 3px 0 var(--accent-2); }
+[data-theme="genz"] .cop-chip { border-width: 2px; border-radius: 8px; }
+
+/* mobil: chat-first (koncept budoucí mobilní aplikace) */
+@media (max-width: 860px) {
+  .cop-wrap { grid-template-columns: 1fr; height: calc(100dvh - 190px); }
+  .cop-side { display: none; }
+  .cop-send-lbl { display: none; }
+  .cop-msg { max-width: 94%; }
+}
+@media print { .cop-side, .cop-input { display: none; } }
+
+/* mobilní „Více" menu */
+.mn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mn-grid .choice { padding: 14px 6px; text-align: center; align-items: center; }
+.mn-grid .choice b { font-size: .78rem; }
+@media (max-width: 380px) { .mn-grid { grid-template-columns: repeat(2, 1fr); } }

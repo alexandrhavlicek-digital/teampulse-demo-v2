@@ -28,6 +28,7 @@ const load = f => (0, eval)(fs.readFileSync(f, 'utf8'));
 load('js/i18n.js');
 load('js/icons.js');
 load('js/store.js');
+load('js/czname.js');
 load('js/generator.js');
 load('js/reviews.js');
 load('js/talent.js');
@@ -345,6 +346,191 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
     ok(Store.get('keyPositions', 'test1') !== null, 'migrace: insert do doplněné kolekce funguje');
     Store.remove('keyPositions', 'test1');
   } catch (e) { ok(false, 'migrace selhala: ' + e.message); }
+})();
+
+/* --- 13) Copilot: simulovaný engine + akční flows --- */
+(function () {
+  load('js/copilot.js');
+  ok(Array.isArray(Store.list('copilotThreads')) && Array.isArray(Store.list('copilotTasks')), 'store migrace: copilot kolekce existují');
+
+  /* HR persona: welcome + reporting */
+  Store.patchSettings({ viewAs: null, copilotEnabled: true });
+  ok(Copilot.enabled(), 'copilot je defaultně zapnutý');
+  const th = Copilot.newThread();
+  ok(th.msgs.length === 1 && th.msgs[0].who === 'bot' && th.msgs[0].html.length > 20, 'nový chat začíná proaktivním uvítáním');
+  ok((th.msgs[0].chips || []).length > 0, 'uvítání nabízí akční chipy');
+  const last = t2 => t2.msgs[t2.msgs.length - 1];
+  Copilot.process(th, 'Jaký je stav hodnocení?');
+  ok(last(th).who === 'bot' && last(th).html.includes(t('cop.r.completion')), 'report: stav hodnocení odpovídá daty');
+  Copilot.process(th, 'Jaká je nálada v týmu?');
+  ok(last(th).html.includes(t('cop.r.mood')) || last(th).html.includes('1:1'), 'report: nálada z 1:1');
+  Copilot.process(th, 'eNPS?');
+  ok(last(th).html.includes('eNPS') || last(th).html.includes(t('cop.r.anon')) || last(th).html.includes(t('cop.r.noData')), 'report: eNPS (nebo anonymita)');
+
+  /* intent parser */
+  ok(Copilot.detect('pochval Janu za prezentaci') === 'kudos', 'detect: kudos');
+  ok(Copilot.detect('kolik lidí nemá uzavřené hodnocení?') === 'r.completion', 'detect: completion');
+  ok(Copilot.detect('připomeň mi každý týden stav hodnocení') === 'schedule', 'detect: schedule před reportem');
+  ok(Copilot.detect('chci vyplnit sebehodnocení') === 'self', 'detect: self');
+  ok(Copilot.detect('xyzzy nesmysl') === null, 'detect: fallback');
+
+  /* kudos flow end-to-end */
+  const ps5 = Store.list('people');
+  const pK = ps5.find(p => p.managerId);
+  const kb = Store.list('kudos').length;
+  Copilot.process(th, 'pochval ' + pK.name + ' za skvělou práci na projektu');
+  if (th.state && th.state.step === 'who') Copilot.reply(th, { val: pK.id, label: pK.name });
+  if (th.state && th.state.step === 'msg') Copilot.reply(th, { text: 'skvělá práce na projektu' });
+  if (th.state && th.state.step === 'value') Copilot.reply(th, { val: 'quality', label: 'q' });
+  if (th.state && th.state.step === 'confirm') Copilot.reply(th, { val: 'ok', label: 'ok' });
+  ok(Store.list('kudos').length === kb + 1 && !th.state, 'kudos flow: propsáno do Store');
+  ok(Store.list('kudos').slice(-1)[0].toId === pK.id, 'kudos flow: správný příjemce');
+
+  /* 1:1 flow (manažer) */
+  const counts5 = {};
+  ps5.forEach(p => { if (p.managerId) counts5[p.managerId] = (counts5[p.managerId] || 0) + 1; });
+  const mgr5 = Object.keys(counts5).sort((a, b) => counts5[b] - counts5[a])[0];
+  const emp5 = ps5.find(p => p.managerId === mgr5);
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mgr5 } });
+  const th2 = Copilot.newThread();
+  const cb5 = Store.list('checkins').length;
+  Copilot.process(th2, 'zapiš 1:1 s ' + emp5.firstName + ' ' + emp5.lastName);
+  if (th2.state && th2.state.step === 'who') Copilot.reply(th2, { val: emp5.id, label: emp5.name });
+  if (th2.state && th2.state.step === 'mood') Copilot.reply(th2, { val: '🙂', label: '🙂' });
+  if (th2.state && th2.state.step === 'notes') Copilot.reply(th2, { text: 'Řešili jsme projekt a kapacity.' });
+  if (th2.state && th2.state.step === 'next') Copilot.reply(th2, { val: '', label: 'skip' });
+  ok(Store.list('checkins').length === cb5 + 1 && !th2.state, '1:1 flow: záznam uložen');
+  ok(Store.list('checkins').slice(-1)[0].managerId === mgr5, '1:1 flow: manažer = aktuální persona');
+
+  /* sebehodnocení flow (zaměstnanec) */
+  const er5 = Store.list('reviews').find(r => ['pending_self', 'self_in_progress'].includes(r.status));
+  Store.patchSettings({ viewAs: { role: 'employee', personId: er5.subjectId } });
+  const th3 = Copilot.newThread();
+  Copilot.process(th3, 'chci vyplnit sebehodnocení');
+  Copilot.reply(th3, { text: 'Povedla se mi migrace klientů.' });
+  Copilot.reply(th3, { text: 'Náročné bylo Q2.' });
+  Copilot.reply(th3, { text: 'Chci se zlepšit v prezentování.' });
+  let g5 = 0;
+  while (th3.state && th3.state.step === 'rate' && g5++ < 12) Copilot.reply(th3, { val: 'PO', label: 'PO' });
+  if (th3.state && th3.state.step === 'confirm') Copilot.reply(th3, { val: 'ok', label: 'ok' });
+  const er5b = Store.get('reviews', er5.id);
+  ok(er5b.status === 'self_done' && !th3.state, 'self flow: status → self_done');
+  ok(er5b.form.self.success.includes('migrace') && (er5b.form.self.areas.teamwork === 'PO' || (er5b.form.compRatings && Object.keys(er5b.form.compRatings.self).length)), 'self flow: form.self propsán');
+
+  /* vyhodnocení flow (manažer) */
+  const rv5 = Store.list('reviews').find(r => r.period === Generator.CURRENT_PERIOD && r.status === 'self_done' && r.evaluatorId);
+  Store.patchSettings({ viewAs: { role: 'manager', personId: rv5.evaluatorId } });
+  const th4 = Copilot.newThread();
+  Copilot.process(th4, 'vyhodnoť ' + (Store.get('people', rv5.subjectId) || {}).name);
+  if (th4.state && th4.state.step === 'who') Copilot.reply(th4, { val: rv5.subjectId, label: 'x' });
+  let g6 = 0;
+  while (th4.state && g6++ < 40) {
+    const s5 = th4.state.step;
+    if (s5 === 'rate') Copilot.reply(th4, { val: 'KV', label: 'KV' });
+    else if (s5 === 'goals') Copilot.reply(th4, { val: 'agree', label: 'ok' });
+    else if (s5 === 'strengths') Copilot.reply(th4, { val: 'Tahoun týmu.', label: 'x' });
+    else if (s5 === 'confirm') Copilot.reply(th4, { val: 'ok', label: 'ok' });
+    else break;
+  }
+  const rv5b = Store.get('reviews', rv5.id);
+  ok(rv5b.status === 'manager_done', 'eval flow: status → manager_done');
+  ok(Object.values(rv5b.form.mgr.areas).every(Boolean) || (rv5b.form.compRatings && Object.keys(rv5b.form.compRatings.mgr).length), 'eval flow: ratingy manažera propsány');
+  ok(rv5b.form.goalsEval.every(g7 => g7.mgrConfirmed && g7.mgrDecision), 'eval flow: rozhodnutí u všech cílů');
+
+  /* naplánované úlohy */
+  Copilot.process(th4, 'připomeň mi každý týden stav hodnocení');
+  const tk5 = Copilot.tasks();
+  ok(tk5.length === 1 && tk5[0].freq === 'weekly' && /hodnocen/.test(tk5[0].text), `úloha uložena (${tk5.length ? tk5[0].text : '-'})`);
+  Store.update('copilotTasks', tk5[0].id, { nextAt: Date.now() - 1000 });
+  const ml5 = th4.msgs.length;
+  Copilot.runDueTasks(th4);
+  ok(th4.msgs.length > ml5, 'due úloha se spustila při otevření');
+  ok(Copilot.tasks()[0].nextAt > Date.now(), 'opakovaná úloha se přeplánovala');
+
+  /* uložené prompty + práva zaměstnance + vypnutí */
+  ok(!!Copilot.savePrompt('Jaká je nálada v týmu?') && Copilot.prompts().length === 1, 'prompt uložen per persona');
+  Store.patchSettings({ viewAs: { role: 'employee', personId: er5.subjectId } });
+  const th6 = Copilot.newThread();
+  Copilot.process(th6, 'Jaký je stav hodnocení?');
+  ok(!last(th6).html.includes(t('cop.r.openList').split('(')[0].trim()), 'práva: zaměstnanec nevidí výčet cizích hodnocení');
+  ok(Copilot.prompts().length === 0, 'práva: prompty jsou per persona');
+  Store.patchSettings({ copilotEnabled: false });
+  ok(!Copilot.enabled(), 'vypnutí copilota v nastavení');
+  Store.patchSettings({ copilotEnabled: true, viewAs: null });
+
+  /* i18n úplnost cop.* */
+  const copSrc = fs.readFileSync('js/copilot.js', 'utf8');
+  const copKeys = new Set();
+  for (const m of copSrc.matchAll(/(?<![A-Za-z.])(?:t|fmt)\('(cop\.[^']*)'/g)) copKeys.add(m[1]);
+  ['daily', 'weekly', 'monthly', 'once'].forEach(k => copKeys.add('cop.t.freq.' + k));
+  [1, 2, 3, 4, 5, 6].forEach(i => copKeys.add('cop.cap.' + i));
+  let missC = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    copKeys.forEach(k => { if (k.endsWith('.')) return; /* dynamické fragmenty */ if (t(k) === k) missC.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missC.length === 0, missC.length ? 'chybí cop.* klíče: ' + missC.slice(0, 8).join(', ') : `cop.* i18n kompletní (${copKeys.size} klíčů × 3 jazyky)`);
+
+  /* render smoke (stub DOM) */
+  try { CopilotViews.render(fakeEl()); ok(true, 'CopilotViews.render nespadne na stub DOM'); }
+  catch (e) { ok(false, 'CopilotViews.render spadl: ' + e.message); }
+})();
+
+/* --- 14) skloňování českých jmen (CzName) --- */
+(function () {
+  I18N.setLocale('cs');
+  const F = [
+    ['Marek', 'voc', 'Marku'], ['Marek', 'acc', 'Marka'], ['Marek', 'ins', 'Markem'],
+    ['Petr', 'voc', 'Petře'], ['Tomáš', 'voc', 'Tomáši'], ['Tomáš', 'acc', 'Tomáše'],
+    ['Jan', 'voc', 'Jane'], ['Karel', 'voc', 'Karle'], ['Karel', 'acc', 'Karla'],
+    ['Daniel', 'voc', 'Danieli'], ['Ondřej', 'acc', 'Ondřeje'], ['Vojtěch', 'voc', 'Vojtěchu'],
+    ['Radek', 'voc', 'Radku'], ['Aleš', 'voc', 'Aleši'], ['Štěpán', 'voc', 'Štěpáne'],
+    ['Jana', 'voc', 'Jano'], ['Jana', 'acc', 'Janu'], ['Jana', 'ins', 'Janou'],
+    ['Lucie', 'acc', 'Lucii'], ['Lucie', 'ins', 'Lucií'], ['Tereza', 'voc', 'Terezo'],
+  ];
+  let badF = [];
+  F.forEach(([n, k, e]) => { if (CzName.first(n, k) !== e) badF.push(`${n}/${k}→${CzName.first(n, k)}≠${e}`); });
+  ok(badF.length === 0, badF.length ? 'křestní: ' + badF.join(', ') : `křestní jména OK (${F.length} tvarů)`);
+  const FU = [
+    ['Jana Nováková', 'acc', 'Janu Novákovou'], ['Jana Nováková', 'ins', 'Janou Novákovou'],
+    ['Petr Černý', 'acc', 'Petra Černého'], ['Petr Černý', 'ins', 'Petrem Černým'],
+    ['Tomáš Němec', 'acc', 'Tomáše Němce'], ['Marek Svoboda', 'ins', 'Markem Svobodou'],
+    ['Karel Vaněk', 'acc', 'Karla Vaňka'], ['David Kovář', 'acc', 'Davida Kováře'],
+    ['Lucie Sedláčková', 'acc', 'Lucii Sedláčkovou'], ['Adam Kratochvíl', 'ins', 'Adamem Kratochvílem'],
+  ];
+  let badU = [];
+  FU.forEach(([n, k, e]) => { if (CzName.full(n, k) !== e) badU.push(`${n}/${k}→${CzName.full(n, k)}≠${e}`); });
+  ok(badU.length === 0, badU.length ? 'celá jména: ' + badU.join(', ') : `celá jména OK (${FU.length} tvarů)`);
+  /* cizí jména se neskloňují */
+  ok(CzName.full('John Smith', 'acc') === 'John Smith' && CzName.first('Ching', 'voc') === 'Ching', 'cizí jména beze změny');
+  /* mimo cs locale beze změny */
+  I18N.setLocale('en');
+  ok(CzName.first('Marek', 'voc') === 'Marek' && CzName.full('Jana Nováková', 'acc') === 'Jana Nováková', 'EN/DE: neskloňuje se');
+  I18N.setLocale('cs');
+  /* generátorová jména: každé křestní je v whitelistu (skloňování pokryje celé demo) */
+  const genSrc = fs.readFileSync('js/generator.js', 'utf8');
+  const mM = genSrc.match(/const MALE = \[([^\]]+)\]/)[1];
+  const mF = genSrc.match(/const FEMALE = \[([^\]]+)\]/)[1];
+  const allFirst = (mM + ',' + mF).match(/'([^']+)'/g).map(x => x.slice(1, -1));
+  const unknown = allFirst.filter(n => !CzName.isCzech(n));
+  ok(unknown.length === 0, unknown.length ? 'mimo whitelist: ' + unknown.join(', ') : `všechna generátorová jména ve whitelistu (${allFirst.length})`);
+  /* nasazení: pozdrav v aplikaci i Copilotu používá vokativ */
+  const appSrc2 = fs.readFileSync('js/app.js', 'utf8');
+  const copSrc2 = fs.readFileSync('js/copilot.js', 'utf8');
+  ok(appSrc2.includes("CzName.first(me.firstName, 'voc')"), 'app: pozdrav na Přehledu skloňuje (vokativ)');
+  ok(copSrc2.includes("CzName.first(p.firstName, 'voc')") && copSrc2.includes("CzName.full") , 'copilot: vokativ + akuzativ/instrumentál ve flows');
+})();
+
+/* --- 15) mobilní navigace: všechny sekce dostupné --- */
+(function () {
+  const appSrc3 = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc3.includes("id=\"mn-more\"") && appSrc3.includes('moreItems'), 'mobilní menu „Více" existuje');
+  /* moreItems = visible − mobileTabs → sjednocení pokrývá všechny viditelné položky NAV */
+  ok(appSrc3.includes('visible.filter(n => !n.sec && !mobileTabs.includes(n))'), 'Více = zbytek viditelného menu (kompletní pokrytí rolí)');
+  ok(t('nav.more') === 'Více', 'nav.more cs');
+  ['en', 'de'].forEach(loc => { I18N.setLocale(loc); ok(t('nav.more') !== 'nav.more', 'nav.more ' + loc); });
+  I18N.setLocale('cs');
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */

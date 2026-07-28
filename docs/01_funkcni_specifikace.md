@@ -87,6 +87,10 @@ Sekce `#/checkins` má dva taby (`ciUi.tab`, výchozí Přehled):
 
 Rozsah dat podle role: manažer vidí jen svoje 1:1, HR všechny. Zaměstnanec sekci nemá v navigaci.
 
-## 13. Mimo scope dema (plán produkce)
+## 13. Copilot (2026-07, nástřel)
+
+Poslední položka menu pro všechny role (lze vypnout v Nastavení, `settings.copilotEnabled`). Chatové rozhraní: historie vláken s pinem, uložené prompty, naplánované úlohy (denně/týdně/měsíčně/jednorázově — spouští se při otevření sekce), proaktivní uvítání s doporučeními ze stavu dat persony. Akce přirozeným jazykem se propisují do ostatních modulů: kudos, záznam 1:1 (jen mgr/HR), sebehodnocení (reflexe + ratingy chipy → `self_done`), manažerské vyhodnocení (tichá shoda, rozhodnutí u cílů Souhlasím/K rozhovoru → `manager_done`). Reporting respektuje roli (zaměstnanec jen vlastní data). Engine je deterministický — bez externí AI; detaily a stavové automaty flows v 09_copilot.md. Česká jména se v oslovení a větách skloňují (`js/czname.js`: vokativ/akuzativ/instrumentál, jen locale cs, whitelist českých jmen — cizí jména beze změny); platí i pro pozdrav na Přehledu. Mobilní navigace: hlavní taby + tlačítko **Více** s kompletním menu dle role — všechny sekce aplikace jsou dostupné i na mobilu.
+
+## 14. Mimo scope dema (plán produkce)
 
 Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), kalibrační session, CMS pro tutoriály/dokumenty. Talent modul je implementovaný celý včetně checklistu kandidáta, červené karty a 360 (viz §11 a 08_talent_succession.md); kandidáti na další iterace jsou v 08 §10.

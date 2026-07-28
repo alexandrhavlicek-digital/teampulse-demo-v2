@@ -63,3 +63,5 @@ Dashboard procesu (§2) říká, *jak jde papírování*; záložka **Talent & R
 **Sestava pro poradu** — jedním klikem tisková sestava pro vedení: souhrn pokrytí, klíčové pozice s nástupci, retenční priority, rozložení matice a stav checků. Nahrazuje ruční skládání prezentace.
 
 Dvě zásady na závěr: talent data (potenciál, riziko odchodu, pozice v matici, nástupnictví) **zaměstnancům nikdy neukazuj** — platí stejná logika jako u pásem odměňování. A kalibruj: rozložení potenciálu per manažer ti řekne, kdo nehodnotí stejným metrem.
+
+**TeamPulse Copilot** — chatový parťák (poslední položka menu). Tobě i manažerům šetří kliky: „stav hodnocení" vrátí dokončenost a výčet neuzavřených, „kdo je v riziku termínu" eskalace, „nálada v týmu" analytiku 1:1, funguje i eNPS a plnění cílů. Manažeři přes něj mohou rovnou vyhodnocovat (tichá shoda), zaměstnanci vyplnit sebehodnocení. Pravidelné dotazy si každý uloží jako prompt nebo naplánuje („připomeň mi každý týden stav hodnocení"). Engine je simulovaný — bez externí AI, žádná osobní data neopouštějí systém; odpovídá jen z dat dle práv role a talent data nevystavuje vůbec. Vypnout/zapnout jde v Nastavení.

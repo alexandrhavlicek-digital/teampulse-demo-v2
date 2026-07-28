@@ -1,6 +1,6 @@
 # TeamPulse — přehled systému (executive summary)
 
-**Verze dokumentace:** 1.2 · **Datum:** 2026-07-22 · **Stav:** demo v2 (bez AI) + modul Talent & nástupnictví
+**Verze dokumentace:** 1.3 · **Datum:** 2026-07-28 · **Stav:** demo v2 (bez externí AI) + modul Talent & nástupnictví + Copilot (nástřel)
 
 ## Co je TeamPulse
 
@@ -19,6 +19,8 @@ Onboarding s generátorem fiktivní firmy (IT / cestovní kancelář / automotiv
 
 **Modul Talent & nástupnictví (2026-07, dle DERTOUR succession metodiky):** soukromá talent sekce v manažerském hodnocení → 9-box matice s fotkovými žetony (HR záložka Talent & Reporty: retenční priority, trend, talent profily), manažerský dashboard Můj tým, klíčové pozice s 12otázkovým checklistem a nástupci (overlay v org chartu), kvartální talent check se stavy draft → debata s HR → zamrazený snapshot (drag & drop posuny s poznámkou), tisková sestava pro poradu vedení, checklist kandidáta na nástupce (21 otázek, práh HR), červená karta s maticí potřebnosti a anonymní 360° zpětná vazba (agregát od 3 odpovědí, výstup „tři pohledy"). Zaměstnanec z tohoto modulu nevidí nic; z 360 nikdo nevidí jednotlivé odpovědi — viz 08_talent_succession.md.
 
+**TeamPulse Copilot (2026-07, nástřel):** chatový parťák nad daty v systému — poslední položka menu, rozhraní jako Claude/ChatGPT. Přirozeným jazykem (CZ/EN/DE) zvládne dát uznání, zapsat 1:1, provést sebehodnocením i manažerským vyhodnocením (volby přes klikací chipy, tichá shoda) a odpovídá na reportingové dotazy dle práv role. Historie a pin vláken, uložené prompty, naplánované úlohy, proaktivní uvítání s doporučeními ze stavu dat. **Bez externí AI** — deterministický simulovaný engine (security rozhodnutí trvá); zároveň koncept budoucí mobilní aplikace (chat-first na mobilu). V demu jde vypnout v Nastavení. Viz 09_copilot.md.
+
 ## Mapa dokumentace
 
 | Dokument | Pro koho | Obsah |
@@ -31,3 +33,4 @@ Onboarding s generátorem fiktivní firmy (IT / cestovní kancelář / automotiv
 | 06_prirucka_hr.md | HR | Cykly, KPI, pravidla, odměňování |
 | 07_testovani.md | QA | Testovací scénáře a smoke testy |
 | 08_talent_succession.md | Vývoj | **Realizační dokument** modulu Talent & nástupnictví (API, datový model, stavové automaty, soukromí) |
+| 09_copilot.md | Produkt / vývoj | **Realizační dokument** Copilota (simulovaný engine, flows, práva, roadmap k LLM) |

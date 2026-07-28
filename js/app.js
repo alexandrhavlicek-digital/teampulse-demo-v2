@@ -220,8 +220,11 @@
     { id: 'talent', ico: 'grid9', label: 'nav.talent', roles: ['hr'] },
     { id: 'help', ico: 'bulb', label: 'nav.help', roles: ['employee', 'manager', 'hr'] },
     { id: 'settings', ico: 'gear', label: 'nav.settings', roles: ['employee', 'manager', 'hr'] },
+    { sec: 'nav.copilotSec' },
+    { id: 'copilot', ico: 'copilot', label: 'nav.copilot', roles: ['employee', 'manager', 'hr'] },
   ];
-  const MOBILE_NAV = ['home', 'myreviews', 'team', 'kudos', 'hr', 'settings'];
+  /* mobil: hlavní taby + „Více" s kompletním menu (všechny funkce dostupné i na mobilu) */
+  const MOBILE_NAV = ['home', 'myreviews', 'team', 'kudos', 'copilot'];
 
   function route() {
     const h = location.hash.replace(/^#\//, '') || 'home';
@@ -233,7 +236,10 @@
     const va = viewAs();
     const co = Store.getCompany();
     const { page } = route();
-    const visible = NAV.filter(n => n.sec || n.roles.includes(va.role));
+    const copOn = window.Copilot ? Copilot.enabled() : false;
+    const visible = NAV.filter(n => n.sec
+      ? (n.sec !== 'nav.copilotSec' || copOn)
+      : n.roles.includes(va.role) && (n.id !== 'copilot' || copOn));
 
     const collapsed = !!Store.getSettings().sidebarCollapsed;
     document.getElementById('app').classList.toggle('sb-collapsed', collapsed);
@@ -274,13 +280,30 @@
         <div id="role-dd" hidden class="dropdown">${roleDropdownHtml()}</div>
       </div>`;
 
-    document.getElementById('mobilenav').innerHTML = MOBILE_NAV
+    const mobileTabs = MOBILE_NAV
       .map(id => NAV.find(n => n.id === id))
-      .filter(n => n && n.roles.includes(va.role))
+      .filter(n => n && n.roles.includes(va.role) && (n.id !== 'copilot' || copOn));
+    const moreItems = visible.filter(n => !n.sec && !mobileTabs.includes(n));
+    document.getElementById('mobilenav').innerHTML = mobileTabs
       .map(n => `<button class="${page === n.id ? 'active' : ''}" data-nav="${n.id}">
-        ${icon(n.ico, 20)}${esc(t(n.label))}</button>`).join('');
+        ${icon(n.ico, 20)}${esc(t(n.label))}</button>`).join('')
+      + `<button id="mn-more" class="${moreItems.some(n => n.id === page) ? 'active' : ''}">
+        ${icon('more', 20)}${esc(t('nav.more'))}</button>`;
 
     document.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => location.hash = '#/' + b.dataset.nav);
+    const mnMore = document.getElementById('mn-more');
+    if (mnMore) mnMore.onclick = () => {
+      UI.modal(`<h3>${icon('grid9', 18)}${esc(t('nav.more'))}</h3>
+        <div class="mn-grid">${moreItems.map(n => `
+          <button class="choice ${page === n.id ? 'sel' : ''}" data-mn="${n.id}">
+            <span class="ch-ico">${icon(n.ico, 24)}</span><b>${esc(t(n.label))}</b></button>`).join('')}
+        </div>`, m => {
+        m.querySelectorAll('[data-mn]').forEach(b => b.onclick = () => {
+          UI.closeModal();
+          location.hash = '#/' + b.dataset.mn;
+        });
+      });
+    };
     const sbT = document.getElementById('sb-toggle');
     if (sbT) sbT.onclick = () => { Store.patchSettings({ sidebarCollapsed: !collapsed }); render(); };
     bindLangSwitch(document.getElementById('topbar'), render);
@@ -428,7 +451,7 @@
     const totalCur = reviews().filter(r => r.period === Generator.CURRENT_PERIOD).length;
 
     root.innerHTML = `
-      <h1 class="page-title">${esc(t('home.hello'))}${me ? ', ' + esc(me.firstName) : ''}</h1>
+      <h1 class="page-title">${esc(t('home.hello'))}${me ? ', ' + esc(CzName.first(me.firstName, 'voc')) : ''}</h1>
       <p class="page-sub">${esc(t('misc.viewAs'))}: ${esc(t('role.' + va.role))}</p>
       <div class="grid cols-2">
         <div class="card">
@@ -1410,6 +1433,9 @@
     };
   };
 
+  /* ---- copilot (chat parťák; zap/vyp v nastavení) ---- */
+  views.copilot = root => CopilotViews.render(root);
+
   /* ---- talent & reporty (jen HR) ---- */
   views.talent = root => TalentViews.renderHr(root);
 
@@ -1487,6 +1513,11 @@
               <span class="theme-preview">${colors.split(',').map(c => `<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}
         </div></div>
       <div class="card"><h2>${icon('globe', 18)}${esc(t('set.lang'))}</h2>${langSwitchHtml()}</div>
+      <div class="card"><h2>${icon('copilot', 18)}TeamPulse Copilot</h2>
+        <p class="page-sub" style="margin-bottom:10px">${esc(t('set.copilotHint'))}</p>
+        <label style="display:flex;gap:8px;align-items:center;font-size:.9rem;cursor:pointer">
+          <input type="checkbox" id="set-copilot" ${s.copilotEnabled !== false ? 'checked' : ''}>
+          ${esc(t('set.copilot'))}</label></div>
       <div class="card"><h2>${icon('bell', 18)}${esc(t('set.notif'))}</h2><p class="page-sub">${esc(t('set.notifHint'))}</p></div>
       <div class="card"><h2>${icon('db', 18)}${esc(t('set.backend'))}</h2><p class="page-sub">${esc(t('set.backendHint'))}</p></div>
       <div class="card"><h2>${icon('alert', 18)}${esc(t('set.demoData'))}</h2>
@@ -1497,6 +1528,11 @@
     root.querySelectorAll('[data-th]').forEach(b => b.onclick = () => {
       Store.patchSettings({ theme: b.dataset.th }); applySettings(); render();
     });
+    const copChk = root.querySelector('#set-copilot');
+    if (copChk) copChk.onchange = () => {
+      Store.patchSettings({ copilotEnabled: copChk.checked });
+      UI.toast(t('common.saved')); render();
+    };
     bindLangSwitch(root, render);
     root.querySelector('#set-regen').onclick = () => {
       const co = Store.getCompany();

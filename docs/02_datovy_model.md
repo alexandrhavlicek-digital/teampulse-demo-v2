@@ -101,5 +101,8 @@ theme (corp|glass|genz), locale (cs|en|de), onboarded, viewAs {role, personId}
 | redCards | `red_cards` | jen mgr+HR; subjekt nikdy |
 | feedback360 | `feedback_requests` + `feedback_responses` | respondent vidí jen svou odpověď; agregát (view) od 3 odpovědí pro mgr+HR |
 | npsWaves | `nps_waves` + `nps_responses` (bez FK na users) + `nps_respondents` | odpovědi bez identity; agregáty od 3; zákaz JOINu respondents×responses |
+| copilotThreads | `copilot_threads` (+ `messages` JSONB) | RLS: jen vlastník (`ownerKey` → `user_id`); obsahuje jen data, na která měl uživatel právo v čase dotazu |
+| copilotPrompts | `copilot_prompts` | RLS: jen vlastník |
+| copilotTasks | `copilot_tasks` | RLS: jen vlastník; v produkci spouštět cronem + push notifikace |
 
 Validace, které musí backend vynucovat serverově (ne jen v UI): součet vah cílů v oblasti = 100; KPI vazba povinná u teamwork/quality; přechody stavového automatu (guardy z funkční specifikace §4); zápis verze při každém přechodu; přechody talent checku draft→debate→final (debate autor, final jen HR) a úplný zákaz přístupu subjektů k talent datům (talent sekce, matice, checky).

@@ -34,6 +34,9 @@
         redCards: [],           // červená karta: [{id,personId,needed:bool,trouble:bool,note,byId,at}] - jen mgr+HR
         feedback360: [],        // 360: [{id,subjectId,requestedById,period,deadline,status:collecting|closed,respondents:[{personId,group,status:invited|done,ratings{key:rating},strengths,growth}]}]
         npsWaves: [],           // eNPS pulse: [{id,label,theme,themeQ,startedAt,deadline,status,responses:[{id,deptKey,teamId,nps,dims{},theme,comment,at}] BEZ personId, respondedIds:[personId] odděleně}]
+        copilotThreads: [],     // Copilot chaty: [{id,ownerKey:'role|personId',title,pinned,createdAt,updatedAt,msgs:[],state}]
+        copilotPrompts: [],     // uložené prompty: [{id,ownerKey,label,text,at}]
+        copilotTasks: [],       // naplánované úlohy: [{id,ownerKey,text,freq:'daily'|'weekly'|'monthly'|'once',nextAt,at}]
       };
     }
     function persist() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }
