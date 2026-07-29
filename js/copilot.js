@@ -102,7 +102,9 @@
             { label: t('cop.ch.fillSelf'), act: 'ask', val: t('cop.ask.self') },
             { label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }] });
         if (r.status === 'awaiting_employee_confirmation')
-          out.push({ txt: t('cop.rec.confirmRev'), chips: [{ label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }] });
+          out.push({ txt: t('cop.rec.confirmRev'), chips: [
+            { label: t('cop.ch.confirmChat'), act: 'ask', val: t('cop.ask.confirm') },
+            { label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }] });
       });
     }
     if (v.role === 'manager' && p) {
@@ -123,9 +125,9 @@
         { label: t('cop.ch.open'), act: 'nav', val: '#/hr' }] });
     }
     if (p && window.NPS && NPS.pendingWaveFor && NPS.pendingWaveFor(p.id))
-      out.push({ txt: t('cop.rec.enps'), chips: [{ label: t('cop.ch.open'), act: 'nav', val: '#/home' }] });
+      out.push({ txt: t('cop.rec.enps'), chips: [{ label: t('cop.ch.fillSelf'), act: 'ask', val: t('cop.ask.nps') }] });
     if (p && window.Feedback360 && Feedback360.pendingFor(p.id).length)
-      out.push({ txt: t('cop.rec.f360'), chips: [{ label: t('cop.ch.open'), act: 'nav', val: '#/home' }] });
+      out.push({ txt: t('cop.rec.f360'), chips: [{ label: t('cop.ch.fillSelf'), act: 'ask', val: t('cop.ask.f360') }] });
     return out.slice(0, 3);
   }
 
@@ -164,25 +166,80 @@
     stale: /(bez 1 ?: ?1|stale|dlouho nemel|dlouho nebyl)/,
     help: /(co (umis|dokazes|zvladnes)|help|napoved|pomoc|was kannst|hilfe|capabilities)/,
     greet: /^(ahoj|cau|cus|dobry|zdravim|hi|hello|hey|hallo|servus|moin)\b/,
+    /* --- v2 --- */
+    conv: /(rozhovor|conversation|gesprach)/,
+    convDone: /(probehl|probehlo|uskutecnil|hotov|done|stattgefunden)/,
+    confirmR: /(potvrd|potvrzuji|souhlasim s hodnocen|nesouhlasim s hodnocen|confirm|bestatig)/,
+    goalAdd: /(pridej|pridat|nov[eyá]|zaloz|vytvor|add|create|neu)\w*\s+(?:\S+\s+)?(cil|goal|ziel)|(cil|goal|ziel)\w*\s+(pridej|pridat|zaloz)/,
+    goalProg: /((cil|goal|ziel).*(na \d+|progress|plnen|posun|aktualizuj))|((progress|plnen|posun|aktualizuj|nastav).*(cil|goal|ziel))/,
+    npsFill: /(odpov|vypln|answer|beantwort|ausfull).*(e?nps|puls)|((e?nps|pulse?).*(odpov|vypln|answer))/,
+    f360: /\b360\b|zpetn[aou]?\s*vazb|feedback/,
+    f360Fill: /(vypln|odpov|answer|ausfull)/,
+    f360Req: /(vyzadej|vyzadat|pozadej|spust|request|anforder)/,
+    kpiWord: /\bkpi\b/,
+    kpiSet: /(nastav|uprav|aktualizuj|zmen|set|update|andere)/,
+    personAdd: /(pridej|zaloz|add|create|neu)\w*\s+(?:\S+\s+)?(clovek|zamestnan|osob|koleg|person|mitarbeiter)/,
+    whois: /(kdo je|kdo to je|co je zac|who is|wer ist|profil |karta )/,
+    myteam: /(muj tym|muj tym|meho tymu|mem tymu|my team|mein team|jak je na tom tym)/,
+    notif: /(co (je|mam) noveho|novink|notifikac|notification|upozornen|neuigkeit)/,
+    scaleQ: /(skal[aeu]|stupnic|scale|co znamena (tn|po|kv|nr|nu)|rating (levels|scale))/,
+    talent: /(talent|9.?box|matice|nastupnic|succession|klicov\S* pozic|retenc)/,
+    theme: /(tema|theme|design|vzhled|dark|svetl)/,
+    themeName: /\b(brand|corp|korporat|glass|genz|gen z)\b/,
+    lang: /(prepni|zmen|switch|change|wechsel).*(jazyk|language|sprache)|do (anglictiny|nemciny|cestiny)|to (english|german|czech)|auf (englisch|deutsch|tschechisch)/,
+    cycle: /(spust|zahaj|start|nov[eyá])\w*\s+(?:\S+\s+)?(cyklus|cycle|zyklus|kolo hodnocen)|(cyklus|cycle|zyklus).*(spust|start|zahaj)/,
+    remindOther: /\b(vsem|all|allen)\b|(pripomen|remind|erinner)/,
+    howto: /jak\s+(funguje|na\b|pridam|udelam|spustim|zadam|vyplnim|zapnu|vypnu|nastavim)/,
+    switchOff: /(vypni|vypnout|deaktivuj|disable|abschalt).*(copilot)|copilot.*(vypni|vypnout|off)/,
   };
 
   function detect(text) {
     const n = norm(text);
+    if (RX.switchOff.test(n)) return 'copOff';
+    if (RX.howto.test(n)) return 'howto';
     if (RX.help.test(n)) return 'help';
-    if (RX.schedule.test(n)) return 'schedule';
+    /* rozhovor má přednost před plánovačem („naplánuj rozhovor s…") */
+    if (RX.conv.test(n) && !RX.f360.test(n)) return 'conv';
+    if (RX.schedule.test(n)) {
+      /* „připomeň Petrovi / všem v riziku" = akce remind, „připomeň mi…" = plánovač */
+      if (/(pripomen|remind|erinner)/.test(n) && !/\b(mi|me|mir)\b/.test(n)
+        && (/\b(vsem|all|allen)\b/.test(n) || matchPeople(text).length)) return 'remind';
+      return 'schedule';
+    }
+    if (RX.confirmR.test(n)) return 'confirm';
+    if (RX.npsFill.test(n)) return 'npsFill';
+    if (RX.f360.test(n)) {
+      if (RX.f360Req.test(n)) return 'f360Req';
+      if (RX.f360Fill.test(n)) return 'f360Fill';
+      return 'r.f360';
+    }
     if (RX.self.test(n)) return 'self';
     if (RX.kudos.test(n) && RX.stats.test(n)) return 'r.kudos';
     if (RX.kudos.test(n)) return 'kudos';
     if (RX.stale.test(n)) return 'r.stale';
     if (RX.checkin.test(n) && (RX.stats.test(n) || RX.mood.test(n))) return 'r.mood';
     if (RX.checkin.test(n)) return 'checkin';
+    if (RX.kpiWord.test(n)) return RX.kpiSet.test(n) ? 'kpiSet' : 'r.kpi';
+    if (RX.goalAdd.test(n)) return 'goalAdd';
+    if (RX.goalProg.test(n) && /\d/.test(n)) return 'goalProg';
+    if (RX.personAdd.test(n)) return 'personAdd';
+    if (RX.cycle.test(n)) return 'cycle';
+    if (RX.talent.test(n)) return 'r.talent';
+    if (RX.notif.test(n)) return 'r.notif';
+    if (RX.scaleQ.test(n)) return 'r.scale';
+    if (RX.myteam.test(n)) return 'r.team';
+    if (RX.lang.test(n)) return 'lang';
+    if (RX.theme.test(n) && RX.themeName.test(n)) return 'theme';
+    if (RX.whois.test(n) && matchPeople(text).length) return 'r.person';
     if (RX.enps.test(n)) return 'r.enps';
     if (RX.mood.test(n)) return 'r.mood';
     if (RX.completion.test(n)) return 'r.completion';
     if (RX.atrisk.test(n)) return 'r.atrisk';
     if (RX.evalT.test(n)) return 'eval';
     if (RX.goals.test(n)) return 'r.goals';
+    if (RX.theme.test(n)) return 'theme';
     if (RX.greet.test(n) && n.length < 40) return 'greet';
+    if (matchPeople(text).length === 1 && n.split(/\s+/).length <= 3) return 'r.person';
     return null;
   }
 
@@ -279,8 +336,46 @@
     const r = p && revs().find(x => x.subjectId === p.id && ['pending_self', 'self_in_progress'].includes(x.status));
     if (!r) return bot(th, t('cop.s.none'), chipsOf([{ label: t('nav.myreviews'), act: 'nav', val: '#/myreviews' }]));
     if (r.status === 'pending_self') Store.update('reviews', r.id, { status: 'self_in_progress' });
+    /* pololetní check = kratší flow: reflexe + progress cílů */
+    if (r.type === 'semi') {
+      th.state = { flow: 'semi', step: 'reflect', data: { rid: r.id, gIdx: 0 } };
+      return bot(th, esc(t('cop.sm.intro')) + '<br><br>' + esc(t('cop.sm.reflect')));
+    }
     th.state = { flow: 'self', step: 'q1', data: { rid: r.id, idx: 0, ratings: {} } };
     bot(th, esc(t('cop.s.intro')) + '<br><br><b>1/3</b> ' + esc(t('cop.s.q1')));
+  }
+  function askSemiGoal(th, r) {
+    const d = th.state.data;
+    const g = r.form.goalsEval[d.gIdx];
+    bot(th, `<b>${d.gIdx + 1}/${r.form.goalsEval.length}</b> ${esc(g.title)} <span class="badge">${g.weight} %</span><br>${esc(t('cop.sm.progress'))}`, pctChips());
+  }
+  function contSemi(th, input) {
+    const st = th.state, d = st.data;
+    const r = Store.get('reviews', d.rid);
+    if (!r) { th.state = null; return bot(th, t('cop.s.none')); }
+    if (st.step === 'reflect') {
+      r.form.self.summary = (input.text || '').trim();
+      if (!r.form.goalsEval.length) { st.step = 'confirm'; }
+      else { st.step = 'goals'; d.gIdx = 0; Store.update('reviews', r.id, { form: r.form }); return askSemiGoal(th, r); }
+    }
+    if (st.step === 'goals') {
+      const g = r.form.goalsEval[d.gIdx];
+      g.progress = Math.max(0, Math.min(100, +(input.val != null ? input.val : (norm(input.text || '').match(/\d+/) || [g.progress || 0])[0])));
+      if (g.newWeight == null) g.newWeight = g.weight;
+      d.gIdx++;
+      Store.update('reviews', r.id, { form: r.form });
+      if (d.gIdx < r.form.goalsEval.length) return askSemiGoal(th, r);
+      st.step = 'confirm';
+      return bot(th, esc(t('cop.sm.review')) + '<br>' + r.form.goalsEval.map(g2 => `${esc(g2.title.slice(0, 26))}: <b>${g2.progress} %</b>`).join(' · '),
+        chipsOf([{ label: '✓ ' + t('common.saveSend'), val: 'ok' }, { label: t('common.cancel'), val: 'cancel' }]));
+    }
+    if (st.step === 'confirm') {
+      th.state = null;
+      if (input.val !== 'ok') return bot(th, t('cop.cancelled'));
+      Store.update('reviews', r.id, { form: r.form, status: 'self_done' });
+      notify(((meP() || {}).name || '') + ' - ' + t('st.self_done'), 'manager');
+      return bot(th, '✓ ' + t('cop.sm.done'), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }]));
+    }
   }
   function contSelf(th, input) {
     const st = th.state, d = st.data;
@@ -559,10 +654,641 @@
     return Store.insert('copilotPrompts', { id: uid(), ownerKey: ownerKey(), label: text.trim().slice(0, 48), text: text.trim(), at: Date.now() });
   }
 
+  /* ================= V2 flows: cíle, potvrzení, rozhovor, cyklus, eNPS, 360, KPI, lidé, vzhled ================= */
+
+  /* ---------- pomůcky ---------- */
+  const pctChips = () => chipsOf([0, 25, 50, 75, 100].map(v2 => ({ label: v2 + ' %', val: String(v2) })));
+  const zeroTen = () => chipsOf(Array.from({ length: 11 }, (_, i) => ({ label: String(i), val: String(i) })));
+  function parseDateCz(text) {
+    const n = norm(text);
+    const dm = n.match(/(\d{1,2})\s*\.\s*(\d{1,2})\.?/);
+    let d;
+    if (/pozitri/.test(n)) d = new Date(Date.now() + 2 * DAY);
+    else if (/zitra|tomorrow|morgen/.test(n)) d = new Date(Date.now() + DAY);
+    else if (n.match(/za (\d+) (dni|dny|den|days?|tage)/)) d = new Date(Date.now() + (+n.match(/za (\d+)/)[1]) * DAY);
+    else if (dm) { d = new Date(); d.setMonth(+dm[2] - 1, +dm[1]); if (d.getTime() < Date.now() - DAY) d.setFullYear(d.getFullYear() + 1); }
+    else d = new Date(Date.now() + 3 * DAY);
+    return d.toISOString().slice(0, 10);
+  }
+  function fuzzyPick(list, text, getLabel) {
+    const n = norm(text);
+    const toks = n.split(/[^a-z0-9]+/).filter(w2 => w2.length >= 3);
+    let best = null, bestSc = 0;
+    list.forEach(item => {
+      const lab = norm(getLabel(item));
+      const sc = toks.filter(tk => lab.includes(tk)).length;
+      if (sc > bestSc) { best = item; bestSc = sc; }
+    });
+    return bestSc ? best : null;
+  }
+
+  /* ---------- cíl: přidání ---------- */
+  function startGoalAdd(th, text) {
+    const p = meP();
+    if (!p) return bot(th, t('cop.r.noData'));
+    const data = {};
+    const m = String(text).match(/(?:c[ií]l|goal|ziel)\w*\s*[:\-]?\s+(.{4,})/i);
+    if (m && !/(pridej|pridat|zaloz|vytvor|add|create)/i.test(m[1])) data.title = m[1].trim();
+    th.state = { flow: 'goal', step: null, data };
+    nextGoalAdd(th);
+  }
+  function nextGoalAdd(th) {
+    const d = th.state.data;
+    if (!d.title) { th.state.step = 'title'; return bot(th, t('cop.g.title')); }
+    if (!d.area) {
+      th.state.step = 'area';
+      return bot(th, t('cop.g.area'), chipsOf(AREAS.map(a => ({ label: t('rev.area.' + a), val: a }))));
+    }
+    if (Generator.KPI_REQUIRED[d.area] && !d.kpiRef) {
+      const c2 = co() || {};
+      const opts = [].concat((c2.kpis || []).map(k => ({ label: k.title, val: 'company:' + k.id })),
+        ((c2.teamKpis || []).filter(k => meP() && k.deptKey === meP().deptKey)).map(k => ({ label: k.title, val: 'team:' + k.id }))).slice(0, 6);
+      if (opts.length) { th.state.step = 'kpi'; return bot(th, t('cop.g.kpi'), chipsOf(opts)); }
+      d.kpiRef = null;
+    }
+    if (!d.weight) {
+      th.state.step = 'weight';
+      return bot(th, t('cop.g.weight'), chipsOf([20, 30, 40, 50].map(w2 => ({ label: w2 + ' %', val: String(w2) }))));
+    }
+    th.state = null;
+    Store.insert('goals', {
+      id: uid(), ownerId: va().personId, areaKey: d.area, title: d.title, desc: '',
+      weight: +d.weight, progress: 0, kpiRef: d.kpiRef || null, confirmedByManager: false,
+      due: '2026-12-31', type: 'personal', period: Generator.CURRENT_PERIOD,
+    });
+    bot(th, '✓ ' + fmt('cop.g.done', { title: d.title, area: t('rev.area.' + d.area) }),
+      chipsOf([{ label: t('nav.goals'), act: 'nav', val: '#/goals' }]));
+  }
+  function contGoalAdd(th, input) {
+    const st = th.state, d = st.data;
+    if (st.step === 'title') d.title = (input.text || '').trim();
+    else if (st.step === 'area') d.area = AREAS.includes(input.val) ? input.val : 'growth';
+    else if (st.step === 'kpi') d.kpiRef = input.val ? { type: input.val.split(':')[0], id: input.val.split(':')[1] } : null;
+    else if (st.step === 'weight') d.weight = +input.val || 30;
+    nextGoalAdd(th);
+  }
+
+  /* ---------- cíl: progress ---------- */
+  function myGoals() {
+    const v = va();
+    let gs = Store.list('goals').filter(g => g.type === 'personal' && g.period === Generator.CURRENT_PERIOD);
+    if (v.role !== 'hr') gs = gs.filter(g => g.ownerId === v.personId);
+    return gs;
+  }
+  function startGoalProg(th, text) {
+    const pctM = norm(text).match(/(\d{1,3})\s*%?/);
+    const pct = pctM ? Math.max(0, Math.min(100, +pctM[1])) : null;
+    const g = fuzzyPick(myGoals(), text, x => x.title);
+    if (g && pct != null) return applyGoalProg(th, g, pct);
+    const data = { pct };
+    th.state = { flow: 'goalp', step: 'which', data };
+    const pool = myGoals().slice(0, 6);
+    if (!pool.length) { th.state = null; return bot(th, t('cop.r.noData')); }
+    bot(th, t('cop.g.which'), chipsOf(pool.map(x => ({ label: x.title.slice(0, 36) + ' (' + x.progress + ' %)', val: x.id }))));
+  }
+  function applyGoalProg(th, g, pct) {
+    th.state = null;
+    Store.update('goals', g.id, { progress: pct });
+    bot(th, '✓ ' + fmt('cop.g.prog', { title: g.title, pct }) +
+      `<div class="brow"><span>${esc(g.title.slice(0, 30))}</span><div class="progressbar"><div style="width:${pct}%"></div></div><b>${pct} %</b></div>`,
+      chipsOf([{ label: t('nav.goals'), act: 'nav', val: '#/goals' }]));
+  }
+  function contGoalProg(th, input) {
+    const st = th.state, d = st.data;
+    if (st.step === 'which') {
+      d.gid = input.val;
+      const g = Store.get('goals', d.gid);
+      if (!g) { th.state = null; return bot(th, t('cop.r.noData')); }
+      if (d.pct != null) return applyGoalProg(th, g, d.pct);
+      st.step = 'pct';
+      return bot(th, fmt('cop.g.pct', { title: g.title }), pctChips());
+    }
+    if (st.step === 'pct') {
+      const g = Store.get('goals', d.gid);
+      const pct = Math.max(0, Math.min(100, +(input.val != null ? input.val : (norm(input.text || '').match(/\d+/) || [g ? g.progress : 0])[0])));
+      if (g) return applyGoalProg(th, g, pct);
+      th.state = null;
+    }
+  }
+
+  /* ---------- potvrzení hodnocení (zaměstnanec) ---------- */
+  function startConfirm(th) {
+    const p = meP();
+    const r = p && revs().find(x => x.subjectId === p.id && x.status === 'awaiting_employee_confirmation');
+    if (!r) return bot(th, t('cop.cf.none'), chipsOf([{ label: t('nav.myreviews'), act: 'nav', val: '#/myreviews' }]));
+    const sc = ReviewLogic.computeScore(r.form);
+    const b = sc != null ? ReviewLogic.band(sc) : null;
+    th.state = { flow: 'confirm', step: 'comment', data: { rid: r.id } };
+    bot(th, esc(t('cop.cf.intro')) +
+      (sc != null ? `<br>${esc(t('rev.score'))}: <b>${sc.toFixed(2)}</b> <span class="badge ${b.cls}">${esc(t('band.' + b.key))}</span>` : '') +
+      (r.form.mgr.summary ? `<br><span style="color:var(--text-muted)">„${esc(r.form.mgr.summary.slice(0, 160))}“</span>` : '') +
+      '<br><br>' + esc(t('cop.cf.comment')), chipsOf([{ label: t('cop.ch.skip'), val: '' }]));
+  }
+  function contConfirm(th, input) {
+    const st = th.state, d = st.data;
+    const r = Store.get('reviews', d.rid);
+    if (!r) { th.state = null; return bot(th, t('cop.cf.none')); }
+    if (st.step === 'comment') {
+      d.comment = input.val != null ? input.val : (input.text || '').trim();
+      st.step = 'decide';
+      return bot(th, t('cop.cf.decide'), chipsOf([
+        { label: '✓ ' + t('rev.agree'), val: 'agree' },
+        { label: t('rev.disagree'), val: 'disagree' }]));
+    }
+    if (st.step === 'decide') {
+      th.state = null;
+      const subj = byId(r.subjectId);
+      r.form.employeeComment = d.comment || '';
+      if (input.val === 'agree') {
+        r.form.versions = r.form.versions || [];
+        r.form.versions.push({ label: 'v3_confirmed', at: Date.now() });
+        if (r.type === 'semi') ReviewLogic.applySemiChanges(r); else ReviewLogic.materializeNewGoals(r);
+        Store.update('reviews', r.id, { form: r.form, status: 'confirmed' });
+        notify(((subj || {}).name || '') + ' - ' + t('st.confirmed'), 'all');
+        return bot(th, '🎉 ' + t('cop.cf.agreed'), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }]));
+      }
+      Store.update('reviews', r.id, { form: r.form, status: 'conversation_done' });
+      notify(((subj || {}).name || '') + ' - ' + t('rev.disagree'), 'manager');
+      return bot(th, t('cop.cf.disagreed'), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }]));
+    }
+  }
+
+  /* ---------- hodnoticí rozhovor (manažer) ---------- */
+  function startConv(th, text) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, t('cop.e.denied'));
+    const done = RX.convDone.test(norm(text));
+    let cands = revs().filter(r => r.period === Generator.CURRENT_PERIOD &&
+      (done ? ['conversation_scheduled', 'manager_done'] : ['manager_done', 'conversation_scheduled']).includes(r.status));
+    if (v.role === 'manager') cands = cands.filter(r => r.evaluatorId === v.personId);
+    if (!cands.length) return bot(th, t('cop.cv.none'), chipsOf([{ label: t('nav.team'), act: 'nav', val: '#/team' }]));
+    const m = matchPeople(text);
+    const hit = m.length ? cands.filter(r => m.some(p => p.id === r.subjectId)) : [];
+    const date = parseDateCz(text);
+    if (hit.length === 1) return applyConv(th, hit[0], done, date);
+    th.state = { flow: 'conv', step: 'who', data: { done, date } };
+    bot(th, t(done ? 'cop.cv.whoDone' : 'cop.cv.who'), peopleChips(cands.map(r => byId(r.subjectId)).filter(Boolean)));
+  }
+  function applyConv(th, r, done, date) {
+    th.state = null;
+    const subj = byId(r.subjectId);
+    if (done) {
+      Store.update('reviews', r.id, { status: 'conversation_done' });
+      return bot(th, '✓ ' + fmt('cop.cv.done', { name: CzName.full((subj || {}).name || '', 'ins') }),
+        chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }]));
+    }
+    r.form.conversationDate = date;
+    Store.update('reviews', r.id, { form: r.form, status: 'conversation_scheduled' });
+    notify(((subj || {}).name || '') + ' - ' + t('st.conversation_scheduled'), 'employee');
+    bot(th, '📅 ' + fmt('cop.cv.set', { name: CzName.full((subj || {}).name || '', 'ins'), date: UI.fmtDate(new Date(date).getTime()) }),
+      chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/review/' + r.id }]));
+  }
+  function contConv(th, input) {
+    const d = th.state.data;
+    const r = input.val && revs().find(x => x.subjectId === input.val && x.period === Generator.CURRENT_PERIOD &&
+      ['manager_done', 'conversation_scheduled'].includes(x.status));
+    if (!r) { th.state = null; return bot(th, t('cop.cv.none')); }
+    applyConv(th, r, d.done, d.date);
+  }
+
+  /* ---------- nový cyklus (HR) ---------- */
+  function startCycle(th) {
+    if (va().role !== 'hr') return bot(th, t('cop.hr.denied'));
+    th.state = { flow: 'cycle', step: 'type', data: {} };
+    const semiOn = ((co() || {}).cycleConfig || { semiEnabled: true }).semiEnabled;
+    const opts = [{ label: t('misc.annual'), val: 'annual' }];
+    if (semiOn) opts.push({ label: t('misc.semi'), val: 'semi' });
+    opts.push({ label: t('misc.probation'), val: 'probation' });
+    bot(th, t('cop.cy.type'), chipsOf(opts));
+  }
+  function cycleCandidates(type) {
+    const cands = ppl().filter(p => p.managerId && !revs().some(r => r.subjectId === p.id && r.period === Generator.CURRENT_PERIOD && !['confirmed', 'closed_by_hr', 'cancelled'].includes(r.status)));
+    return type === 'probation' ? cands.filter(p => p.hiredMonthsAgo < 4) : cands;
+  }
+  function contCycle(th, input) {
+    const st = th.state, d = st.data;
+    if (st.step === 'type') {
+      d.type = ['annual', 'semi', 'probation'].includes(input.val) ? input.val : 'annual';
+      const n = cycleCandidates(d.type).length;
+      if (!n) { th.state = null; return bot(th, t('cop.cy.nobody')); }
+      st.step = 'confirm';
+      return bot(th, fmt('cop.cy.confirm', { n, type: t('misc.' + d.type), period: Generator.CURRENT_PERIOD }),
+        chipsOf([{ label: '✓ ' + t('hr.launch'), val: 'ok' }, { label: t('common.cancel'), val: 'cancel' }]));
+    }
+    if (st.step === 'confirm') {
+      th.state = null;
+      if (input.val !== 'ok') return bot(th, t('cop.cancelled'));
+      const now = Date.now();
+      const targets = cycleCandidates(d.type);
+      targets.forEach(p => {
+        const form = Generator.emptyForm();
+        if (d.type !== 'probation') {
+          form.goalsEval = Store.list('goals').filter(g => g.ownerId === p.id && g.type === 'personal')
+            .map(g => ({ goalId: g.id, title: g.title, areaKey: g.areaKey, weight: g.weight, kpiRef: g.kpiRef, outcome: '', rating: null, mgrConfirmed: false }));
+        }
+        Store.insert('reviews', { id: uid(), subjectId: p.id, evaluatorId: p.managerId, type: d.type, period: Generator.CURRENT_PERIOD, status: 'pending_self', startedAt: now, deadline: now + 30 * DAY, form });
+      });
+      notify(t('hr.newCycle') + ' - ' + targets.length + '× ' + t('st.pending_self'), 'all');
+      return bot(th, '🚀 ' + fmt('cop.cy.done', { n: targets.length }), chipsOf([{ label: t('nav.hr'), act: 'nav', val: '#/hr' }]));
+    }
+  }
+
+  /* ---------- připomenutí (HR/manažer) ---------- */
+  function startRemind(th, text) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, t('cop.e.denied'));
+    let cur = revs().filter(r => r.period === Generator.CURRENT_PERIOD && !['confirmed', 'closed_by_hr', 'cancelled'].includes(r.status));
+    if (v.role === 'manager') cur = cur.filter(r => r.evaluatorId === v.personId);
+    const m = matchPeople(text);
+    let targets;
+    if (m.length) targets = cur.filter(r => m.some(p => p.id === r.subjectId));
+    else targets = cur.filter(r => ['risk', 'blocked'].includes(ReviewLogic.risk(r)));
+    if (!targets.length) return bot(th, t('cop.rm.none'));
+    targets.slice(0, 20).forEach(() => notify(t('hr.reminded'), 'all'));
+    bot(th, '📨 ' + fmt('cop.rm.done', { n: targets.length, names: targets.slice(0, 5).map(r => (byId(r.subjectId) || {}).firstName || '').join(', ') }));
+  }
+
+  /* ---------- eNPS odpověď ---------- */
+  function startNpsFill(th) {
+    const p = meP();
+    const w = p && window.NPS ? NPS.pendingWaveFor(p.id) : null;
+    if (!w) return bot(th, t('cop.np.none'));
+    th.state = { flow: 'nps', step: 'main', data: { wid: w.id, dims: {} } };
+    bot(th, esc(t('cop.np.anon')) + '<br><br><b>' + esc(t('nps.q.main')) + '</b>', zeroTen());
+  }
+  function contNpsFill(th, input) {
+    const st = th.state, d = st.data;
+    const w = Store.get('npsWaves', d.wid);
+    if (!w) { th.state = null; return bot(th, t('cop.np.none')); }
+    const val10 = () => Math.max(0, Math.min(10, +(input.val != null ? input.val : (norm(input.text || '').match(/\d+/) || [5])[0])));
+    if (st.step === 'main') { d.nps = val10(); st.step = 'work'; return bot(th, '<b>' + esc(t('nps.q.work')) + '</b>', zeroTen()); }
+    if (st.step === 'work') { d.dims.work = val10(); st.step = 'growth'; return bot(th, '<b>' + esc(t('nps.q.growth')) + '</b>', zeroTen()); }
+    if (st.step === 'growth') { d.dims.growth = val10(); st.step = 'support'; return bot(th, '<b>' + esc(t('nps.q.support')) + '</b>', zeroTen()); }
+    if (st.step === 'support') {
+      d.dims.support = val10(); st.step = 'comment';
+      return bot(th, t('nps.comment') + ' (' + t('cop.ch.skip').toLowerCase() + '?)', chipsOf([{ label: t('cop.ch.skip'), val: '' }]));
+    }
+    if (st.step === 'comment') {
+      th.state = null;
+      const p = meP();
+      /* stejný tvar jako NPSViews.respondModal - BEZ personId */
+      w.responses.push({
+        id: uid(), deptKey: p.deptKey, teamId: p.managerId,
+        nps: d.nps, dims: d.dims, theme: null,
+        comment: (input.val != null ? input.val : (input.text || '')).trim(), at: Date.now(),
+      });
+      w.respondedIds = w.respondedIds || [];
+      w.respondedIds.push(p.id);
+      Store.update('npsWaves', w.id, {});
+      return bot(th, '💚 ' + t('nps.thanks') + ' ' + t('cop.np.saved'));
+    }
+  }
+
+  /* ---------- 360: vyplnění ---------- */
+  function startF360Fill(th) {
+    const p = meP();
+    const pend = p && window.Feedback360 ? Feedback360.pendingFor(p.id) : [];
+    if (!pend.length) return bot(th, t('cop.f3.none'));
+    const f = pend[0];
+    const keys = Feedback360.ratedKeys();
+    th.state = { flow: 'f360f', step: 'rate', data: { fid: f.id, idx: 0, ratings: {}, keys: keys.map(k => k.key) } };
+    bot(th, fmt('cop.f3.intro', { name: CzName.full((byId(f.subjectId) || {}).name || '', 'acc') }));
+    askF360Rating(th, keys);
+  }
+  function askF360Rating(th, keys) {
+    const d = th.state.data;
+    const k = keys[d.idx];
+    bot(th, `<b>${d.idx + 1}/${keys.length}</b> ${esc(k.label)}`, scaleChips(null));
+  }
+  function contF360Fill(th, input) {
+    const st = th.state, d = st.data;
+    const f = Store.get('feedback360', d.fid);
+    if (!f) { th.state = null; return bot(th, t('cop.f3.none')); }
+    const keys = Feedback360.ratedKeys();
+    if (st.step === 'rate') {
+      d.ratings[keys[d.idx].key] = SCALE.includes(input.val) ? input.val : 'KV';
+      d.idx++;
+      if (d.idx < keys.length) return askF360Rating(th, keys);
+      st.step = 'strengths';
+      return bot(th, t('f360.qStrengths'));
+    }
+    if (st.step === 'strengths') { d.strengths = (input.text || '').trim(); st.step = 'growth'; return bot(th, t('f360.qGrowth')); }
+    if (st.step === 'growth') {
+      th.state = null;
+      const resp = f.respondents.find(r => r.personId === va().personId);
+      if (resp) {
+        resp.ratings = d.ratings; resp.strengths = d.strengths; resp.growth = (input.text || '').trim(); resp.status = 'done';
+        if (f.respondents.every(r => r.status === 'done')) f.status = 'closed';
+        Store.update('feedback360', f.id, {});
+      }
+      return bot(th, '✓ ' + t('cop.f3.saved'));
+    }
+  }
+
+  /* ---------- 360: vyžádání (manažer/HR) ---------- */
+  function startF360Req(th, text) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, t('cop.e.denied'));
+    const m = matchPeople(text).filter(p => p.id !== v.personId);
+    if (m.length !== 1) {
+      th.state = { flow: 'f360r', step: 'who', data: {} };
+      const pool = v.role === 'manager' ? teamOf(v.personId) : ppl();
+      return bot(th, t('cop.f3.who'), peopleChips(pool));
+    }
+    proposeF360(th, m[0]);
+  }
+  function proposeF360(th, subject) {
+    /* automatický návrh respondentů: manažer + kolegové z oddělení + podřízení (3-6) */
+    const cands = [];
+    if (subject.managerId) cands.push(byId(subject.managerId));
+    ppl().filter(p => p.managerId === subject.id).slice(0, 2).forEach(p => cands.push(p));
+    ppl().filter(p => p.deptKey === subject.deptKey && p.id !== subject.id && !cands.some(c2 => c2 && c2.id === p.id))
+      .slice(0, 5).forEach(p => cands.push(p));
+    const picked = cands.filter(Boolean).filter(p => p.id !== va().personId).slice(0, 5);
+    if (picked.length < 3) { th.state = null; return bot(th, t('cop.f3.few')); }
+    th.state = { flow: 'f360r', step: 'confirm', data: { sid: subject.id, resp: picked.map(p => p.id) } };
+    bot(th, fmt('cop.f3.propose', { name: CzName.full(subject.name, 'acc'), names: picked.map(p => p.firstName + ' ' + p.lastName).join(', ') }),
+      chipsOf([{ label: '✓ ' + t('common.send'), val: 'ok' }, { label: t('common.cancel'), val: 'cancel' }]));
+  }
+  function contF360Req(th, input) {
+    const st = th.state, d = st.data;
+    if (st.step === 'who') {
+      const subject = byId(input.val);
+      if (!subject) { th.state = null; return bot(th, t('cop.cancelled')); }
+      return proposeF360(th, subject);
+    }
+    if (st.step === 'confirm') {
+      th.state = null;
+      if (input.val !== 'ok') return bot(th, t('cop.cancelled'));
+      const subject = byId(d.sid);
+      const groupOf2 = p => p.managerId === d.sid ? 'report' : p.deptKey === subject.deptKey ? 'peer' : 'internal';
+      Store.insert('feedback360', {
+        id: uid(), subjectId: d.sid, requestedById: va().personId || null,
+        period: Generator.CURRENT_PERIOD, deadline: Date.now() + 10 * DAY, status: 'collecting',
+        respondents: d.resp.map(pid => ({ personId: pid, group: groupOf2(byId(pid)), status: 'invited', ratings: {}, strengths: '', growth: '' })),
+      });
+      notify(t('f360.notifInvite') + ' - ' + subject.name, 'all');
+      return bot(th, '✓ ' + fmt('cop.f3.sent', { name: CzName.full(subject.name, 'acc'), n: d.resp.length }));
+    }
+  }
+
+  /* ---------- KPI: nastavení (HR) + report ---------- */
+  function startKpiSet(th, text) {
+    if (va().role !== 'hr') return bot(th, t('cop.hr.denied'));
+    const c2 = co();
+    if (!c2 || !(c2.kpis || []).length) return bot(th, t('cop.r.noData'));
+    /* cílová hodnota = POSLEDNÍ „na X" (název KPI může sám obsahovat čísla) */
+    const naAll = [...norm(text).matchAll(/\bna\s+(\d{1,3})/g)];
+    const pctM = naAll.length ? naAll[naAll.length - 1] : norm(text).match(/(\d{1,3})\s*%\s*$/);
+    const pct = pctM ? Math.max(0, Math.min(100, +pctM[1])) : null;
+    const k = fuzzyPick(c2.kpis, text, x => x.title);
+    if (k && pct != null) return applyKpi(th, k, pct);
+    th.state = { flow: 'kpi', step: 'which', data: { pct } };
+    bot(th, t('cop.kp.which'), chipsOf(c2.kpis.slice(0, 6).map(x => ({ label: x.title.slice(0, 36), val: x.id }))));
+  }
+  function applyKpi(th, k, pct) {
+    th.state = null;
+    const c2 = co();
+    const item = c2.kpis.find(x => x.id === k.id);
+    item.current = pct;
+    Store.setCompany(c2);
+    bot(th, '✓ ' + fmt('cop.kp.done', { title: item.title, pct }) + bar(pct, item.title, pct + ' %'),
+      chipsOf([{ label: t('nav.hr'), act: 'nav', val: '#/hr' }]));
+  }
+  function contKpiSet(th, input) {
+    const st = th.state, d = st.data;
+    const c2 = co();
+    if (st.step === 'which') {
+      const k = c2.kpis.find(x => x.id === input.val);
+      if (!k) { th.state = null; return bot(th, t('cop.cancelled')); }
+      if (d.pct != null) return applyKpi(th, k, d.pct);
+      d.kid = k.id; st.step = 'pct';
+      return bot(th, fmt('cop.kp.pct', { title: k.title }), pctChips());
+    }
+    if (st.step === 'pct') {
+      const k = c2.kpis.find(x => x.id === d.kid);
+      const pct = Math.max(0, Math.min(100, +(input.val != null ? input.val : (norm(input.text || '').match(/\d+/) || [0])[0])));
+      if (k) return applyKpi(th, k, pct);
+      th.state = null;
+    }
+  }
+  function rKpi(th) {
+    const c2 = co();
+    if (!c2 || !(c2.kpis || []).length) return bot(th, t('cop.r.noData'));
+    const p = meP();
+    const teamK = (c2.teamKpis || []).filter(k => va().role === 'hr' || (p && k.deptKey === p.deptKey));
+    let html = `<b>${esc(t('goals.company'))}</b>` + c2.kpis.map(k => bar(k.current, k.title, k.current + ' %')).join('');
+    if (teamK.length) html += `<br><b>${esc(t('hr.teamKpis'))}</b>` + teamK.map(k => bar(k.current, k.dept + ' · ' + k.title, k.current + ' %')).join('');
+    bot(th, html, chipsOf([{ label: t('nav.goals'), act: 'nav', val: '#/goals' }].concat(va().role === 'hr' ? [{ label: t('cop.kp.edit'), act: 'ask', val: t('cop.ask.kpiSet') }] : [])));
+  }
+
+  /* ---------- přidání člověka (manažer/HR) ---------- */
+  function startPersonAdd(th, text) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, t('cop.e.denied'));
+    const data = {};
+    const m = String(text).match(/(?:cloveka|člověka|zamestnance|zaměstnance|osobu|kolegu|person|mitarbeiter)\w*\s+([A-ZÁ-Ž][a-zá-ž]+\s+[A-ZÁ-Ž][a-zá-ž]+)/u);
+    if (m) data.name = m[1].trim();
+    th.state = { flow: 'person', step: null, data };
+    nextPersonAdd(th);
+  }
+  function nextPersonAdd(th) {
+    const d = th.state.data;
+    const c2 = co();
+    if (!d.name) { th.state.step = 'name'; return bot(th, t('cop.pa.name')); }
+    if (!d.deptKey) {
+      th.state.step = 'dept';
+      const depts = (c2 && c2.departments && c2.departments.length ? c2.departments : [{ key: 'general', name: 'Obecné' }]).slice(0, 8);
+      return bot(th, fmt('cop.pa.dept', { name: d.name }), chipsOf(depts.map(x => ({ label: x.name, val: x.key }))));
+    }
+    if (!d.managerId) {
+      th.state.step = 'mgr';
+      const heads = ppl().filter(p => ppl().some(x => x.managerId === p.id) || p.isHead).slice(0, 6);
+      return bot(th, t('cop.pa.mgr'), chipsOf(heads.map(p => ({ label: p.name, val: p.id })).concat([{ label: '—', val: '' }])));
+    }
+    th.state = null;
+    const parts = d.name.split(/\s+/);
+    const dept = ((c2 && c2.departments) || []).find(x => x.key === d.deptKey);
+    Store.insert('people', {
+      id: uid(), firstName: parts[0], lastName: parts.slice(1).join(' ') || '',
+      name: d.name, initials: (parts[0][0] || '?') + ((parts[1] || ' ')[0] || ''),
+      hue: (d.name.length * 47) % 360, role: '-', deptKey: d.deptKey, dept: dept ? dept.name : d.deptKey,
+      managerId: d.managerId === '' ? null : d.managerId, isHead: false,
+      email: norm(d.name).replace(/\s+/g, '.') + '@firma.cz', hiredMonthsAgo: 0, female: /[aá]$/.test(parts[0]),
+    });
+    bot(th, '✓ ' + fmt('cop.pa.done', { name: d.name }), chipsOf([{ label: t('nav.people'), act: 'nav', val: '#/people' }]));
+  }
+  function contPersonAdd(th, input) {
+    const st = th.state, d = st.data;
+    if (st.step === 'name') d.name = (input.text || '').trim();
+    else if (st.step === 'dept') d.deptKey = input.val || 'general';
+    else if (st.step === 'mgr') d.managerId = input.val != null ? input.val : '';
+    nextPersonAdd(th);
+  }
+
+  /* ---------- vzhled + jazyk ---------- */
+  function startTheme(th, text) {
+    const n = norm(text);
+    const map = { brand: 'brand', korporat: 'corp', corp: 'corp', glass: 'glass', genz: 'genz', 'gen z': 'genz' };
+    const hit = Object.keys(map).find(k => n.includes(k));
+    if (!hit) {
+      th.state = { flow: 'theme', step: 'pick', data: {} };
+      return bot(th, t('cop.th.pick'), chipsOf(['brand', 'corp', 'glass', 'genz'].map(k => ({ label: t('ob.theme.' + k), val: k }))));
+    }
+    applyTheme(th, map[hit]);
+  }
+  function applyTheme(th, key) {
+    th.state = null;
+    Store.patchSettings({ theme: key });
+    document.documentElement.dataset.theme = key;
+    bot(th, '🎨 ' + fmt('cop.th.done', { name: t('ob.theme.' + key) }));
+  }
+  function contTheme(th, input) { applyTheme(th, ['brand', 'corp', 'glass', 'genz'].includes(input.val) ? input.val : 'brand'); }
+  function startLang(th, text) {
+    const n = norm(text);
+    const target = /english|anglict|englisch/.test(n) ? 'en' : /deutsch|nemcin|german/.test(n) ? 'de' : /cestin|czech|tschech/.test(n) ? 'cs' : null;
+    if (!target) {
+      th.state = { flow: 'langf', step: 'pick', data: {} };
+      return bot(th, t('cop.ln.pick'), chipsOf([{ label: 'Čeština', val: 'cs' }, { label: 'English', val: 'en' }, { label: 'Deutsch', val: 'de' }]));
+    }
+    applyLang(th, target);
+  }
+  function applyLang(th, loc) {
+    th.state = null;
+    I18N.setLocale(loc);
+    Store.patchSettings({ locale: loc });
+    bot(th, '🌐 ' + t('cop.ln.done'));
+  }
+  function contLang(th, input) { applyLang(th, ['cs', 'en', 'de'].includes(input.val) ? input.val : 'cs'); }
+
+  /* ---------- V2 reporty ---------- */
+  function rPerson(th, text) {
+    const m = matchPeople(text);
+    if (!m.length) return bot(th, t('cop.r.noData'));
+    if (m.length > 1) return bot(th, t('cop.k.whoAmbig'), chipsOf(m.slice(0, 5).map(p => ({ label: p.name, act: 'ask', val: t('cop.ask.whois') + ' ' + p.name }))));
+    const p = m[0];
+    const v = va();
+    const mgr = p.managerId ? byId(p.managerId) : null;
+    let html = `<b>${esc(p.name)}</b> · ${esc(p.role)}<br>${esc(t('people.dept'))}: <b>${esc(p.dept)}</b>` +
+      (mgr ? ` · ${esc(t('people.manager'))}: <b>${esc(mgr.name)}</b>` : '');
+    const canDetail = v.role === 'hr' || (v.role === 'manager' && p.managerId === v.personId);
+    if (canDetail) {
+      const r = revs().find(x => x.subjectId === p.id && x.period === Generator.CURRENT_PERIOD);
+      if (r) html += `<br>${esc(t('rev.status'))}: <b>${esc(t('st.' + r.status))}</b> (${ReviewLogic.daysLeft(r)} d)`;
+      const cis = Store.list('checkins').filter(c2 => c2.employeeId === p.id && c2.at > Date.now() - 90 * DAY);
+      const vs = cis.map(c2 => MOOD_VAL[c2.mood]).filter(Boolean);
+      if (vs.length) html += ` · ${esc(t('cop.r.mood'))}: <b>${(vs.reduce((a2, b2) => a2 + b2, 0) / vs.length).toFixed(1)}</b>/4`;
+      const gs = Store.list('goals').filter(g => g.ownerId === p.id && g.type === 'personal' && g.period === Generator.CURRENT_PERIOD);
+      if (gs.length) html += `<br>${esc(t('cop.r.goals'))}: Ø <b>${Math.round(gs.reduce((s2, g) => s2 + g.progress, 0) / gs.length)} %</b> (${gs.length})`;
+      const kd = Store.list('kudos').filter(k => k.toId === p.id).length;
+      html += ` · ${esc(t('nav.kudos'))}: <b>${kd}×</b>`;
+    }
+    bot(th, html, chipsOf(canDetail
+      ? [{ label: t('mt.profile'), act: 'nav', val: '#/people' }, { label: t('cop.ch.kudos'), act: 'ask', val: t('cop.ask.kudos') + ' ' + p.firstName }]
+      : [{ label: t('nav.org'), act: 'nav', val: '#/org' }]));
+  }
+  function rTeam(th) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, t('cop.e.denied'));
+    const team = v.role === 'manager' ? teamOf(v.personId) : ppl().filter(p => p.managerId);
+    if (!team.length) return bot(th, t('cop.r.noData'));
+    const ids = new Set(team.map(p => p.id));
+    const cur = revs().filter(r => r.period === Generator.CURRENT_PERIOD && ids.has(r.subjectId));
+    const done = cur.filter(r => ['confirmed', 'closed_by_hr'].includes(r.status)).length;
+    const cis = Store.list('checkins').filter(c2 => ids.has(c2.employeeId) && c2.at > Date.now() - 90 * DAY);
+    const vs = cis.map(c2 => MOOD_VAL[c2.mood]).filter(Boolean);
+    const gs = Store.list('goals').filter(g => ids.has(g.ownerId) && g.type === 'personal' && g.period === Generator.CURRENT_PERIOD);
+    const st = staleList();
+    let html = `<b>${esc(t('cop.tm.title'))}</b> (${team.length} ${esc(t('ob.people'))})` +
+      bar(cur.length ? done / cur.length * 100 : 0, t('hr.completion'), done + '/' + cur.length) +
+      (gs.length ? bar(gs.reduce((s2, g) => s2 + g.progress, 0) / gs.length, t('cop.r.goals'), Math.round(gs.reduce((s2, g) => s2 + g.progress, 0) / gs.length) + ' %') : '') +
+      (vs.length ? `<br>${esc(t('ci.avgMood'))}: <b>${(vs.reduce((a2, b2) => a2 + b2, 0) / vs.length).toFixed(1)}</b>/4 (${cis.length}× 1:1)` : '');
+    if (st.length) html += `<br>⚠ ${esc(fmt('cop.rec.stale', { n: st.length, names: st.slice(0, 3).map(p => p.firstName).join(', ') }))}`;
+    bot(th, html, chipsOf([{ label: v.role === 'manager' ? t('nav.myteam') : t('nav.hr'), act: 'nav', val: v.role === 'manager' ? '#/myteam' : '#/hr' },
+      { label: t('cop.ch.checkin'), act: 'ask', val: t('cop.ask.checkin') }]));
+  }
+  function rNotif(th) {
+    const list = Store.list('notifications').slice(-6).reverse();
+    if (!list.length) return bot(th, t('ntf.empty'));
+    bot(th, `<b>${esc(t('ntf.title'))}</b><ul>` + list.map(x => `<li>${esc(x.text)} <small style="color:var(--text-muted)">${UI.fmtDate(x.at)}</small></li>`).join('') + '</ul>');
+    Store.list('notifications').forEach(x => Store.update('notifications', x.id, { read: true }));
+  }
+  function rScale(th) {
+    bot(th, `<b>${esc(t('help.scaleTitle'))}</b><ul>` +
+      ReviewLogic.SCALE_DEF.map(sd => `<li><b>${sd.k}</b> - ${esc(ReviewLogic.scaleLabel(sd.k))}</li>`).join('') + '</ul>' +
+      `<b>${esc(t('hr.compBands'))}:</b> ` + ['top', 'std', 'dev', 'risk'].map(k => esc(t('band.' + k))).join(' · '),
+      chipsOf([{ label: t('nav.help'), act: 'nav', val: '#/help' }]));
+  }
+  function rTalent(th) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, '🔒 ' + t('cop.tl.denied'));
+    const scope = v.role === 'manager' ? teamOf(v.personId) : ppl().filter(p => p.managerId);
+    const entries = scope.map(p => ({ p, e: TalentLogic.entryOf(p) })).filter(x => x.e && x.e.row && x.e.col);
+    if (!entries.length) return bot(th, t('cop.r.noData'), chipsOf([{ label: v.role === 'hr' ? t('nav.talent') : t('nav.myteam'), act: 'nav', val: v.role === 'hr' ? '#/talent' : '#/myteam' }]));
+    const stars = entries.filter(x => x.e.row === 3 && x.e.col === 3).length;
+    const risky = entries.filter(x => x.e.row === 1 && x.e.col === 1).length;
+    /* retenční riziko: vysoký potenciál + vysoké riziko odchodu (z posledního hodnocení) */
+    const attr = scope.filter(p => {
+      const r = revs().filter(x => x.subjectId === p.id && x.form.mgr.talent && x.form.mgr.talent.attrition).slice(-1)[0];
+      return r && r.form.mgr.talent.attrition === 'high' && r.form.mgr.talent.potential === 'high';
+    });
+    let html = `<b>${esc(t('cop.tl.title'))}</b> (${entries.length}/${scope.length})` +
+      `<br>⭐ ${esc(t('cop.tl.stars'))}: <b>${stars}</b> · ⚠ ${esc(t('cop.tl.risk'))}: <b>${risky}</b>` +
+      (attr.length ? `<br>🔥 ${esc(fmt('cop.tl.attr', { n: attr.length, names: attr.slice(0, 3).map(p => p.firstName).join(', ') }))}` : '');
+    if (v.role === 'hr' && window.SuccLogic) {
+      const kps = Store.list('keyPositions').filter(SuccLogic.kpIsKey);
+      const unc = kps.filter(kp => !(kp.successors || []).length);
+      if (kps.length) html += `<br>🎯 ${esc(fmt('cop.tl.kp', { n: kps.length, unc: unc.length }))}`;
+    }
+    html += `<br><small style="color:var(--text-muted)">🔒 ${esc(t('cop.tl.privacy'))}</small>`;
+    bot(th, html, chipsOf([{ label: v.role === 'hr' ? t('nav.talent') : t('nav.myteam'), act: 'nav', val: v.role === 'hr' ? '#/talent' : '#/myteam' }]));
+  }
+  function rF360(th, text) {
+    const v = va();
+    if (v.role === 'employee') return bot(th, '🔒 ' + t('cop.tl.denied'));
+    const m = matchPeople(text);
+    let list = Store.list('feedback360').filter(f => f.status === 'closed');
+    if (v.role === 'manager') { const ids = new Set(teamOf(v.personId).map(p => p.id)); list = list.filter(f => ids.has(f.subjectId)); }
+    if (m.length) list = list.filter(f => m.some(p => p.id === f.subjectId));
+    const f = list.slice(-1)[0];
+    if (!f) return bot(th, t('cop.f3.noneClosed'));
+    const agg = Feedback360.aggregate(f);
+    if (!agg) return bot(th, t('cop.r.anon'));
+    const subj = byId(f.subjectId);
+    bot(th, `<b>360°</b> · ${esc((subj || {}).name || '')} (${agg.n}×)<br>` +
+      Object.entries(agg.ratings).map(([k, r2]) => `${esc(t('rev.area.' + k) !== 'rev.area.' + k ? t('rev.area.' + k) : k)}: <b>${r2.label}</b>`).join(' · ') +
+      (agg.strengths.length ? `<br><b>+</b> ${esc(agg.strengths[0])}` : ''),
+      chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/people' }]));
+  }
+  function rHowto(th, text) {
+    const n = norm(text);
+    const topics = [
+      ['hodnocen|review', 'cop.h.review', '#/myreviews'], ['cil|goal', 'cop.h.goals', '#/goals'],
+      ['kudos|uznani|pochval', 'cop.h.kudos', '#/kudos'], ['1 ?: ?1|check', 'cop.h.checkin', '#/checkins'],
+      ['nps|puls', 'cop.h.nps', '#/home'], ['360', 'cop.h.f360', '#/people'],
+      ['cyklus|cycle', 'cop.h.cycle', '#/hr'], ['copilot|vypn|zapn', 'cop.h.copilot', '#/settings'],
+    ];
+    const hit = topics.find(([rx]) => new RegExp(rx).test(n));
+    if (!hit) return bot(th, capabilitiesHtml(), defaultChips());
+    bot(th, esc(t(hit[1])), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: hit[2] }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
+  }
+  function copOff(th) {
+    bot(th, t('cop.off.confirm'), chipsOf([{ label: t('cop.off.yes'), val: 'coff:ok' }, { label: t('common.cancel'), val: 'coff:no' }]));
+    th.state = { flow: 'coff', step: 'confirm', data: {} };
+  }
+  function contCopOff(th, input) {
+    th.state = null;
+    if (input.val !== 'coff:ok') return bot(th, t('cop.cancelled'));
+    bot(th, t('cop.off.bye'));
+    saveTh(th);
+    Store.patchSettings({ copilotEnabled: false });
+    if (window.App) { location.hash = '#/settings'; App.render(); }
+  }
+
   /* ================= router ================= */
   function capabilitiesHtml() {
     return `<b>${esc(t('cop.f.capabilities'))}</b><ul>` +
-      [1, 2, 3, 4, 5, 6].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>';
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>';
   }
   function defaultChips() {
     return chipsOf([
@@ -574,12 +1300,27 @@
   function route(th, text, isTask) {
     const intent = detect(text);
     if (intent === 'help') return bot(th, capabilitiesHtml(), defaultChips());
+    if (intent === 'howto') return rHowto(th, text);
     if (intent === 'greet') { welcome(th); return; }
+    if (intent === 'copOff') return copOff(th);
     if (intent === 'schedule' && !isTask) return startSchedule(th, text);
+    if (intent === 'remind') return startRemind(th, text);
+    if (intent === 'conv') return startConv(th, text);
+    if (intent === 'confirm') return startConfirm(th);
     if (intent === 'self') return startSelf(th);
     if (intent === 'kudos') return startKudos(th, text);
     if (intent === 'checkin') return startCheckin(th, text);
     if (intent === 'eval') return startEval(th, text);
+    if (intent === 'goalAdd') return startGoalAdd(th, text);
+    if (intent === 'goalProg') return startGoalProg(th, text);
+    if (intent === 'cycle') return startCycle(th);
+    if (intent === 'npsFill') return startNpsFill(th);
+    if (intent === 'f360Fill') return startF360Fill(th);
+    if (intent === 'f360Req') return startF360Req(th, text);
+    if (intent === 'kpiSet') return startKpiSet(th, text);
+    if (intent === 'personAdd') return startPersonAdd(th, text);
+    if (intent === 'theme') return startTheme(th, text);
+    if (intent === 'lang') return startLang(th, text);
     if (intent === 'r.completion') return rCompletion(th);
     if (intent === 'r.atrisk') return rAtRisk(th);
     if (intent === 'r.mood') return rMood(th);
@@ -587,19 +1328,30 @@
     if (intent === 'r.kudos') return rKudos(th);
     if (intent === 'r.goals') return rGoals(th);
     if (intent === 'r.stale') return rStale(th);
+    if (intent === 'r.kpi') return rKpi(th);
+    if (intent === 'r.person') return rPerson(th, text);
+    if (intent === 'r.team') return rTeam(th);
+    if (intent === 'r.notif') return rNotif(th);
+    if (intent === 'r.scale') return rScale(th);
+    if (intent === 'r.talent') return rTalent(th);
+    if (intent === 'r.f360') return rF360(th, text);
     bot(th, esc(t('cop.f.sorry')) + '<br><br>' + capabilitiesHtml(), defaultChips());
   }
+
+  /* registry pokračování flows (thread.state.flow → handler) */
+  const CONT = {
+    kudos: contKudos, checkin: contCheckin, self: contSelf, semi: contSemi, eval: contEval,
+    schedule: contSchedule, goal: contGoalAdd, goalp: contGoalProg, confirm: contConfirm,
+    conv: contConv, cycle: contCycle, nps: contNpsFill, f360f: contF360Fill, f360r: contF360Req,
+    kpi: contKpiSet, person: contPersonAdd, theme: contTheme, langf: contLang, coff: contCopOff,
+  };
 
   function reply(th, input) {
     /* input: {text} volný vstup | {val,label} odpověď chipem */
     if (th.state) {
       if (input.text && RX.cancel.test(norm(input.text))) { th.state = null; bot(th, t('cop.cancelled')); saveTh(th); return; }
-      const fl = th.state.flow;
-      if (fl === 'kudos') contKudos(th, input);
-      else if (fl === 'checkin') contCheckin(th, input);
-      else if (fl === 'self') contSelf(th, input);
-      else if (fl === 'eval') contEval(th, input);
-      else if (fl === 'schedule') contSchedule(th, input);
+      const h = CONT[th.state.flow];
+      if (h) h(th, input);
       else { th.state = null; route(th, input.text || ''); }
     } else route(th, input.text || input.label || '');
     saveTh(th);
@@ -610,6 +1362,7 @@
   window.Copilot = {
     enabled, threads, newThread, saveTh, userMsg, reply, process, welcome,
     prompts, savePrompt, tasks, runDueTasks, matchPeople, detect, parseSchedule, recs, ownerKey,
+    parseDateCz, fuzzyPick,
   };
 
   /* ================= VIEWS ================= */

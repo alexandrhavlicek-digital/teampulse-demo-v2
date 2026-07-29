@@ -477,6 +477,169 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   catch (e) { ok(false, 'CopilotViews.render spadl: ' + e.message); }
 })();
 
+/* --- 13b) Copilot v2: plné pokrytí aplikace --- */
+(function () {
+  Store.patchSettings({ viewAs: null, copilotEnabled: true });
+  const ps6 = Store.list('people');
+  const anyP = ps6.find(p => p.managerId);
+  const last6 = t2 => t2.msgs[t2.msgs.length - 1];
+
+  /* intent parser v2 */
+  const det = [
+    ['naplánuj rozhovor s Janou na zítra', 'conv'],
+    ['připomeň mi každý týden stav hodnocení', 'schedule'],
+    ['potvrzuji své hodnocení', 'confirm'],
+    ['chci odpovědět na eNPS pulse', 'npsFill'],
+    ['vyžádej 360 pro ' + anyP.firstName, 'f360Req'],
+    ['chci vyplnit 360° zpětnou vazbu', 'f360Fill'],
+    ['přidej cíl zlepšit angličtinu', 'goalAdd'],
+    ['nastav progress cíle na 60 %', 'goalProg'],
+    ['jak jsme na tom s KPI?', 'r.kpi'],
+    ['nastav KPI na 55 %', 'kpiSet'],
+    ['kdo je ' + anyP.firstName + ' ' + anyP.lastName + '?', 'r.person'],
+    ['jak je na tom můj tým?', 'r.team'],
+    ['co je nového?', 'r.notif'],
+    ['co znamená TN?', 'r.scale'],
+    ['ukaž talent přehled', 'r.talent'],
+    ['spusť nový cyklus', 'cycle'],
+    ['přepni na glass téma', 'theme'],
+    ['přidej člověka Jan Testovací', 'personAdd'],
+    ['jak funguje hodnocení?', 'howto'],
+    ['vypni se, copilote', 'copOff'],
+  ];
+  let badD = [];
+  det.forEach(([txt, want]) => { const g8 = Copilot.detect(txt); if (g8 !== want) badD.push(`"${txt}"→${g8}≠${want}`); });
+  ok(badD.length === 0, badD.length ? 'detect v2: ' + badD.join('; ') : `detect v2 OK (${det.length} frází)`);
+  ok(Copilot.detect('připomeň ' + anyP.firstName + ' hodnocení') === 'remind', 'detect: remind (jiné osobě) ≠ schedule');
+
+  /* cíl: přidání (zaměstnanec) */
+  const emp6 = ps6.find(p => p.managerId && !ps6.some(x => x.managerId === p.id));
+  Store.patchSettings({ viewAs: { role: 'employee', personId: emp6.id } });
+  const thA = Copilot.newThread();
+  const gb = Store.list('goals').length;
+  Copilot.process(thA, 'přidej cíl: Zlepšit prezentační dovednosti');
+  if (thA.state && thA.state.step === 'title') Copilot.reply(thA, { text: 'Zlepšit prezentační dovednosti' });
+  if (thA.state && thA.state.step === 'area') Copilot.reply(thA, { val: 'growth' });
+  if (thA.state && thA.state.step === 'kpi') Copilot.reply(thA, { val: '' });
+  if (thA.state && thA.state.step === 'weight') Copilot.reply(thA, { val: '30' });
+  const newG = Store.list('goals').slice(-1)[0];
+  ok(Store.list('goals').length === gb + 1 && newG.ownerId === emp6.id && !thA.state, 'goalAdd: cíl založen přes chat');
+  /* cíl: progress */
+  Copilot.process(thA, 'nastav progress cíle prezentační na 60 %');
+  ok(Store.get('goals', newG.id).progress === 60 && !thA.state, 'goalProg: progress 60 % (fuzzy match názvu)');
+
+  /* potvrzení hodnocení (zaměstnanec) */
+  const rc6 = Store.list('reviews').find(r => r.status === 'awaiting_employee_confirmation');
+  Store.patchSettings({ viewAs: { role: 'employee', personId: rc6.subjectId } });
+  const thB = Copilot.newThread();
+  Copilot.process(thB, 'potvrzuji hodnocení');
+  if (thB.state && thB.state.step === 'comment') Copilot.reply(thB, { val: '' });
+  if (thB.state && thB.state.step === 'decide') Copilot.reply(thB, { val: 'agree' });
+  ok(Store.get('reviews', rc6.id).status === 'confirmed' && !thB.state, 'confirm: hodnocení potvrzeno shodou přes chat');
+
+  /* rozhovor (manažer) */
+  const rv6 = Store.list('reviews').find(r => r.period === Generator.CURRENT_PERIOD && r.status === 'manager_done' && r.evaluatorId);
+  if (rv6) {
+    Store.patchSettings({ viewAs: { role: 'manager', personId: rv6.evaluatorId } });
+    const thC = Copilot.newThread();
+    const subj6 = Store.get('people', rv6.subjectId);
+    Copilot.process(thC, 'naplánuj rozhovor s ' + subj6.firstName + ' ' + subj6.lastName + ' na zítra');
+    if (thC.state && thC.state.step === 'who') Copilot.reply(thC, { val: rv6.subjectId });
+    const rv6b = Store.get('reviews', rv6.id);
+    ok(rv6b.status === 'conversation_scheduled' && !!rv6b.form.conversationDate, 'conv: rozhovor naplánován + datum');
+  } else ok(true, 'conv: žádné manager_done v seedu (přeskočeno)');
+
+  /* eNPS odpověď (zaměstnanec s pending vlnou) */
+  const wave6 = NPS.openWave();
+  const emp7 = ps6.find(p => p.managerId && !(wave6.respondedIds || []).includes(p.id));
+  Store.patchSettings({ viewAs: { role: 'employee', personId: emp7.id } });
+  const thD = Copilot.newThread();
+  const nb6 = wave6.responses.length;
+  Copilot.process(thD, 'chci odpovědět na eNPS');
+  ['9', '8', '7', '8'].forEach(v9 => { if (thD.state) Copilot.reply(thD, { val: v9 }); });
+  if (thD.state && thD.state.step === 'comment') Copilot.reply(thD, { val: '' });
+  const w6b = Store.get('npsWaves', wave6.id);
+  ok(w6b.responses.length === nb6 + 1 && !('personId' in w6b.responses[w6b.responses.length - 1]), 'npsFill: odpověď uložena BEZ identity');
+  ok((w6b.respondedIds || []).includes(emp7.id), 'npsFill: respondedIds odděleně');
+
+  /* 360 vyžádání (HR) + vyplnění (respondent) */
+  Store.patchSettings({ viewAs: null });
+  const thE = Copilot.newThread();
+  const fb6 = Store.list('feedback360').length;
+  const subj7 = ps6.find(p => p.managerId && ps6.filter(x => x.deptKey === p.deptKey).length >= 4);
+  Copilot.process(thE, 'vyžádej 360 pro ' + subj7.firstName + ' ' + subj7.lastName);
+  if (thE.state && thE.state.step === 'who') Copilot.reply(thE, { val: subj7.id });
+  if (thE.state && thE.state.step === 'confirm') Copilot.reply(thE, { val: 'ok' });
+  const newF = Store.list('feedback360').slice(-1)[0];
+  ok(Store.list('feedback360').length === fb6 + 1 && newF.respondents.length >= 3, '360 request: založeno s ≥3 respondenty');
+  const resp6 = newF.respondents[0];
+  Store.patchSettings({ viewAs: { role: 'employee', personId: resp6.personId } });
+  const thF = Copilot.newThread();
+  Copilot.process(thF, 'chci vyplnit 360 zpětnou vazbu');
+  let g9 = 0;
+  while (thF.state && thF.state.step === 'rate' && g9++ < 12) Copilot.reply(thF, { val: 'PO' });
+  if (thF.state && thF.state.step === 'strengths') Copilot.reply(thF, { text: 'Skvělá spolupráce.' });
+  if (thF.state && thF.state.step === 'growth') Copilot.reply(thF, { text: 'Více delegovat.' });
+  ok(Store.get('feedback360', newF.id).respondents[0].status === 'done', '360 fill: odpověď respondenta uložena');
+
+  /* KPI set (HR) + report */
+  Store.patchSettings({ viewAs: null });
+  const thG = Copilot.newThread();
+  const kpi6 = Store.getCompany().kpis[0];
+  Copilot.process(thG, 'nastav KPI ' + kpi6.title + ' na 55 %');
+  if (thG.state && thG.state.step === 'which') Copilot.reply(thG, { val: kpi6.id });
+  if (thG.state && thG.state.step === 'pct') Copilot.reply(thG, { val: '55' });
+  ok(Store.getCompany().kpis[0].current === 55, 'kpiSet: KPI aktualizováno na 55 %');
+  Copilot.process(thG, 'jak jsme na tom s KPI?');
+  ok(last6(thG).html.includes(kpi6.title.slice(0, 10)), 'r.kpi: report obsahuje KPI');
+
+  /* nový cyklus (HR) - kandidáti = lidé bez běžícího hodnocení */
+  const rb6 = Store.list('reviews').length;
+  const thH = Copilot.newThread();
+  Copilot.process(thH, 'spusť nový cyklus hodnocení');
+  if (thH.state && thH.state.step === 'type') Copilot.reply(thH, { val: 'annual' });
+  if (thH.state && thH.state.step === 'confirm') Copilot.reply(thH, { val: 'ok' });
+  ok(Store.list('reviews').length > rb6 || last6(thH).html.includes(t('cop.cy.nobody')), 'cycle: cyklus spuštěn (nebo nikdo nesplňuje)');
+
+  /* kdo je X + můj tým + talent práva */
+  Copilot.process(thH, 'kdo je ' + anyP.firstName + ' ' + anyP.lastName + '?');
+  ok(last6(thH).html.includes(anyP.lastName), 'r.person: karta člověka');
+  Copilot.process(thH, 'ukaž talent přehled');
+  ok(last6(thH).html.includes(t('cop.tl.title')), 'r.talent: HR vidí přehled');
+  Store.patchSettings({ viewAs: { role: 'employee', personId: emp6.id } });
+  const thI = Copilot.newThread();
+  Copilot.process(thI, 'ukaž talent matici');
+  ok(last6(thI).html.includes(t('cop.tl.denied')), 'r.talent: zaměstnanec NIKDY (denied)');
+
+  /* přidání člověka (HR) + téma */
+  Store.patchSettings({ viewAs: null });
+  const thJ = Copilot.newThread();
+  const pb6 = Store.list('people').length;
+  Copilot.process(thJ, 'přidej člověka Jan Testovací');
+  if (thJ.state && thJ.state.step === 'name') Copilot.reply(thJ, { text: 'Jan Testovací' });
+  if (thJ.state && thJ.state.step === 'dept') Copilot.reply(thJ, { val: (Store.getCompany().departments[1] || Store.getCompany().departments[0]).key });
+  if (thJ.state && thJ.state.step === 'mgr') Copilot.reply(thJ, { val: anyP.managerId });
+  ok(Store.list('people').length === pb6 + 1 && Store.list('people').slice(-1)[0].name === 'Jan Testovací', 'personAdd: člověk založen');
+  Store.remove('people', Store.list('people').slice(-1)[0].id);
+  Copilot.process(thJ, 'přepni na glass téma');
+  ok(Store.getSettings().theme === 'glass', 'theme: přepnuto na glass');
+  Store.patchSettings({ theme: 'brand' });
+
+  /* i18n úplnost v2 (vč. dynamických klíčů) */
+  const copSrc6 = fs.readFileSync('js/copilot.js', 'utf8');
+  const keys6 = new Set();
+  for (const m of copSrc6.matchAll(/'(cop\.[a-z0-9.]+)'/gi)) keys6.add(m[1]);
+  [7, 8, 9, 10].forEach(i => keys6.add('cop.cap.' + i));
+  let miss6 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    keys6.forEach(k => { if (k.endsWith('.') || /\.(cap|t\.freq|h)\.$/.test(k)) return; if (t(k) === k) miss6.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss6.length === 0, miss6.length ? 'chybí v2 klíče: ' + miss6.slice(0, 10).join(', ') : `cop.* v2 i18n kompletní (${keys6.size} klíčů × 3)`);
+  Store.patchSettings({ viewAs: null });
+})();
+
 /* --- 14) skloňování českých jmen (CzName) --- */
 (function () {
   I18N.setLocale('cs');

@@ -129,7 +129,9 @@
       <p class="hint" style="color:var(--text-muted);margin-top:8px">${esc(t('hr.compHint'))}</p></div>`;
   }
 
-  window.ReviewLogic = { daysLeft, risk, SCALE_DEF, scaleLabel, RATING_VALUE, computeScore, band };
+  /* materializeNewGoals + applySemiChanges jsou function declarations níže (hoisting) -
+     export pro Copilot, aby potvrzení hodnocení chatem dělalo totéž co UI */
+  window.ReviewLogic = { daysLeft, risk, SCALE_DEF, scaleLabel, RATING_VALUE, computeScore, band, materializeNewGoals, applySemiChanges };
 
   function getReview(id) { return Store.get('reviews', id); }
   function person(id) { return Store.get('people', id); }
