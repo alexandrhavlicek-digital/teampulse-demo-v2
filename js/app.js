@@ -442,7 +442,8 @@
     const myNps = me && window.NPS ? NPS.pendingWaveFor(me.id) : null;
     if (myNps) todos.push({
       ico: icon('gauge', 16),
-      txt: t('nps.todoFill') + (myNps.theme ? ' · ' + myNps.theme : ''),
+      txt: t('nps.todoFill') + (myNps.theme ? ' · ' + myNps.theme : '')
+        + (NPS.draftOf && NPS.draftOf(me.id, myNps.id) ? ' (' + t('nps.draft') + ')' : ''),
       nps: myNps.id, d: Math.max(0, Math.ceil((myNps.deadline - Date.now()) / 86400000)),
     });
     const myGoals = me ? Store.list('goals').filter(g => g.ownerId === me.id) : [];
@@ -1547,6 +1548,7 @@
   };
 
   /* ================= router & boot ================= */
+  let lastRouteKey = null; /* scroll nahoru JEN při navigaci; re-render téže stránky (slider, uložení…) drží pozici */
   function render() {
     applySettings();
     closeModal(); /* navigace zavírá případný otevřený modal */
@@ -1562,8 +1564,12 @@
     if (page !== 'review' && (!views[page] || (nav && !nav.roles.includes(va.role)))) {
       location.hash = '#/home'; return;
     }
+    const routeKey = page + '/' + (param || '') + '|' + va.role + '|' + (va.personId || '');
+    const sameRoute = routeKey === lastRouteKey;
+    const sy = window.scrollY || 0;
     (views[page] || views.home)(root, param);
-    window.scrollTo(0, 0);
+    if (sameRoute) window.scrollTo(0, sy); else window.scrollTo(0, 0);
+    lastRouteKey = routeKey;
   }
 
   function boot() { render(); }

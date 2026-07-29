@@ -696,6 +696,37 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   I18N.setLocale('cs');
 })();
 
+/* --- 16) UX opravy: 360 respondent v seedu, eNPS draft, scroll fix --- */
+(function () {
+  Generator.install('travel', 60);
+  Store.patchSettings({ viewAs: null });
+  /* pohled respondenta 360 v demu: persona zaměstnance (subjekt vyplnitelného hodnocení) má pozvánku */
+  const er8 = Store.list('reviews').find(r => ['pending_self', 'self_in_progress'].includes(r.status));
+  ok(er8 && Feedback360.pendingFor(er8.subjectId).length >= 1, 'seed: demo zaměstnanec má pozvánku k 360 (pohled respondenta na Přehledu)');
+  /* eNPS draft: soukromé rozpracování, nikdy v responses */
+  NPS.saveDraft('p1', 'w1', { main: 7, work: 5, growth: 6, support: 8, comment: 'x' });
+  ok(NPS.draftOf('p1', 'w1').main === 7, 'eNPS draft: uložení a načtení (prefill)');
+  ok(!Store.list('npsWaves').some(w => w.responses.some(r => r.draft || r.personId)), 'eNPS draft: nic se nepropsalo do anonymních responses');
+  NPS.clearDraft('p1', 'w1');
+  ok(NPS.draftOf('p1', 'w1') === null, 'eNPS draft: smazání po odeslání');
+  /* ženská příjmení z kmenů na -a (Procházka → Procházková, ne „Procházkaová") */
+  ok(!Store.list('people').some(p => /a(ová)$/.test(p.lastName || '')), 'ženská příjmení bez paskvilu -aová');
+  /* scroll fix: re-render téže stránky drží pozici, navigace scrolluje nahoru */
+  const appSrc8 = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc8.includes('sameRoute') && appSrc8.includes('window.scrollTo(0, sy)'), 'scroll: slider/uložení nehází stránku nahoru');
+  /* 360 picker: nový UX (chips vybraných, hledání, skupiny) + i18n */
+  const f3Src = fs.readFileSync('js/feedback360.js', 'utf8');
+  ok(f3Src.includes('f3-selrow') && f3Src.includes('#f3-q') && f3Src.includes('f3-grp'), '360 picker: chips + hledání + skupiny dle relevance');
+  let miss8 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['f360.search', 'f360.grp.mgr', 'f360.grp.reports', 'f360.grp.peers', 'f360.grp.others',
+     'f360.noneSelected', 'f360.max6', 'nps.draftSaved', 'nps.draftNote', 'nps.draft'].forEach(k => { if (t(k) === k) miss8.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss8.length === 0, miss8.length ? 'chybí klíče: ' + miss8.join(', ') : '360 picker + eNPS draft i18n kompletní (cs/en/de)');
+})();
+
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }

@@ -47,7 +47,24 @@
     if (!p || !p.managerId) return null; /* jen zaměstnanci s hodnoticím vztahem */
     return (w.respondedIds || []).includes(personId) ? null : w;
   }
-  window.NPS = { MIN_N, DIMS, npsCat, enps, engagement, waves, openWave, closedWaves, slice, pendingWaveFor };
+  /* rozpracovaný dotazník: soukromý draft per persona (NIKDY nejde do responses;
+     v produkci = user-private storage). Do anonymního agregátu jde až odeslání. */
+  function draftKey(personId, waveId) { return personId + '|' + waveId; }
+  function draftOf(personId, waveId) {
+    const d = Store.getSettings().npsDrafts || {};
+    return d[draftKey(personId, waveId)] || null;
+  }
+  function saveDraft(personId, waveId, data) {
+    const d = Object.assign({}, Store.getSettings().npsDrafts);
+    d[draftKey(personId, waveId)] = data;
+    Store.patchSettings({ npsDrafts: d });
+  }
+  function clearDraft(personId, waveId) {
+    const d = Object.assign({}, Store.getSettings().npsDrafts);
+    delete d[draftKey(personId, waveId)];
+    Store.patchSettings({ npsDrafts: d });
+  }
+  window.NPS = { MIN_N, DIMS, npsCat, enps, engagement, waves, openWave, closedWaves, slice, pendingWaveFor, draftOf, saveDraft, clearDraft };
 
   /* ---------------- dotazník (zaměstnanec) ---------------- */
   function sliderRow(id, label, val) {
@@ -59,22 +76,25 @@
   }
   function respondModal(wave, personId, onDone) {
     const p = Store.get('people', personId); if (!p) return;
+    const draft = draftOf(personId, wave.id) || {};
+    const dv = (k, def) => draft[k] != null ? draft[k] : def;
     modal(`<h3>${icon('heartPulse', 18)}${esc(t('nps.title'))}${wave.theme ? ` · ${esc(wave.theme)}` : ''}</h3>
       <p class="hint" style="color:var(--text-muted);margin-bottom:12px">${esc(t('nps.anonNote'))}</p>
       <div style="max-height:52vh;overflow:auto;padding-right:4px">
         <div class="nps-q nps-main"><label><b>${esc(t('nps.q.main'))}</b></label>
           <div class="nps-slider">
-            <input type="range" min="0" max="10" step="1" value="5" id="nps-main">
-            <output for="nps-main">5</output>
+            <input type="range" min="0" max="10" step="1" value="${dv('main', 5)}" id="nps-main">
+            <output for="nps-main">${dv('main', 5)}</output>
           </div>
           <div class="nps-scale-lbl"><span>${esc(t('nps.det'))}</span><span>${esc(t('nps.prom'))}</span></div>
         </div>
-        ${sliderRow('nps-work', t('nps.q.work'), 5)}
-        ${sliderRow('nps-growth', t('nps.q.growth'), 5)}
-        ${sliderRow('nps-support', t('nps.q.support'), 5)}
-        ${wave.themeQ ? `<div style="margin:14px 0 4px"><b>${esc(t('nps.themeTitle'))}: ${esc(wave.theme || '')}</b></div>${sliderRow('nps-theme', wave.themeQ, 5)}` : ''}
+        ${sliderRow('nps-work', t('nps.q.work'), dv('work', 5))}
+        ${sliderRow('nps-growth', t('nps.q.growth'), dv('growth', 5))}
+        ${sliderRow('nps-support', t('nps.q.support'), dv('support', 5))}
+        ${wave.themeQ ? `<div style="margin:14px 0 4px"><b>${esc(t('nps.themeTitle'))}: ${esc(wave.theme || '')}</b></div>${sliderRow('nps-theme', wave.themeQ, dv('theme', 5))}` : ''}
         <div class="field" style="margin-top:12px"><label>${esc(t('nps.comment'))}</label>
-          <textarea class="input" id="nps-comment" style="min-height:56px" placeholder="${esc(t('nps.commentHint'))}"></textarea></div>
+          <textarea class="input" id="nps-comment" style="min-height:56px" placeholder="${esc(t('nps.commentHint'))}">${esc(dv('comment', ''))}</textarea>
+        <p class="hint" style="color:var(--text-muted);margin-top:6px">${esc(t('nps.draftNote'))}</p></div>
       </div>
       <div class="wizard-foot">
         <button class="btn" id="nps-cancel">${esc(t('common.cancel'))}</button>
@@ -83,7 +103,18 @@
       m.querySelectorAll('input[type=range]').forEach(sl => {
         sl.oninput = () => { const o = m.querySelector(`output[for="${sl.id}"]`); if (o) o.textContent = sl.value; };
       });
-      m.querySelector('#nps-cancel').onclick = closeModal;
+      const collectDraft = () => {
+        const g3 = id => { const el = m.querySelector('#' + id); return el ? +el.value : null; };
+        const cm = m.querySelector('#nps-comment');
+        return { main: g3('nps-main'), work: g3('nps-work'), growth: g3('nps-growth'),
+          support: g3('nps-support'), theme: wave.themeQ ? g3('nps-theme') : null,
+          comment: cm ? cm.value : '' };
+      };
+      m.querySelector('#nps-cancel').onclick = () => {
+        saveDraft(personId, wave.id, collectDraft()); /* rozpracované zůstává, dokončení z Přehledu */
+        closeModal(); UI.toast(t('nps.draftSaved'));
+        if (onDone) onDone();
+      };
       m.querySelector('#nps-send').onclick = () => {
         const g2 = id => +m.querySelector('#' + id).value;
         /* odpověď BEZ personId - jen tým a oddělení pro agregace */
@@ -98,6 +129,7 @@
         wave.respondedIds = wave.respondedIds || [];
         wave.respondedIds.push(personId);
         Store.update('npsWaves', wave.id, {});
+        clearDraft(personId, wave.id);
         closeModal(); UI.toast(t('nps.thanks'));
         if (onDone) onDone();
       };

@@ -9,9 +9,11 @@
   const SURNAMES = ['Novák','Svoboda','Dvořák','Černý','Procházka','Kučera','Veselý','Horák','Němec','Marek','Pokorný','Pospíšil','Hájek','Král','Jelínek','Růžička','Beneš','Fiala','Sedláček','Doležal','Zeman','Kolář','Navrátil','Čermák','Urban','Vaněk','Blažek','Kratochvíl','Šimek','Holub','Kovář','Bartoš','Polák','Šťastný','Musil'];
 
   function femSurname(s) {
-    if (s.endsWith('ý')) return s.slice(0, -1) + 'á';
-    if (s.endsWith('ek')) return s.slice(0, -2) + 'ková';
-    if (s.endsWith('ec')) return s.slice(0, -2) + 'cová';
+    if (s.endsWith('ý')) return s.slice(0, -1) + 'á';          /* Černý → Černá */
+    if (s.endsWith('ek')) return s.slice(0, -2) + 'ková';       /* Hájek → Hájková */
+    if (s.endsWith('ec')) return s.slice(0, -2) + 'cová';       /* Němec → Němcová */
+    if (s.endsWith('a')) return s.slice(0, -1) + 'ová';         /* Procházka → Procházková, Svoboda → Svobodová */
+    if (s.endsWith('e')) return s.slice(0, -1) + 'ová';         /* Purkyně → Purkyňová (aproximace) */
     return s + 'ová';
   }
 
@@ -585,9 +587,15 @@
         })),
       });
     }
-    const f360subjB = shuffle(employees.filter(p => !f360subjA || p.id !== f360subjA.id))[0];
+    /* demo persona zaměstnance (subjekt prvního vyplnitelného hodnocení) musí být mezi
+       pozvanými respondenty — aby v demu šel vidět POHLED RESPONDENTA 360 (todo na Přehledu) */
+    const personaEmpId = (reviews.find(r2 => ['pending_self', 'self_in_progress'].includes(r2.status)) || {}).subjectId || null;
+    const f360subjB = shuffle(employees.filter(p => (!f360subjA || p.id !== f360subjA.id) && p.id !== personaEmpId))[0];
     if (f360subjB) {
-      const invitees = shuffle(employees.filter(p => p.id !== f360subjB.id)).slice(0, 3);
+      const personaEmp = employees.find(p => p.id === personaEmpId);
+      const invitees = (personaEmp ? [personaEmp] : [])
+        .concat(shuffle(employees.filter(p => p.id !== f360subjB.id && p.id !== personaEmpId)))
+        .slice(0, 3);
       feedback360.push({
         id: uid(), subjectId: f360subjB.id, requestedById: f360subjB.managerId,
         period: CURRENT_PERIOD, deadline: today + 7 * day, status: 'collecting',

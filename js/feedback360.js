@@ -61,29 +61,73 @@
     const va = App.viewAs();
     const ps = Store.list('people').filter(p => p.id !== subjectId && p.id !== va.personId);
     const picked = new Set();
+    let q = '';
+    const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    /* skupiny dle relevance: manažer → podřízení → kolegové z oddělení → ostatní */
+    function grouped() {
+      const mgr = ps.filter(p => p.id === subject.managerId);
+      const reports = ps.filter(p => p.managerId === subject.id);
+      const usedIds = new Set(mgr.concat(reports).map(p => p.id));
+      const peers = ps.filter(p => !usedIds.has(p.id) && p.deptKey === subject.deptKey);
+      peers.forEach(p => usedIds.add(p.id));
+      const others = ps.filter(p => !usedIds.has(p.id));
+      return [
+        [t('f360.grp.mgr'), mgr], [t('f360.grp.reports'), reports],
+        [t('f360.grp.peers'), peers], [t('f360.grp.others'), others],
+      ];
+    }
+    const match = p => !q || norm(p.name + ' ' + p.role).includes(norm(q));
+    const rowHtml = p => `
+      <button type="button" class="f3-row ${picked.has(p.id) ? 'sel' : ''}" data-f3p="${p.id}">
+        ${avatar(p, 30)}
+        <span class="f3-nm"><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.dept)}</small></span>
+        <span class="badge">${esc(t('f360.group.' + groupOf(subject, p)))}</span>
+        <span class="f3-check">${picked.has(p.id) ? icon('check', 15) : icon('plus', 15)}</span>
+      </button>`;
+
     const render = m => {
-      m.querySelector('#f3-count').innerHTML = `<span class="badge ${picked.size >= 3 && picked.size <= 6 ? 'b-green' : 'b-amber'}">${picked.size}/3-6</span>`;
-      m.querySelectorAll('[data-f3p]').forEach(bn => {
-        bn.classList.toggle('sel', picked.has(bn.dataset.f3p));
-      });
-    };
-    modal(`<h3>${icon('team', 18)}${esc(t('f360.requestTitle'))}: ${esc(subject.name)}</h3>
-      <p class="hint" style="color:var(--text-muted);margin-bottom:10px">${esc(t('f360.requestHint'))}</p>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <b>${esc(t('f360.respondents'))}</b><span id="f3-count"></span></div>
-      <div style="max-height:40vh;overflow:auto;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-        ${ps.map(p => `<button type="button" class="scale-opt" data-f3p="${p.id}" style="display:flex;gap:6px;align-items:center">
-          ${avatar(p, 22)} ${esc(p.name)} <small style="color:var(--text-muted)">${esc(t('f360.group.' + groupOf(subject, p)))}</small></button>`).join('')}
-      </div>
-      <div class="wizard-foot">
-        <button class="btn" id="f3-cancel">${esc(t('common.cancel'))}</button>
-        <button class="btn btn-primary" id="f3-send">${esc(t('common.send'))} ${icon('send', 14)}</button>
-      </div>`, m => {
+      /* vybraní jako chips nahoře (odebrání ×) */
+      m.querySelector('#f3-sel').innerHTML = picked.size
+        ? [...picked].map(id => { const p = Store.get('people', id); return p ? `
+            <span class="f3-chip">${avatar(p, 20)} ${esc(p.firstName)} ${esc(p.lastName)}
+              <button type="button" data-f3x="${id}" title="${esc(t('common.delete'))}">✕</button></span>` : ''; }).join('')
+        : `<span class="f3-chip-empty">${esc(t('f360.noneSelected'))}</span>`;
+      m.querySelector('#f3-count').innerHTML =
+        `<span class="badge ${picked.size >= 3 && picked.size <= 6 ? 'b-green' : 'b-amber'}">${picked.size}/3–6</span>`;
+      /* seznam po skupinách, filtrovaný hledáním */
+      m.querySelector('#f3-list').innerHTML = grouped().map(([label, list]) => {
+        const vis = list.filter(match);
+        if (!vis.length) return '';
+        return `<div class="f3-grp">${esc(label)}</div>` + vis.map(rowHtml).join('');
+      }).join('') || `<div class="f3-chip-empty">${esc(t('flt.noMatch'))}</div>`;
+      const send = m.querySelector('#f3-send');
+      if (send) send.disabled = picked.size < 3;
+      /* bindy překreslené části */
       m.querySelectorAll('[data-f3p]').forEach(bn => bn.onclick = () => {
         const id = bn.dataset.f3p;
-        if (picked.has(id)) picked.delete(id); else if (picked.size < 6) picked.add(id);
+        if (picked.has(id)) picked.delete(id);
+        else if (picked.size < 6) picked.add(id);
+        else { UI.toast(t('f360.max6')); return; }
         render(m);
       });
+      m.querySelectorAll('[data-f3x]').forEach(bn => bn.onclick = () => { picked.delete(bn.dataset.f3x); render(m); });
+    };
+
+    modal(`<h3>${icon('team', 18)}${esc(t('f360.requestTitle'))}: ${esc(subject.name)}</h3>
+      <p class="hint" style="color:var(--text-muted);margin-bottom:10px">${esc(t('f360.requestHint'))}</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <b>${esc(t('f360.respondents'))}</b><span id="f3-count"></span></div>
+      <div class="f3-selrow" id="f3-sel"></div>
+      <div class="filterbar" style="margin:8px 0 6px">${icon('search', 15)}
+        <input class="input" id="f3-q" placeholder="${esc(t('f360.search'))}"></div>
+      <div class="f3-list" id="f3-list"></div>
+      <div class="wizard-foot">
+        <button class="btn" id="f3-cancel">${esc(t('common.cancel'))}</button>
+        <button class="btn btn-primary" id="f3-send" disabled>${esc(t('common.send'))} ${icon('send', 14)}</button>
+      </div>`, m => {
+      const qi = m.querySelector('#f3-q');
+      if (qi) qi.oninput = () => { q = qi.value; render(m); }; /* re-render nechává input netknutý → fokus drží */
       m.querySelector('#f3-cancel').onclick = closeModal;
       m.querySelector('#f3-send').onclick = () => {
         if (picked.size < 3) { UI.toast(t('f360.min3')); return; }

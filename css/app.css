@@ -1168,3 +1168,50 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 .mn-grid .choice { padding: 14px 6px; text-align: center; align-items: center; }
 .mn-grid .choice b { font-size: .78rem; }
 @media (max-width: 380px) { .mn-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ====================== 360: výběr respondentů (redesign) ====================== */
+.f3-selrow {
+  display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px;
+  padding: 6px 8px; border: 1px dashed var(--hairline); border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.f3-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 3px 6px 3px 4px; font-size: .82rem; font-weight: 600;
+}
+.f3-chip button { border: 0; background: none; cursor: pointer; font-size: .78rem; opacity: .7; padding: 0 2px; }
+.f3-chip button:hover { opacity: 1; color: var(--danger); }
+.f3-chip-empty { font-size: .82rem; color: var(--text-muted); padding: 3px 4px; }
+.f3-list { max-height: 42vh; overflow: auto; margin-bottom: 4px; }
+.f3-grp {
+  font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-muted); margin: 12px 2px 5px; position: sticky; top: 0;
+  background: var(--surface); padding: 3px 2px; z-index: 1;
+}
+.f3-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: 1px solid transparent; border-radius: var(--radius);
+  padding: 7px 8px; cursor: pointer; text-align: left; font-family: inherit; font-size: .9rem;
+}
+.f3-row:hover { background: var(--surface-2); }
+.f3-row.sel { background: var(--accent-soft); border-color: var(--accent); }
+.f3-row .f3-nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.f3-row .f3-nm b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f3-row .f3-nm small { color: var(--text-muted); font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f3-row .badge { flex: none; }
+.f3-row .f3-check { flex: none; color: var(--accent); display: inline-flex; }
+.f3-row.sel .f3-check { color: var(--ok); }
+@media (max-width: 640px) { .f3-row .badge { display: none; } }
+
+/* ====================== zalamování textu - pojistky (mobil i desktop) ====================== */
+.org-node .nm, .org-node .rl { max-width: 100%; overflow-wrap: break-word; white-space: normal; }
+.card, .modal, .dd-item, .callout, .kudo p, .empty { min-width: 0; overflow-wrap: break-word; }
+.brow > span { min-width: 0; overflow-wrap: break-word; }
+.choice b, .choice span { overflow-wrap: break-word; max-width: 100%; }
+.mn-grid .choice b { overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .view { overflow-x: clip; }                 /* nic nesmí roztáhnout stránku do šířky */
+  .page-title, h2 { overflow-wrap: anywhere; }
+  .tb-company span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
