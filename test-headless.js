@@ -1139,6 +1139,11 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   const caps24 = th24.msgs[th24.msgs.length - 1].html;
   ok(caps24.includes(t('cop.kb.topicsTitle')) && caps24.includes(t('help.flowTitle')), 'výpis schopností nabízí i témata nápovědy');
 
+  /* chipy: starší zprávy nesmí zešednout u navigace a dotazů (jen volby běžícího flow) */
+  const copSrc22 = fs.readFileSync('js/copilot.js', 'utf8');
+  ok(/\(c2\.act \|\| 'ans'\) === 'ans'/.test(copSrc22), 'chipy „Vysvětli mi…" zůstávají aktivní i u starších zpráv');
+  ok(!/c2\.act !== 'nav'\) \? 'disabled'/.test(copSrc22), 'ask chipy se už neblokují jako volby flow');
+
   /* i18n nových sad */
   let miss22 = [];
   ['cs', 'en', 'de'].forEach(loc => {

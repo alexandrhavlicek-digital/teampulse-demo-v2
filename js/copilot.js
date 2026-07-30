@@ -1621,8 +1621,10 @@
         return `<div class="cop-msg user">${avatar(meP(), 30)}<div class="cop-bubble">${esc(m.text)}</div></div>`;
       }
       const active = m.id === lastId;
+      /* zešednou jen volby běžícího flow ('ans') u starších zpráv - navigace i dotazy
+         („Vysvětli mi …") platí pořád, takže zůstávají aktivní a plnohodnotně vypadají */
       const chips = (m.chips || []).map((c2, i) =>
-        `<button class="cop-chip" data-chip="${m.id}:${i}" ${(!active && c2.act !== 'nav') ? 'disabled' : ''}>${esc(c2.label)}</button>`).join('');
+        `<button class="cop-chip" data-chip="${m.id}:${i}" ${(!active && (c2.act || 'ans') === 'ans') ? 'disabled' : ''}>${esc(c2.label)}</button>`).join('');
       return `<div class="cop-msg bot">${pulseAva()}<div class="cop-bubble">${m.html}${chips ? `<div class="cop-chips">${chips}</div>` : ''}</div></div>`;
     }).join('') + (typing ? `<div class="cop-msg bot">${pulseAva()}<div class="cop-bubble cop-typing"><i></i><i></i><i></i></div></div>` : '');
     box.scrollTop = box.scrollHeight;
