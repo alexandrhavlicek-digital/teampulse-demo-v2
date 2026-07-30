@@ -34,3 +34,4 @@ Onboarding s generátorem fiktivní firmy (IT / cestovní kancelář / automotiv
 | 07_testovani.md | QA | Testovací scénáře a smoke testy |
 | 08_talent_succession.md | Vývoj | **Realizační dokument** modulu Talent & nástupnictví (API, datový model, stavové automaty, soukromí) |
 | 09_copilot.md | Produkt / vývoj | **Realizační dokument** Copilota (simulovaný engine, flows, práva, roadmap k LLM) |
+| 10_360_dotaznik.md | Produkt / HR | Analýza a design 360° dotazníku (behaviorální výroky, slovní frekvenční škála, bez zkratek) |

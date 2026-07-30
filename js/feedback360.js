@@ -53,7 +53,47 @@
     const fs = requestsFor(pid).filter(f => aggregate(f)).sort((a, b) => (b.deadline || 0) - (a.deadline || 0));
     return fs.length ? { f: fs[0], agg: aggregate(fs[0]) } : null;
   }
-  window.Feedback360 = { requestsFor, pendingFor, aggregate, latestClosedAgg, ratedKeys, MIN_ANON };
+  /* ---------------- behaviorální item bank (best practice: pozorovatelné chování,
+     frekvenční škála se slovními kotvami, volba „Nemohu posoudit") ---------------- */
+  const FREQ = [
+    { v: 'TN', fk: '5' }, { v: 'PO', fk: '4' }, { v: 'KV', fk: '3' },
+    { v: 'NR', fk: '2' }, { v: 'NU', fk: '1' },
+  ]; /* interní uložení zůstává na stávající škále → agregace a tři pohledy fungují beze změny */
+  function items() {
+    const co = Store.getCompany();
+    if (co && co.competencies) {
+      return co.competencies.map(c => {
+        const key = 'f360.item.comp.' + c.key;
+        const txt = t(key) !== key ? t(key) : t('f360.item.generic').split('{c}').join(c.title);
+        return { id: 'c_' + c.key, key: c.key, text: txt };
+      });
+    }
+    const bank = { teamwork: ['team1', 'team2', 'team3'], growth: ['grow1', 'grow2'], quality: ['qual1', 'qual2', 'qual3'] };
+    const out = [];
+    Object.entries(bank).forEach(([key, ids]) => ids.forEach(id => out.push({ id, key, text: t('f360.item.' + id) })));
+    return out;
+  }
+  /* odpovědi {itemId: 'TN'..'NU'|'NA'} → rating per oblast/kompetence (Ø hodnot, N/A se vynechá) */
+  function deriveFromItems(answers, itemList) {
+    const byKey = {};
+    (itemList || items()).forEach(it => {
+      const a = answers[it.id];
+      if (!a || a === 'NA') return;
+      const v = ReviewLogic.RATING_VALUE[a];
+      if (v != null) (byKey[it.key] = byKey[it.key] || []).push(v);
+    });
+    const ratings = {};
+    Object.entries(byKey).forEach(([k, vals]) => {
+      const avg = vals.reduce((x, y) => x + y, 0) / vals.length;
+      let best = null, dist = 9;
+      Object.entries(ReviewLogic.RATING_VALUE).forEach(([kk, v]) => {
+        if (Math.abs(v - avg) < dist) { dist = Math.abs(v - avg); best = kk; }
+      });
+      ratings[k] = best;
+    });
+    return ratings;
+  }
+  window.Feedback360 = { requestsFor, pendingFor, aggregate, latestClosedAgg, ratedKeys, MIN_ANON, items, deriveFromItems, FREQ };
 
   /* ---------------- žádost o 360 (mgr/HR) ---------------- */
   function requestModal(subjectId, onDone) {
@@ -147,37 +187,62 @@
     });
   }
 
-  /* ---------------- respondentský dotazník (max 5 minut) ---------------- */
+  /* ---------------- respondentský dotazník (~4 minuty) ----------------
+     Behaviorální výroky + plně popsaná frekvenční škála (žádné zkratky),
+     „Nemohu posoudit" pro nepozorované chování, progress, 2 otevřené otázky. */
   function respondModal(f, personId, onDone) {
     const subject = Store.get('people', f.subjectId);
     const resp = f.respondents.find(r => r.personId === personId);
     if (!subject || !resp) return;
-    const keys = ratedKeys();
+    const list = items();
+    const answers = {};
+    const freqBtn = (v, label, extra) =>
+      `<button type="button" class="f36-opt ${extra || ''}" data-val="${v}">${esc(label)}</button>`;
     modal(`<h3>${icon('heartPulse', 18)}${esc(t('f360.respondTitle'))}: ${esc(subject.name)}</h3>
-      <p class="hint" style="color:var(--text-muted);margin-bottom:10px">${esc(t('f360.anonNote'))}</p>
-      <div style="max-height:48vh;overflow:auto;padding-right:4px">
-        ${keys.map(k => `<div class="field"><label>${esc(k.label)}</label>
-          <div class="scale-row sm" data-f3s="${k.key}">
-            ${ReviewLogic.SCALE_DEF.map(sd => `<button type="button" class="scale-opt" data-val="${sd.k}" title="${esc(ReviewLogic.scaleLabel(sd.k))}"><b>${sd.k}</b></button>`).join('')}
-          </div></div>`).join('')}
-        <div class="field"><label>${esc(t('f360.qStrengths'))}</label><textarea class="input" id="f3-str" style="min-height:56px"></textarea></div>
-        <div class="field"><label>${esc(t('f360.qGrowth'))}</label><textarea class="input" id="f3-gro" style="min-height:56px"></textarea></div>
+      <p class="hint" style="color:var(--text-muted);margin-bottom:4px">${esc(t('f360.anonNote'))}</p>
+      <p class="hint" style="color:var(--text-muted);margin-bottom:10px">${esc(t('f360.respIntro'))}</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <b>${esc(t('f360.progress'))}</b><span class="badge" id="f36-prog">0/${list.length}</span></div>
+      <div class="f36-body">
+        ${list.map((it, i2) => `
+          <div class="f36-item" data-f36="${it.id}">
+            <p class="f36-q"><span class="f36-num">${i2 + 1}</span>${esc(it.text)}</p>
+            <div class="f36-opts">
+              ${FREQ.map(fq => freqBtn(fq.v, t('f360.freq.' + fq.fk))).join('')}
+              ${freqBtn('NA', t('f360.freq.na'), 'na')}
+            </div>
+          </div>`).join('')}
+        <div class="field" style="margin-top:12px"><label>${esc(t('f360.qStrengths'))}</label>
+          <textarea class="input" id="f3-str" style="min-height:56px"></textarea></div>
+        <div class="field"><label>${esc(t('f360.qGrowth'))}</label>
+          <textarea class="input" id="f3-gro" style="min-height:56px"></textarea></div>
       </div>
       <div class="wizard-foot">
         <button class="btn" id="f3r-cancel">${esc(t('common.cancel'))}</button>
-        <button class="btn btn-primary" id="f3r-send">${esc(t('common.send'))} ${icon('send', 14)}</button>
+        <button class="btn btn-primary" id="f3r-send" disabled>${esc(t('common.send'))} ${icon('send', 14)}</button>
       </div>`, m => {
-      const ratings = {};
-      m.querySelectorAll('[data-f3s]').forEach(row => row.addEventListener('click', e => {
-        const btn = e.target.closest('.scale-opt'); if (!btn) return;
-        row.querySelectorAll('.scale-opt').forEach(x => x.classList.remove('sel'));
+      const sync = () => {
+        const n = Object.keys(answers).length;
+        const prog = m.querySelector('#f36-prog');
+        if (prog) {
+          prog.textContent = n + '/' + list.length;
+          prog.className = 'badge ' + (n === list.length ? 'b-green' : '');
+        }
+        const send = m.querySelector('#f3r-send');
+        if (send) send.disabled = n < list.length;
+      };
+      m.querySelectorAll('[data-f36]').forEach(row => row.addEventListener('click', e => {
+        const btn = e.target.closest('.f36-opt'); if (!btn) return;
+        row.querySelectorAll('.f36-opt').forEach(x => x.classList.remove('sel'));
         btn.classList.add('sel');
-        ratings[row.dataset.f3s] = btn.dataset.val;
+        answers[row.dataset.f36] = btn.dataset.val;
+        sync();
       }));
       m.querySelector('#f3r-cancel').onclick = closeModal;
       m.querySelector('#f3r-send').onclick = () => {
-        if (Object.keys(ratings).length < keys.length) { UI.toast(t('f360.rateAll')); return; }
-        resp.ratings = ratings;
+        if (Object.keys(answers).length < list.length) { UI.toast(t('f360.rateAll')); return; }
+        resp.items = Object.assign({}, answers);         /* jednotlivé odpovědi na výroky */
+        resp.ratings = deriveFromItems(answers, list);   /* odvozený rating per oblast - agregace beze změny */
         resp.strengths = m.querySelector('#f3-str').value;
         resp.growth = m.querySelector('#f3-gro').value;
         resp.status = 'done';
@@ -216,9 +281,10 @@
         ${ratedKeys().map(k => {
           const a = agg.ratings[k.key];
           const diff = a && selfOf(k.key) !== '-' && a.label !== selfOf(k.key);
-          return `<tr><td>${esc(k.label)}</td><td>${esc(selfOf(k.key))}</td>
-            <td>${a ? `<b>${a.label}</b>` : '-'}${diff ? ` <span class="badge b-amber" title="${esc(t('f360.diffHint'))}">≠</span>` : ''}</td>
-            <td>${esc(mgrOf(k.key))}</td></tr>`;
+          const w = v => v && v !== '-' ? ReviewLogic.scaleWord(v) : '-';
+          return `<tr><td>${esc(k.label)}</td><td>${esc(w(selfOf(k.key)))}</td>
+            <td>${a ? `<b>${esc(w(a.label))}</b>` : '-'}${diff ? ` <span class="badge b-amber" title="${esc(t('f360.diffHint'))}">≠</span>` : ''}</td>
+            <td>${esc(w(mgrOf(k.key)))}</td></tr>`;
         }).join('')}
       </table>
       ${agg.strengths.length ? `<p style="margin-top:8px;font-size:.86rem"><b>${esc(t('f360.qStrengths'))}:</b><br>${agg.strengths.map(s2 => '· ' + esc(s2)).join('<br>')}</p>` : ''}

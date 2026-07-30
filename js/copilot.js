@@ -246,8 +246,8 @@
   /* ================= mini render helpers ================= */
   const chipsOf = arr => arr.map(x => ({ label: x.label, act: x.act || 'ans', val: x.val }));
   const scaleChips = self => {
-    const c = SCALE.map(k => ({ label: k + ' · ' + ReviewLogic.scaleLabel(k), val: k }));
-    if (self) c.unshift({ label: '✓ ' + fmt('cop.e.agreeSelf', { r: self }), val: self });
+    const c = SCALE.map(k => ({ label: ReviewLogic.scaleWord(k), val: k }));
+    if (self) c.unshift({ label: '✓ ' + fmt('cop.e.agreeSelf', { r: ReviewLogic.scaleWord(self) }), val: self });
     return chipsOf(c);
   };
   const peopleChips = list => chipsOf(list.slice(0, 6).map(p => ({ label: p.name, val: p.id })));
@@ -391,7 +391,7 @@
       d.idx++;
       if (d.idx < items.length) return askSelfRating(th, items);
       st.step = 'confirm';
-      return bot(th, esc(t('cop.s.review')) + '<br>' + items.map(it => `<b>${esc(it.label)}</b>: ${d.ratings[it.key]}`).join(' · '),
+      return bot(th, esc(t('cop.s.review')) + '<br>' + items.map(it => `<b>${esc(it.label)}</b>: ${esc(ReviewLogic.scaleWord(d.ratings[it.key]))}`).join(' · '),
         chipsOf([{ label: '✓ ' + t('common.saveSend'), val: 'ok' }, { label: t('common.cancel'), val: 'cancel' }]));
     }
     if (st.step === 'confirm') {
@@ -441,13 +441,13 @@
     const it = items[d.idx];
     const sr = selfRatingOf(r, it);
     bot(th, fmt('cop.e.area', { n: d.idx + 1, total: items.length, area: it.label }) +
-      (sr ? `<br><span style="color:var(--text-muted)">${esc(fmt('cop.e.selfWas', { r: sr }))}</span>` : ''), scaleChips(sr));
+      (sr ? `<br><span style="color:var(--text-muted)">${esc(fmt('cop.e.selfWas', { r: ReviewLogic.scaleWord(sr) }))}</span>` : ''), scaleChips(sr));
   }
   function askEvalGoal(th, r) {
     const d = th.state.data;
     const g = r.form.goalsEval[d.gIdx];
     bot(th, `<b>${esc(t('cop.e.goal'))} ${d.gIdx + 1}/${r.form.goalsEval.length}:</b> ${esc(g.title)} <span class="badge">${g.weight} %</span>` +
-      (g.rating ? `<br><span style="color:var(--text-muted)">${esc(fmt('cop.e.selfWas', { r: g.rating }))}</span>` : ''),
+      (g.rating ? `<br><span style="color:var(--text-muted)">${esc(fmt('cop.e.selfWas', { r: ReviewLogic.scaleWord(g.rating) }))}</span>` : ''),
       chipsOf([{ label: '✓ ' + t('cop.ch.agree'), val: 'agree' }, { label: '💬 ' + t('cop.ch.discuss'), val: 'discuss' }]));
   }
   function contEval(th, input) {
@@ -477,7 +477,7 @@
       d.strengths = input.val != null ? input.val : (input.text || '').trim();
       st.step = 'confirm';
       const disc = d.decisions.filter(x => x === 'discuss').length;
-      return bot(th, esc(t('cop.e.review')) + '<br>' + selfItems().map(it => `<b>${esc(it.label)}</b>: ${d.ratings[it.key]}`).join(' · ') +
+      return bot(th, esc(t('cop.e.review')) + '<br>' + selfItems().map(it => `<b>${esc(it.label)}</b>: ${esc(ReviewLogic.scaleWord(d.ratings[it.key]))}`).join(' · ') +
         (disc ? `<br>💬 ${esc(fmt('cop.e.discN', { n: disc }))}` : ''),
         chipsOf([{ label: '✓ ' + t('cop.ch.saveClose'), val: 'ok' }, { label: t('common.cancel'), val: 'cancel' }]));
     }
@@ -944,31 +944,36 @@
     }
   }
 
-  /* ---------- 360: vyplnění ---------- */
+  /* ---------- 360: vyplnění (behaviorální výroky + frekvenční škála slovy) ---------- */
+  const freqChips = () => chipsOf(
+    Feedback360.FREQ.map(fq => ({ label: t('f360.freq.' + fq.fk), val: fq.v }))
+      .concat([{ label: t('f360.freq.na'), val: 'NA' }]));
   function startF360Fill(th) {
     const p = meP();
     const pend = p && window.Feedback360 ? Feedback360.pendingFor(p.id) : [];
     if (!pend.length) return bot(th, t('cop.f3.none'));
     const f = pend[0];
-    const keys = Feedback360.ratedKeys();
-    th.state = { flow: 'f360f', step: 'rate', data: { fid: f.id, idx: 0, ratings: {}, keys: keys.map(k => k.key) } };
-    bot(th, fmt('cop.f3.intro', { name: CzName.full((byId(f.subjectId) || {}).name || '', 'acc') }));
-    askF360Rating(th, keys);
+    th.state = { flow: 'f360f', step: 'rate', data: { fid: f.id, idx: 0, answers: {} } };
+    bot(th, fmt('cop.f3.intro', { name: CzName.full((byId(f.subjectId) || {}).name || '', 'acc') }) +
+      '<br><span style="color:var(--text-muted)">' + esc(t('f360.respIntro')) + '</span>');
+    askF360Item(th);
   }
-  function askF360Rating(th, keys) {
+  function askF360Item(th) {
     const d = th.state.data;
-    const k = keys[d.idx];
-    bot(th, `<b>${d.idx + 1}/${keys.length}</b> ${esc(k.label)}`, scaleChips(null));
+    const list = Feedback360.items();
+    const it = list[d.idx];
+    bot(th, `<b>${d.idx + 1}/${list.length}</b> ${esc(it.text)}`, freqChips());
   }
   function contF360Fill(th, input) {
     const st = th.state, d = st.data;
     const f = Store.get('feedback360', d.fid);
     if (!f) { th.state = null; return bot(th, t('cop.f3.none')); }
-    const keys = Feedback360.ratedKeys();
+    const list = Feedback360.items();
     if (st.step === 'rate') {
-      d.ratings[keys[d.idx].key] = SCALE.includes(input.val) ? input.val : 'KV';
+      const v = (SCALE.includes(input.val) || input.val === 'NA') ? input.val : 'KV';
+      d.answers[list[d.idx].id] = v;
       d.idx++;
-      if (d.idx < keys.length) return askF360Rating(th, keys);
+      if (d.idx < list.length) return askF360Item(th);
       st.step = 'strengths';
       return bot(th, t('f360.qStrengths'));
     }
@@ -977,7 +982,9 @@
       th.state = null;
       const resp = f.respondents.find(r => r.personId === va().personId);
       if (resp) {
-        resp.ratings = d.ratings; resp.strengths = d.strengths; resp.growth = (input.text || '').trim(); resp.status = 'done';
+        resp.items = Object.assign({}, d.answers);
+        resp.ratings = Feedback360.deriveFromItems(d.answers, list);
+        resp.strengths = d.strengths; resp.growth = (input.text || '').trim(); resp.status = 'done';
         if (f.respondents.every(r => r.status === 'done')) f.status = 'closed';
         Store.update('feedback360', f.id, {});
       }
@@ -1215,7 +1222,7 @@
   }
   function rScale(th) {
     bot(th, `<b>${esc(t('help.scaleTitle'))}</b><ul>` +
-      ReviewLogic.SCALE_DEF.map(sd => `<li><b>${sd.k}</b> - ${esc(ReviewLogic.scaleLabel(sd.k))}</li>`).join('') + '</ul>' +
+      ReviewLogic.SCALE_DEF.map(sd => `<li><b>${esc(ReviewLogic.scaleWord(sd.k))}</b> - ${esc(ReviewLogic.scaleLabel(sd.k))}</li>`).join('') + '</ul>' +
       `<b>${esc(t('hr.compBands'))}:</b> ` + ['top', 'std', 'dev', 'risk'].map(k => esc(t('band.' + k))).join(' · '),
       chipsOf([{ label: t('nav.help'), act: 'nav', val: '#/help' }]));
   }
@@ -1256,7 +1263,7 @@
     if (!agg) return bot(th, t('cop.r.anon'));
     const subj = byId(f.subjectId);
     bot(th, `<b>360°</b> · ${esc((subj || {}).name || '')} (${agg.n}×)<br>` +
-      Object.entries(agg.ratings).map(([k, r2]) => `${esc(t('rev.area.' + k) !== 'rev.area.' + k ? t('rev.area.' + k) : k)}: <b>${r2.label}</b>`).join(' · ') +
+      Object.entries(agg.ratings).map(([k, r2]) => `${esc(t('rev.area.' + k) !== 'rev.area.' + k ? t('rev.area.' + k) : k)}: <b>${r2 ? esc(ReviewLogic.scaleWord(r2.label)) : '-'}</b>`).join(' · ') +
       (agg.strengths.length ? `<br><b>+</b> ${esc(agg.strengths[0])}` : ''),
       chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/people' }]));
   }

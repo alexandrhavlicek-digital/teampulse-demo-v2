@@ -727,6 +727,49 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(miss8.length === 0, miss8.length ? 'chybí klíče: ' + miss8.join(', ') : '360 picker + eNPS draft i18n kompletní (cs/en/de)');
 })();
 
+/* --- 17) 360 dotazník v2: behaviorální výroky, slovní škála, žádné zkratky v UI --- */
+(function () {
+  I18N.setLocale('cs');
+  /* slovní škála */
+  ok(ReviewLogic.scaleWord('TN') === 'Vynikající' && ReviewLogic.scaleWord('KV') === 'Splňuje očekávání', 'scaleWord: slovní podoba stupňů (cs)');
+  ok(ReviewLogic.scaleWord(null) === '-', 'scaleWord: prázdné → pomlčka');
+  /* item banka: jednoduchý režim 8 výroků, detailní 7 */
+  const co9 = Store.getCompany();
+  co9.competencies = null; Store.setCompany(co9);
+  ok(Feedback360.items().length === 8, `item banka: 8 výroků v jednoduchém režimu (${Feedback360.items().length})`);
+  ok(Feedback360.items().every(it => it.text.length > 20 && !/^f360\./.test(it.text)), 'výroky: přeložené behaviorální věty');
+  co9.competencies = Generator.COMP_LIB.map(c => Object.assign({}, c)); Store.setCompany(co9);
+  ok(Feedback360.items().length === 7, 'item banka: 7 výroků v detailním režimu');
+  ok(!Feedback360.items().some(it => /^f360\./.test(it.text)), 'detailní výroky přeložené (žádné klíče)');
+  co9.competencies = null; Store.setCompany(co9);
+  /* odvození ratingů z odpovědí (N/A se vynechává) */
+  const list9 = Feedback360.items();
+  const ans9 = {}; list9.forEach(it => { ans9[it.id] = it.key === 'growth' ? 'NA' : 'TN'; });
+  const der9 = Feedback360.deriveFromItems(ans9, list9);
+  ok(der9.teamwork === 'TN' && der9.quality === 'TN' && !('growth' in der9), 'deriveFromItems: Ø per oblast, N/A vynecháno');
+  const ans10 = {}; list9.forEach(it => { ans10[it.id] = 'KV'; });
+  ok(Feedback360.deriveFromItems(ans10, list9).teamwork === 'KV', 'deriveFromItems: střed škály');
+  /* i18n úplnost nové sady */
+  let miss9 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['5', '4', '3', '2', '1', 'na'].forEach(k => { if (t('f360.freq.' + k) === 'f360.freq.' + k) miss9.push(loc + ':freq.' + k); });
+    ['TN', 'PO', 'KV', 'NR', 'NU', 'NA'].forEach(k => { if (t('scale.short.' + k) === 'scale.short.' + k) miss9.push(loc + ':short.' + k); });
+    ['team1', 'team2', 'team3', 'grow1', 'grow2', 'qual1', 'qual2', 'qual3'].forEach(k => { if (t('f360.item.' + k) === 'f360.item.' + k) miss9.push(loc + ':item.' + k); });
+    ['coop', 'leadership', 'analysis', 'selfmgmt', 'customer', 'expertise', 'results'].forEach(k => { if (t('f360.item.comp.' + k) === 'f360.item.comp.' + k) miss9.push(loc + ':comp.' + k); });
+    if (t('f360.respIntro') === 'f360.respIntro') miss9.push(loc + ':respIntro');
+  });
+  I18N.setLocale('cs');
+  ok(miss9.length === 0, miss9.length ? 'chybí: ' + miss9.slice(0, 8).join(', ') : '360 v2 i18n kompletní (cs/en/de)');
+  /* žádné zkratky v uživatelském UI (statická kontrola šablon) */
+  const rSrc9 = fs.readFileSync('js/reviews.js', 'utf8');
+  ok(!rSrc9.includes('<b>${s.k}</b>') && !rSrc9.includes('<b>${x.k}</b>'), 'wizard: tlačítka škály bez zkratek (scaleWord)');
+  const fSrc9 = fs.readFileSync('js/feedback360.js', 'utf8');
+  ok(fSrc9.includes('f36-opt') && fSrc9.includes("t('f360.freq.'") && !fSrc9.includes('<b>${sd.k}</b>'), '360 dotazník: frekvenční slova, žádné zkratky');
+  const cSrc9 = fs.readFileSync('js/copilot.js', 'utf8');
+  ok(cSrc9.includes('ReviewLogic.scaleWord(k)') && cSrc9.includes('freqChips'), 'copilot: chipy škály slovně + 360 items flow');
+})();
+
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }

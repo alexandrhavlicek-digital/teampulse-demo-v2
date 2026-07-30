@@ -1180,7 +1180,7 @@
             <div class="progressbar"><div style="width:${n / Math.max(1, cur.length) * 100}%"></div></div><b>${n}</b></div>`).join('') || '-'}</div></div>
         <div class="card"><h2>${icon('spark', 18)}${esc(t('hr.ratingDist'))}</h2>
           <div class="bars">${Object.entries(ratings).map(([k, n]) => `
-            <div class="brow"><span><b>${k}</b> ${esc(t('help.scale.' + k))}</span>
+            <div class="brow"><span><b>${esc(ReviewLogic.scaleWord(k))}</b> <small style="color:var(--text-muted)">${esc(t('help.scale.' + k))}</small></span>
             <div class="progressbar"><div style="width:${n / maxR * 100}%"></div></div><b>${n}</b></div>`).join('')}</div></div>
       </div>
 
@@ -1490,7 +1490,7 @@
 
       <div class="card"><h2>${icon('spark', 18)}${esc(t('help.scaleTitle'))}</h2>
         <div class="bars">${ReviewLogic.SCALE_DEF.map(sd => `
-          <div class="brow"><span><b>${sd.k}</b></span><span style="grid-column:span 2">${esc(ReviewLogic.scaleLabel(sd.k))}</span></div>`).join('')}</div></div>
+          <div class="brow"><span><b>${esc(ReviewLogic.scaleWord(sd.k))}</b></span><span style="grid-column:span 2">${esc(ReviewLogic.scaleLabel(sd.k))}</span></div>`).join('')}</div></div>
 
       <div class="grid cols-2">
         <div class="card"><h2>${icon('play', 18)}${esc(t('help.tutorials'))}</h2>

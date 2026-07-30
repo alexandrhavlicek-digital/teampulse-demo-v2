@@ -77,6 +77,8 @@
     { k: 'TN' }, { k: 'PO' }, { k: 'KV' }, { k: 'NR' }, { k: 'NU' }, { k: 'NA' },
   ];
   const scaleLabel = k => t('help.scale.' + (k === 'NA' ? 'NA' : k));
+  /* slovní podoba stupně - uživatelé nikdy nevidí zkratky TN/PO/KV… */
+  const scaleWord = k => k ? t('scale.short.' + (k === 'NA' ? 'NA' : k)) : '-';
   const RATING_VALUE = { TN: 1.2, PO: 1.1, KV: 1.0, NR: 0.85, NU: 0.7 };
 
   function daysLeft(r) { return Math.ceil((r.deadline - Date.now()) / 86400000); }
@@ -131,7 +133,7 @@
 
   /* materializeNewGoals + applySemiChanges jsou function declarations níže (hoisting) -
      export pro Copilot, aby potvrzení hodnocení chatem dělalo totéž co UI */
-  window.ReviewLogic = { daysLeft, risk, SCALE_DEF, scaleLabel, RATING_VALUE, computeScore, band, materializeNewGoals, applySemiChanges };
+  window.ReviewLogic = { daysLeft, risk, SCALE_DEF, scaleLabel, scaleWord, RATING_VALUE, computeScore, band, materializeNewGoals, applySemiChanges };
 
   function getReview(id) { return Store.get('reviews', id); }
   function person(id) { return Store.get('people', id); }
@@ -144,12 +146,12 @@
   function scaleRowHtml(name, selected, readOnly) {
     return `<div class="scale-row" data-scale="${name}">` + SCALE_DEF.map(s =>
       `<button type="button" class="scale-opt ${selected === s.k ? 'sel' : ''} ${readOnly ? 'ghost' : ''}"
-        data-val="${s.k}" ${readOnly ? 'disabled' : ''}><b>${s.k}</b>${esc(scaleLabel(s.k))}</button>`
+        data-val="${s.k}" ${readOnly ? 'disabled' : ''}><b>${esc(scaleWord(s.k))}</b>${esc(scaleLabel(s.k))}</button>`
     ).join('') + `</div>`;
   }
   function scaleRowSmHtml(name, selected) {
     return `<div class="scale-row sm" data-scale="${name}">` + SCALE_DEF.map(x =>
-      `<button type="button" class="scale-opt ${selected === x.k ? 'sel' : ''}" data-val="${x.k}" title="${esc(scaleLabel(x.k))}"><b>${x.k}</b></button>`
+      `<button type="button" class="scale-opt ${selected === x.k ? 'sel' : ''}" data-val="${x.k}" title="${esc(scaleLabel(x.k))}"><b>${esc(scaleWord(x.k))}</b></button>`
     ).join('') + `</div>`;
   }
 
@@ -446,8 +448,8 @@
         ${items.map(g => `<p style="margin:6px 0 0 2px;font-size:.92rem">
           · ${esc(g.title)} <span class="badge">${g.weight} %</span>
           ${kpiChip(g.kpiRef)}
-          ${g.rating ? `<span class="badge">${esc(t('misc.you'))}: ${g.rating}</span>` : ''}
-          ${g.mgrRating ? `<span class="badge b-blue">${g.mgrRating}</span>` : ''}
+          ${g.rating ? `<span class="badge">${esc(t('misc.you'))}: ${esc(scaleWord(g.rating))}</span>` : ''}
+          ${g.mgrRating ? `<span class="badge b-blue">${esc(scaleWord(g.mgrRating))}</span>` : ''}
           ${g.mgrNote ? `<span style="color:var(--text-muted);font-size:.84rem"> - ${esc(g.mgrNote)}</span>` : ''}
           ${opts.showConfirm ? (g.mgrConfirmed ? `<span class="badge b-green">${icon('check', 11)} ${esc(t('goals.confirmed'))}</span>` : `<span class="badge b-amber">${esc(t('goals.notConfirmed'))}</span>`) : ''}
           ${g.outcome ? `<br><span style="color:var(--text-muted);font-size:.85rem;margin-left:12px">${esc(g.outcome)}</span>` : ''}
@@ -463,8 +465,8 @@
         <p><b>${esc(t('rev.q.success'))}</b><br>${esc(f.self.success) || '-'}</p>
         <p style="margin-top:8px"><b>${esc(t('rev.q.challenge'))}</b><br>${esc(f.self.challenge) || '-'}</p>
         <p style="margin-top:8px"><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve) || '-'}</p>
-        ${(compFramework() && f.compRatings) ? `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${compFramework().map(c => `${esc(c.title)}: <b>${f.compRatings.self[c.key] || '-'}</b>`).join(' · ')}</p>`
-          : `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${AREAS.map(a => `${esc(areaName(a))}: <b>${f.self.areas[a] || '-'}</b>`).join(' · ')}</p>`}
+        ${(compFramework() && f.compRatings) ? `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${compFramework().map(c => `${esc(c.title)}: <b>${esc(scaleWord(f.compRatings.self[c.key]))}</b>`).join(' · ')}</p>`
+          : `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${AREAS.map(a => `${esc(areaName(a))}: <b>${esc(scaleWord(f.self.areas[a]))}</b>`).join(' · ')}</p>`}
         ${f.goalsEval.length ? `<div style="margin-top:8px"><b>${esc(t('rev.goalsEval'))}</b>${goalsByAreaHtml(f.goalsEval)}</div>` : ''}
         ${f.newGoals.length ? `<div style="margin-top:12px"><b>${esc(t('rev.goalsNew'))}</b>${goalsByAreaHtml(f.newGoals)}</div>` : ''}
         ${f.trainings.length ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.trainings.map(esc).join(', ')}</p>` : ''}
@@ -546,7 +548,7 @@
           <div style="flex:1;min-width:220px">
             <b>${esc(g.title)}</b>
             <span class="badge">${g.weight} %</span> ${kpiChip(g.kpiRef)}
-            ${kind === 'eval' && g.rating ? `<span class="badge">${esc(t('misc.you'))}: ${g.rating}</span>` : ''}
+            ${kind === 'eval' && g.rating ? `<span class="badge">${esc(t('misc.you'))}: ${esc(scaleWord(g.rating))}</span>` : ''}
             ${g.mgrDecision === 'discuss' ? `<span class="badge b-amber">${esc(t('rev.goalDiscuss'))}</span>` : ''}
             ${g.outcome ? `<div style="font-size:.84rem;color:var(--text-muted);margin-top:3px">${esc(g.outcome)}</div>` : ''}
             ${g.desc && kind === 'new' ? `<div style="font-size:.84rem;color:var(--text-muted);margin-top:3px">${esc(g.desc)}</div>` : ''}
@@ -621,11 +623,11 @@
           if (!comps.length) return '';
           const cr = ensureCompRatings(f);
           return `<div style="font-weight:650;margin:10px 0 4px">${esc(areaName(a))}</div>` + comps.map(c => `
-            <div class="field"><label>${esc(c.title)} <span class="badge">${c.weight} %</span> <span class="badge">${esc(t('misc.you'))}: ${cr.self[c.key] || '-'}</span></label>
+            <div class="field"><label>${esc(c.title)} <span class="badge">${c.weight} %</span> <span class="badge">${esc(t('misc.you'))}: ${esc(scaleWord(cr.self[c.key]))}</span></label>
               ${scaleRowHtml('mgrc.' + c.key, cr.mgr[c.key])}</div>`).join('')
             + `<textarea class="input" style="margin:4px 0 12px;min-height:54px" data-ac="${a}" placeholder="${esc(areaName(a))} - ${esc(t('rev.summary'))}…">${esc(f.mgr.areaComments[a])}</textarea>`;
         }).join('') : AREAS.map(a => `
-          <div class="field"><label>${esc(areaName(a))} <span class="badge">${esc(t('misc.you'))}: ${f.self.areas[a] || '-'}</span></label>
+          <div class="field"><label>${esc(areaName(a))} <span class="badge">${esc(t('misc.you'))}: ${esc(scaleWord(f.self.areas[a]))}</span></label>
             ${scaleRowHtml('mgr.' + a, f.mgr.areas[a])}
             <textarea class="input" style="margin-top:8px;min-height:60px" data-ac="${a}" placeholder="${esc(t('rev.summary'))}…">${esc(f.mgr.areaComments[a])}</textarea>
           </div>`).join('')}
@@ -637,7 +639,7 @@
           const disputed = f.goalsEval.concat(f.newGoals).filter(g => g.mgrDecision === 'discuss');
           return disputed.length ? `<div class="callout" style="margin-bottom:12px;background:color-mix(in srgb, var(--warn) 14%, transparent);color:var(--warn)">
             ${icon('checkin', 16)} <span><b>${esc(t('rev.discussList'))}:</b><br>${disputed.map(g =>
-              `· ${esc(g.title)}${g.rating || g.mgrRating ? ` (${esc(t('misc.you'))} ${g.rating || '-'} × ${g.mgrRating || '-'})` : ''}${g.mgrNote ? ' - ' + esc(g.mgrNote) : ''}`).join('<br>')}</span></div>` : '';
+              `· ${esc(g.title)}${g.rating || g.mgrRating ? ` (${esc(t('misc.you'))} ${esc(scaleWord(g.rating))} × ${esc(scaleWord(g.mgrRating))})` : ''}${g.mgrNote ? ' - ' + esc(g.mgrNote) : ''}`).join('<br>')}</span></div>` : '';
         })()}
         <div class="field"><label>${esc(t('rev.mgr.talking'))}</label><textarea class="input" data-m="talking">${esc(f.mgr.talking)}</textarea></div>
         <div class="field"><label>${icon('lock', 14)} ${esc(t('rev.privateNote'))}</label>
@@ -1050,11 +1052,11 @@
         <h2>${icon('target', 18)}${esc(t('rev.managerSection'))}</h2>
         ${(compFramework() && f.compRatings) ? compFramework().map(c =>
           `<p style="margin-bottom:6px"><b>${esc(c.title)}</b> <span class="badge">${c.weight} %</span>
-           <span class="badge">${esc(t('misc.you'))}: ${f.compRatings.self[c.key] || '-'}</span>
-           <span class="badge b-blue">${f.compRatings.mgr[c.key] || '-'}</span></p>`).join('')
+           <span class="badge">${esc(t('misc.you'))}: ${esc(scaleWord(f.compRatings.self[c.key]))}</span>
+           <span class="badge b-blue">${esc(scaleWord(f.compRatings.mgr[c.key]))}</span></p>`).join('')
           + AREAS.map(a => f.mgr.areaComments[a] ? `<p style="margin-bottom:6px;color:var(--text-muted)"><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</p>` : '').join('')
         : AREAS.map(a => `<p style="margin-bottom:6px"><b>${esc(areaName(a))}:</b>
-          <span class="badge b-blue">${f.mgr.areas[a] || '-'}</span> ${esc(f.mgr.areaComments[a])}</p>`).join('')}
+          <span class="badge b-blue">${esc(scaleWord(f.mgr.areas[a]))}</span> ${esc(f.mgr.areaComments[a])}</p>`).join('')}
         <p style="margin-top:8px"><b>${esc(t('rev.mgr.strengths'))}:</b> ${esc(f.mgr.strengths) || '-'}</p>
         <p style="margin-top:6px"><b>${esc(t('rev.mgr.growthAreas'))}:</b> ${esc(f.mgr.growthAreas) || '-'}</p>
         <p style="margin-top:6px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.mgr.summary) || '-'}</p>
@@ -1095,7 +1097,7 @@
     const score = computeScore(f), b = band(score);
     const goalTable = (list, withOutcome) => `<table><tr><th>${esc(t('goals.area'))}</th><th>${esc(t('goals.name'))}</th><th>${esc(t('goals.weight'))}</th><th>KPI</th>${withOutcome ? `<th>Rating</th><th>${esc(t('rev.summary'))}</th>` : ''}<th>${esc(t('goals.confirmed'))}</th></tr>
       ${AREAS.map(a => list.filter(g => g.areaKey === a).map(g =>
-        `<tr><td>${esc(areaName(a))}</td><td>${esc(g.title)}</td><td>${g.weight} %</td><td>${esc(kpiName(g.kpiRef) || '-')}</td>${withOutcome ? `<td>${g.rating || '-'} / ${g.mgrRating || '-'}</td><td>${esc(g.outcome || '')}${g.mgrNote ? ' · ' + esc(g.mgrNote) : ''}</td>` : ''}<td>${g.mgrConfirmed ? '✓' : '-'}</td></tr>`).join('')).join('')}
+        `<tr><td>${esc(areaName(a))}</td><td>${esc(g.title)}</td><td>${g.weight} %</td><td>${esc(kpiName(g.kpiRef) || '-')}</td>${withOutcome ? `<td>${esc(scaleWord(g.rating))} / ${esc(scaleWord(g.mgrRating))}</td><td>${esc(g.outcome || '')}${g.mgrNote ? ' · ' + esc(g.mgrNote) : ''}</td>` : ''}<td>${g.mgrConfirmed ? '✓' : '-'}</td></tr>`).join('')).join('')}
     </table>`;
     const pr = document.getElementById('print-root');
     pr.innerHTML = `
@@ -1108,11 +1110,11 @@
       <p><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve)}</p>
       <h2>${esc(t('rev.areas'))}</h2>
       ${(compFramework() && f.compRatings) ? `<table><tr><th></th><th>${esc(t('goals.weight'))}</th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th></tr>
-        ${compFramework().map(c => `<tr><td>${esc(c.title)} <i>(${esc(areaName(c.areaKey))})</i></td><td>${c.weight} %</td><td>${f.compRatings.self[c.key] || '-'}</td><td>${f.compRatings.mgr[c.key] || '-'}</td></tr>`).join('')}
+        ${compFramework().map(c => `<tr><td>${esc(c.title)} <i>(${esc(areaName(c.areaKey))})</i></td><td>${c.weight} %</td><td>${esc(scaleWord(f.compRatings.self[c.key]))}</td><td>${esc(scaleWord(f.compRatings.mgr[c.key]))}</td></tr>`).join('')}
       </table>
       ${AREAS.map(a => f.mgr.areaComments[a] ? `<p><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</p>` : '').join('')}`
       : `<table><tr><th></th><th>${esc(t('misc.you'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.summary'))}</th></tr>
-        ${AREAS.map(a => `<tr><td>${esc(areaName(a))}</td><td>${f.self.areas[a] || '-'}</td><td>${f.mgr.areas[a] || '-'}</td><td>${esc(f.mgr.areaComments[a])}</td></tr>`).join('')}
+        ${AREAS.map(a => `<tr><td>${esc(areaName(a))}</td><td>${esc(scaleWord(f.self.areas[a]))}</td><td>${esc(scaleWord(f.mgr.areas[a]))}</td><td>${esc(f.mgr.areaComments[a])}</td></tr>`).join('')}
       </table>`}
       ${f.goalsEval.length ? `<h2>${esc(t('rev.goalsEval'))}</h2>${goalTable(f.goalsEval, true)}` : ''}
       ${f.newGoals.length ? `<h2>${esc(t('rev.goalsNew'))}</h2>${goalTable(f.newGoals, false)}` : ''}
