@@ -838,6 +838,43 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   Store.patchSettings({ viewAs: null });
 })();
 
+/* --- 19) alignment cílů (cíl → týmové/firemní KPI) --- */
+(function () {
+  I18N.setLocale('cs');
+  Generator.install('travel', 60);
+  const pool = Store.list('goals').filter(g => g.type === 'personal');
+  const tree = GoalAlign.build(pool);
+  const co19 = Store.getCompany();
+  ok(tree.company.length === (co19.kpis || []).length, `strom: uzel pro každé firemní KPI (${tree.company.length})`);
+  ok(tree.teams.length === (co19.teamKpis || []).length, `strom: uzel pro každé týmové KPI (${tree.teams.length})`);
+  const inTree = tree.company.concat(tree.teams).reduce((s, x) => s + x.goals.length, 0);
+  ok(inTree + tree.unlinked.length === pool.length, 'strom: každý cíl právě jednou (navázané + nenavázané = vše)');
+  ok(tree.company.some(x => x.goals.length > 0), 'seed: aspoň jedno firemní KPI má navázané cíle');
+  ok(tree.stats.linked === pool.length - tree.unlinked.length && tree.stats.linkedPct >= 0 && tree.stats.linkedPct <= 100, 'statistiky: linked + procento konzistentní');
+  ok(tree.stats.orphanKpis === tree.company.filter(x => !x.goals.length).length + tree.teams.filter(x => !x.goals.length).length, 'statistiky: orphan KPI sedí');
+  /* prázdný pool nesmí spadnout */
+  const empty19 = GoalAlign.build([]);
+  ok(empty19.stats.total === 0 && empty19.stats.linkedPct === 0, 'prázdný pool: 0 bez dělení nulou');
+  /* kpiRef vazby ukazují na existující KPI (integrita seedu) */
+  const badRef = pool.filter(g => g.kpiRef && !(
+    (g.kpiRef.type === 'company' && (co19.kpis || []).some(k => String(k.id) === String(g.kpiRef.id))) ||
+    (g.kpiRef.type === 'team' && (co19.teamKpis || []).some(k => String(k.id) === String(g.kpiRef.id)))));
+  ok(badRef.length === 0, `integrita: žádný cíl neukazuje na neexistující KPI (${badRef.length})`);
+  /* UI: záložka v sekci Cíle + role scope (zdrojová kontrola) */
+  const appSrc19 = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc19.includes('data-gl-tab="align"') && appSrc19.includes('renderAlign'), 'sekce Cíle má záložku Alignment');
+  ok(appSrc19.includes("va.role === 'manager' ? all.filter"), 'alignment: scope dle role (mgr = přímý tým)');
+  /* i18n úplnost */
+  let miss19 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['gal.tabList', 'gal.tab', 'gal.sub', 'gal.linkedPct', 'gal.linked', 'gal.orphan',
+     'gal.noGoals', 'gal.unlinked', 'gal.unlinkedHint', 'gal.empty', 'gal.more', 'cop.h.align'].forEach(k => { if (t(k) === k) miss19.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss19.length === 0, miss19.length ? 'chybí klíče: ' + miss19.join(', ') : 'alignment i18n kompletní (cs/en/de)');
+})();
+
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }

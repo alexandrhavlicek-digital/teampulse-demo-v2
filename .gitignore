@@ -2,3 +2,4 @@
 .claude/
 wrangler.toml
 .wrangler/
+_to_delete/

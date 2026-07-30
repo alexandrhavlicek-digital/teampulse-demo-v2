@@ -1329,7 +1329,8 @@
   function rHowto(th, text) {
     const n = norm(text);
     const topics = [
-      ['hodnocen|review', 'cop.h.review', '#/myreviews'], ['cil|goal', 'cop.h.goals', '#/goals'],
+      ['hodnocen|review', 'cop.h.review', '#/myreviews'], ['alignment|kaskad', 'cop.h.align', '#/goals'],
+      ['cil|goal', 'cop.h.goals', '#/goals'],
       ['kudos|uznani|pochval', 'cop.h.kudos', '#/kudos'], ['konstruktivn|vazb', 'cop.h.fb', '#/kudos'],
       ['1 ?: ?1|check', 'cop.h.checkin', '#/checkins'],
       ['nps|puls', 'cop.h.nps', '#/home'], ['360', 'cop.h.f360', '#/people'],

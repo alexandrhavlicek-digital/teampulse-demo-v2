@@ -45,6 +45,7 @@ Autosave po každé změně; BACK se vrací na předchozí krok; rozpracovaný w
 - **Váhy v oblasti = přesně 100 %** (presety 50/50, 30/30/40, 4×25, 5×20; editovatelné). Validace ve wizardu (krok 4) i při manažerském uzavření.
 - **Vazba na KPI** (`kpiRef = {type: company|team, id}`): povinná pro teamwork a quality, volitelná pro growth (`KPI_REQUIRED`).
 - Cíle navrhuje hodnocený (krok 4, předvyplněno rolloverem z běžících cílů), manažer potvrzuje. Po `confirmed` se nové cíle materializují do dalšího období (`materializeNewGoals`).
+- **Alignment pohled (2026-07-30):** sekce Cíle má druhou záložku **Alignment** (`GoalAlign.build`, `renderAlign`) — strom firemní KPI / týmové KPI → navázané osobní cíle (přes existující `kpiRef`, žádná nová data ani OKR kaskáda). Statistiky: % cílů navázaných na KPI, počet KPI bez jediného cíle (nepokrytá strategie, jen mgr/HR), sekce nenavázaných (rozvojových) cílů. Scope dle role: zaměstnanec vlastní cíle (KPI bez vlastního cíle se skrývají), manažer sebe + přímý tým + orphan týmové KPI svého oddělení, HR vše (max 10 řádků cílů na KPI, zbytek „+ N dalších").
 
 ## 6. Kompetenční rámec
 

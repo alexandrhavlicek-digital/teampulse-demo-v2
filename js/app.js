@@ -562,6 +562,86 @@
   views.review = (root, id) => ReviewViews.renderDetail(root, id);
 
   /* ---- goals ---- */
+  /* ---- alignment: vazba cíl → týmové/firemní KPI (lehký pohled, ne OKR kaskáda) ---- */
+  function alignBuild(pool) {
+    const co = Store.getCompany() || { kpis: [], teamKpis: [] };
+    const byKpi = (type, id) => pool.filter(g => g.kpiRef && g.kpiRef.type === type && String(g.kpiRef.id) === String(id));
+    const company = (co.kpis || []).map(k => ({ kpi: k, goals: byKpi('company', k.id) }));
+    const teams = (co.teamKpis || []).map(k => ({ kpi: k, goals: byKpi('team', k.id) }));
+    const unlinked = pool.filter(g => !g.kpiRef);
+    const linked = pool.length - unlinked.length;
+    return {
+      company, teams, unlinked,
+      stats: {
+        total: pool.length, linked,
+        linkedPct: pool.length ? Math.round(linked / pool.length * 100) : 0,
+        orphanKpis: company.filter(x => !x.goals.length).length + teams.filter(x => !x.goals.length).length,
+      },
+    };
+  }
+  window.GoalAlign = { build: alignBuild };
+
+  function renderAlign(body, va, me, all) {
+    /* scope dle role: zaměstnanec vlastní cíle, manažer sebe + přímý tým, HR vše */
+    const pool = va.role === 'hr' ? all
+      : va.role === 'manager' ? all.filter(g => g.ownerId === va.personId || ((person(g.ownerId) || {}).managerId === va.personId))
+      : all.filter(g => g.ownerId === va.personId);
+    const tree = alignBuild(pool);
+    const showAvatars = va.role !== 'employee';
+
+    const alGoal = g => {
+      const owner = person(g.ownerId);
+      return `<div class="al-goal">
+        ${showAvatars && owner ? avatar(owner, 24) : icon('target', 14)}
+        <b>${esc(g.title)}</b>
+        <span class="badge">${esc(t('rev.area.' + g.areaKey))}</span>
+        <span class="badge">${g.weight} %</span>
+        ${showAvatars && owner ? `<small style="color:var(--text-muted)">${esc(owner.name)}</small>` : ''}
+        <span style="flex:1"></span>
+        <div class="progressbar al-bar"><div style="width:${g.progress}%"></div></div>
+        <b class="al-pct">${g.progress}%</b></div>`;
+    };
+    /* zaměstnanec vidí jen KPI, ke kterým má vlastní cíl; mgr navíc orphan KPI svého oddělení; HR vše */
+    const kpiVisible = (x, kind) => x.goals.length > 0
+      || va.role === 'hr'
+      || (kind === 'team' && va.role === 'manager' && me && x.kpi.deptKey === me.deptKey);
+    const cap = va.role === 'hr' ? 10 : 99; /* HR u velké firmy: max 10 řádků na KPI */
+    const kpiNode = (x, kind) => {
+      if (!kpiVisible(x, kind)) return '';
+      const k = x.kpi;
+      return `<div class="al-node">
+        <div class="al-head">
+          ${icon(kind === 'company' ? 'building' : 'team', 15)}
+          <b>${esc(k.title)}</b>
+          ${kind === 'team' ? `<span class="badge">${esc(k.dept)}</span>` : ''}
+          ${x.goals.length ? `<span class="badge b-blue">${x.goals.length}×</span>`
+            : `<span class="badge b-amber">${esc(t('gal.noGoals'))}</span>`}
+          <span style="flex:1"></span>
+          <div class="progressbar al-bar"><div style="width:${k.current}%"></div></div>
+          <b class="al-pct">${k.current}%</b>
+        </div>
+        ${x.goals.length ? `<div class="al-goals">${x.goals.slice(0, cap).map(alGoal).join('')}
+          ${x.goals.length > cap ? `<div class="al-goal" style="color:var(--text-muted)">+ ${x.goals.length - cap} ${esc(t('gal.more'))}</div>` : ''}</div>` : ''}
+      </div>`;
+    };
+
+    const companyHtml = tree.company.map(x => kpiNode(x, 'company')).join('');
+    const teamHtml = tree.teams.map(x => kpiNode(x, 'team')).join('');
+    body.innerHTML = `
+      <div class="grid ${va.role === 'employee' ? 'cols-2' : 'cols-3'}">
+        <div class="card"><div class="kpi-num">${tree.stats.linkedPct} %</div><div class="kpi-label">${esc(t('gal.linkedPct'))}</div></div>
+        <div class="card"><div class="kpi-num">${tree.stats.linked}/${tree.stats.total}</div><div class="kpi-label">${esc(t('gal.linked'))}</div></div>
+        ${va.role === 'employee' ? '' : `<div class="card"><div class="kpi-num" style="color:${tree.stats.orphanKpis ? 'var(--warn)' : 'var(--ok)'}">${tree.stats.orphanKpis}</div><div class="kpi-label">${esc(t('gal.orphan'))}</div></div>`}
+      </div>
+      ${companyHtml ? `<div class="card"><h2>${icon('building', 18)}${esc(t('goals.company'))}</h2><div class="al-tree">${companyHtml}</div></div>` : ''}
+      ${teamHtml ? `<div class="card"><h2>${icon('team', 18)}${esc(t('hr.teamKpis'))}</h2><div class="al-tree">${teamHtml}</div></div>` : ''}
+      ${tree.unlinked.length ? `<div class="card"><h2>${icon('sprout', 18)}${esc(t('gal.unlinked'))}</h2>
+        <p class="page-sub" style="margin-bottom:6px">${esc(t('gal.unlinkedHint'))}</p>
+        <div class="al-tree"><div class="al-goals al-flat">${tree.unlinked.map(alGoal).join('')}</div></div></div>` : ''}
+      ${!companyHtml && !teamHtml && !tree.unlinked.length ? `<div class="card"><div class="empty">${icon('target', 52)}<br>${esc(t('gal.empty'))}</div></div>` : ''}`;
+  }
+
+  const glUi = { tab: 'list' };
   views.goals = root => {
     const va = viewAs();
     const co = Store.getCompany() || { kpis: [], teamKpis: [], goalPolicy: Generator.DEFAULT_GOAL_POLICY };
@@ -595,13 +675,22 @@
         ${items.length ? items.slice(0, va.role === 'hr' ? 30 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>`;
     };
 
+    const alignTab = glUi.tab === 'align';
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <h1 class="page-title" style="margin:0">${esc(t('goals.title'))}</h1>
+        <span class="lang-seg">
+          <button data-gl-tab="list" class="${!alignTab ? 'on' : ''}">${esc(t('gal.tabList'))}</button>
+          <button data-gl-tab="align" class="${alignTab ? 'on' : ''}">${esc(t('gal.tab'))}</button>
+        </span>
         <span style="flex:1"></span>
-        <button class="btn btn-primary btn-sm" id="g-add">${icon('plus', 15)} ${esc(t('goals.add'))}</button>
+        ${alignTab ? '' : `<button class="btn btn-primary btn-sm" id="g-add">${icon('plus', 15)} ${esc(t('goals.add'))}</button>`}
       </div>
-      <p class="page-sub">${esc(t('goals.sub'))}</p>
+      <p class="page-sub">${esc(alignTab ? t('gal.sub') : t('goals.sub'))}</p>
+      <div id="g-body"></div>`;
+    root.querySelectorAll('[data-gl-tab]').forEach(b => b.onclick = () => { glUi.tab = b.dataset.glTab; views.goals(root); });
+    if (alignTab) { renderAlign(root.querySelector('#g-body'), va, me, all); return; }
+    root.querySelector('#g-body').innerHTML = `
       ${co.kpis && co.kpis.length ? `<div class="card"><h2>${icon('building', 18)}${esc(t('goals.company'))}</h2>
         <div class="bars">${co.kpis.map(k => `
           <div class="brow"><span title="${esc(k.desc)}">${esc(k.title)}</span>
