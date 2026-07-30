@@ -1574,54 +1574,68 @@
     TalentViews.renderCheck(root, va.role === 'hr' ? param : null);
   };
 
-  /* ---- help (role-based) ---- */
+  /* ---- help: knowledge base s hledáním a changelogem (obsah v js/help.js) ---- */
   let helpTab = null;
-  views.help = root => {
+  const helpUi = { q: '' };
+  views.help = (root, param) => {
+    if (param === 'news') helpTab = 'news';
     if (!helpTab) helpTab = viewAs().role || 'employee';
-    const STEPS = { employee: 7, manager: 8, hr: 7 };
-    const MODN = { employee: 4, manager: 8, hr: 8 };
-    const TAB_ICO = { employee: 'doc', manager: 'target', hr: 'gauge' };
+
+    const topicCard = (tp, hitIdx) => `
+      <div class="card" id="help-${tp.id}"><h2>${icon(tp.ico, 18)}${esc(tp.title)}
+          ${hitIdx ? `<span class="badge b-blue" style="margin-left:8px">${tp.roles.map(rl => esc(t('role.' + rl))).join(' · ')}</span>` : ''}
+          <button class="btn btn-sm" style="margin-left:auto" data-hopen="${tp.hash}">${icon('arrowR', 13)} ${esc(t('help.open'))}</button></h2>
+        <ul class="timeline">${tp.items.map((it, i) =>
+          `<li ${hitIdx && hitIdx.includes(i) ? 'class="help-hit"' : ''}><span class="tday">${tp.numbered ? (i + 1) + '.' : '·'}</span>${esc(it)}</li>`).join('')}</ul>
+      </div>`;
+
     root.innerHTML = `
       <h1 class="page-title">${esc(t('help.title'))}</h1><p class="page-sub">${esc(t('help.sub'))} ${esc(t('help.roleIntro'))}</p>
-      <div class="lang-seg" style="margin-bottom:18px">${['employee', 'manager', 'hr'].map(rl =>
-        `<button data-htab="${rl}" class="${helpTab === rl ? 'on' : ''}" style="padding:9px 18px;font-size:.88rem">${esc(t('role.' + rl))}</button>`).join('')}</div>
-
-      <div class="card"><h2>${icon(TAB_ICO[helpTab], 18)}${esc(t('help.' + helpTab + '.title'))}</h2>
-        <ul class="timeline">${Array.from({ length: STEPS[helpTab] }, (_, i) =>
-          `<li><span class="tday">${i + 1}.</span>${esc(t('help.' + helpTab + '.' + (i + 1)))}</li>`).join('')}</ul>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+        <div class="lang-seg">${['employee', 'manager', 'hr', 'news'].map(rl =>
+          `<button data-htab="${rl}" class="${helpTab === rl ? 'on' : ''}" style="padding:9px 16px;font-size:.88rem">${esc(rl === 'news' ? t('help.news') : t('role.' + rl))}</button>`).join('')}</div>
+        <div class="filterbar" style="flex:1;min-width:220px;margin:0">${icon('search', 15)}
+          <input class="input" id="help-q" placeholder="${esc(t('help.searchPh'))}" value="${esc(helpUi.q)}"></div>
       </div>
+      <div id="help-body"></div>`;
 
-      <div class="card"><h2>${icon('grid9', 18)}${esc(t('help.mod.title'))}</h2>
-        <p class="page-sub" style="margin-bottom:10px">${esc(t('help.mod.sub'))}</p>
-        <ul class="timeline">${Array.from({ length: MODN[helpTab] }, (_, i) =>
-          `<li><span class="tday">·</span>${esc(t('help.mod.' + helpTab + '.' + (i + 1)))}</li>`).join('')}</ul>
-      </div>
-
-      <div class="card"><h2>${icon('calendar', 18)}${esc(t('help.types.title'))}</h2>
-        <ul class="timeline">${[1, 2, 3].map(i =>
-          `<li><span class="tday">·</span>${esc(t('help.types.' + i))}</li>`).join('')}</ul>
-      </div>
-
-      <div class="card"><h2>${icon('spark', 18)}${esc(t('help.goalsModel.title'))}</h2>
-        <ul class="timeline">${[1, 2, 3, 4].map(i =>
-          `<li><span class="tday">·</span>${esc(t('help.goalsModel.' + i))}</li>`).join('')}</ul>
-      </div>
-
-      <div class="card"><h2>${icon('refresh', 18)}${esc(t('help.flowTitle'))}</h2>
-        <ul class="timeline">${[1, 2, 3, 4, 5].map(i => `<li><span class="tday">${i}.</span>${esc(t('help.flow.' + i))}</li>`).join('')}</ul>
-        <p class="callout" style="margin-top:12px">${icon('heartPulse', 18)} ${esc(t('help.principle'))}</p></div>
-
-      <div class="card"><h2>${icon('spark', 18)}${esc(t('help.scaleTitle'))}</h2>
-        <div class="bars">${ReviewLogic.SCALE_DEF.map(sd => `
-          <div class="brow"><span><b>${esc(ReviewLogic.scaleWord(sd.k))}</b></span><span style="grid-column:span 2">${esc(ReviewLogic.scaleLabel(sd.k))}</span></div>`).join('')}</div></div>
-
-      <div class="grid cols-2">
-        <div class="card"><h2>${icon('play', 18)}${esc(t('help.tutorials'))}</h2>
-          <div class="empty" style="padding:24px">${icon('play', 44)}<br>Onboarding videa - spravuje HR (CMS)</div></div>
-        <div class="card"><h2>${icon('folder', 18)}${esc(t('help.docs'))}</h2>
-          <div class="empty" style="padding:24px">${icon('folder', 44)}<br>Směrnice, handbook, šablony - spravuje HR</div></div>
-      </div>`;
-    root.querySelectorAll('[data-htab]').forEach(btn => btn.onclick = () => { helpTab = btn.dataset.htab; views.help(root); });
+    const body = root.querySelector('#help-body');
+    const draw = () => {
+      if (helpUi.q.trim().length >= 2) {
+        /* hledání jde napříč VŠEMI tématy bez ohledu na roli */
+        const res = HelpKB.search(helpUi.q);
+        body.innerHTML = res.length
+          ? res.map(r => topicCard(r.topic, r.hits.length ? r.hits : [0])).join('')
+          : `<div class="card"><div class="empty">${icon('search', 44)}<br>${esc(t('help.noResults'))}</div></div>`;
+      } else if (helpTab === 'news') {
+        body.innerHTML = `<div class="card"><h2>${icon('spark', 18)}${esc(t('help.newsTitle'))}</h2>
+          <p class="page-sub" style="margin-bottom:10px">${esc(t('help.newsSub'))}</p>
+          ${HelpKB.changelog().map(e => `
+            <div class="help-log">
+              <span class="badge">${esc(e.date)}</span>
+              <span class="hl-ico">${icon(e.ico, 16)}</span>
+              <div style="flex:1;min-width:200px"><b>${esc(e.title)}</b><br><span style="font-size:.88rem;color:var(--text-muted)">${esc(e.desc)}</span></div>
+              <button class="btn btn-sm" data-hopen="${e.hash}">${icon('arrowR', 13)} ${esc(t('help.open'))}</button>
+            </div>`).join('')}</div>`;
+      } else {
+        body.innerHTML = HelpKB.topics(helpTab).map(tp => topicCard(tp)).join('')
+          + `<div class="card"><h2>${icon('spark', 18)}${esc(t('help.scaleTitle'))}</h2>
+            <div class="bars">${ReviewLogic.SCALE_DEF.map(sd => `
+              <div class="brow"><span><b>${esc(ReviewLogic.scaleWord(sd.k))}</b></span><span style="grid-column:span 2">${esc(ReviewLogic.scaleLabel(sd.k))}</span></div>`).join('')}</div>
+            <p class="callout" style="margin-top:12px">${icon('heartPulse', 18)} ${esc(t('help.principle'))}</p></div>
+          <div class="grid cols-2">
+            <div class="card"><h2>${icon('play', 18)}${esc(t('help.tutorials'))}</h2>
+              <div class="empty" style="padding:24px">${icon('play', 44)}<br>Onboarding videa - spravuje HR (CMS)</div></div>
+            <div class="card"><h2>${icon('folder', 18)}${esc(t('help.docs'))}</h2>
+              <div class="empty" style="padding:24px">${icon('folder', 44)}<br>Směrnice, handbook, šablony - spravuje HR</div></div>
+          </div>`;
+      }
+      body.querySelectorAll('[data-hopen]').forEach(b => b.onclick = () => { location.hash = b.dataset.hopen; });
+    };
+    draw();
+    const qi = root.querySelector('#help-q');
+    qi.oninput = () => { helpUi.q = qi.value; draw(); }; /* překresluje jen tělo - input drží fokus */
+    root.querySelectorAll('[data-htab]').forEach(btn => btn.onclick = () => { helpTab = btn.dataset.htab; helpUi.q = ''; views.help(root); });
   };
 
   /* ---- settings ---- */

@@ -183,6 +183,7 @@
     whois: /(kdo je|kdo to je|co je zac|who is|wer ist|profil |karta )/,
     myteam: /(muj tym|muj tym|meho tymu|mem tymu|my team|mein team|jak je na tom tym)/,
     notif: /(co (je|mam) noveho|novink|notifikac|notification|upozornen|neuigkeit)/,
+    changelog: /(changelog|(nov\w*|co je noveho|co umi noveho|what.?s new|neue?)\s*\w*\s*(aplikac|funkc|featur|system|demo|verz|app\b)|(aplikac|app)\w*\s+(noveho|umi noveho))/,
     scaleQ: /(skal[aeu]|stupnic|scale|co znamena (tn|po|kv|nr|nu)|rating (levels|scale))/,
     talent: /(talent|9.?box|matice|nastupnic|succession|klicov\S* pozic|retenc)/,
     theme: /(tema|theme|design|vzhled|dark|svetl)/,
@@ -228,6 +229,7 @@
     if (RX.personAdd.test(n)) return 'personAdd';
     if (RX.cycle.test(n)) return 'cycle';
     if (RX.talent.test(n)) return 'r.talent';
+    if (RX.changelog.test(n)) return 'r.changelog';
     if (RX.notif.test(n)) return 'r.notif';
     if (RX.scaleQ.test(n)) return 'r.scale';
     if (RX.myteam.test(n)) return 'r.team';
@@ -1350,9 +1352,22 @@
       ['nps|puls', 'cop.h.nps', '#/home'], ['360', 'cop.h.f360', '#/people'],
       ['cyklus|cycle', 'cop.h.cycle', '#/hr'], ['copilot|vypn|zapn', 'cop.h.copilot', '#/settings'],
     ];
+    /* primární zdroj = stejná knowledge base jako sekce Nápověda (HelpKB) */
+    const kb = window.HelpKB ? HelpKB.answer(text) : null;
+    if (kb) return bot(th, `<b>${esc(kb.title)}</b><br>${esc(kb.text)}`,
+      chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: kb.hash }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
+    /* záloha: kurátorované mini odpovědi */
     const hit = topics.find(([rx]) => new RegExp(rx).test(n));
-    if (!hit) return bot(th, capabilitiesHtml(), defaultChips());
-    bot(th, esc(t(hit[1])), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: hit[2] }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
+    if (hit) return bot(th, esc(t(hit[1])), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: hit[2] }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
+    bot(th, capabilitiesHtml(), defaultChips());
+  }
+  /* changelog: co je v aplikaci nového */
+  function rChangelog(th) {
+    if (!window.HelpKB) return bot(th, t('cop.r.noData'));
+    const log = HelpKB.changelog().slice(0, 4);
+    bot(th, `<b>${esc(t('help.newsTitle'))}</b><br>` +
+      log.map(e => `· <b>${esc(e.title)}</b> <small>(${esc(e.date)})</small><br><span style="color:var(--text-muted)">${esc(e.desc)}</span>`).join('<br>'),
+      chipsOf([{ label: t('help.news'), act: 'nav', val: '#/help/news' }]));
   }
   function copOff(th) {
     bot(th, t('cop.off.confirm'), chipsOf([{ label: t('cop.off.yes'), val: 'coff:ok' }, { label: t('common.cancel'), val: 'coff:no' }]));
@@ -1415,6 +1430,7 @@
     if (intent === 'r.person') return rPerson(th, text);
     if (intent === 'r.team') return rTeam(th);
     if (intent === 'r.notif') return rNotif(th);
+    if (intent === 'r.changelog') return rChangelog(th);
     if (intent === 'r.scale') return rScale(th);
     if (intent === 'r.talent') return rTalent(th);
     if (intent === 'r.f360') return rF360(th, text);

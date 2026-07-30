@@ -103,6 +103,15 @@ Sekce Zpětná vazba (`#/kudos`) má dvě záložky: **Uznání** (veřejná kud
 - **Copilot:** intent `fb` („dej vazbu Janě", „konstruktivní vazba") — slot-filling flow kdo → typ → S → B → I → doporučení (přeskočitelné) → štítek (přeskočitelný) → potvrzení. Požadavky s „vyžádej/360" zůstávají v 360 flow.
 - **Seed:** generátor vytváří ~10 vazeb (manažer→podřízený, občas peer→peer) za poslední 2 měsíce.
 
-## 15. Mimo scope dema (plán produkce)
+## 15. Nápověda jako knowledge base (2026-07-30)
+
+Sekce Nápověda je datově řízená (`js/help.js`, `window.HelpKB`): témata (proces per role, typy hodnocení, cíle vč. Alignmentu a kvartálního checku, zpětná vazba vč. konstruktivní a 360, moduly per role, Copilot, workflow) se skládají z i18n klíčů — obsah existuje jen jednou a ve 3 jazycích.
+
+- **Hledání:** fulltext bez diakritiky se stoplistem („jak", „funguje"…), napříč všemi tématy bez ohledu na roli (výsledek nese role badge), zásahy zvýrazněné; překresluje se jen tělo, input drží fokus.
+- **Novinky (changelog):** čtvrtý tab — datovaný seznam změn (`HelpKB.changelog`, nejnovější nahoře) s proklikem do příslušné sekce; deep-link `#/help/news`.
+- **Copilot nad stejným obsahem:** „jak…" dotazy odpovídá primárně z `HelpKB.answer` (nejrelevantnější odstavec + proklik), kurátorované mini odpovědi `cop.h.*` jsou záloha; intent `r.changelog` („co je nového v aplikaci") vypíše novinky z téhož changelogu. Nic se nedubluje — nápověda i chat čtou jeden zdroj.
+- **Pravidlo údržby:** každá nová funkce = položka v changelogu (`LOG` v help.js + `ch.*` klíče ×3) + doplnění/úprava příslušného tématu. Testy hlídají přeloženost všech témat i changelogu ve 3 jazycích.
+
+## 16. Mimo scope dema (plán produkce)
 
 Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), kalibrační session, CMS pro tutoriály/dokumenty. Talent modul je implementovaný celý včetně checklistu kandidáta, červené karty a 360 (viz §11 a 08_talent_succession.md); kandidáti na další iterace jsou v 08 §10.

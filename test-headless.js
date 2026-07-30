@@ -35,6 +35,7 @@ load('js/talent.js');
 load('js/feedback360.js');
 load('js/feedback.js');
 load('js/goalcheck.js');
+load('js/help.js');
 load('js/app.js'); /* boot proběhne proti stub DOM (onboarding větev) - dává window.App a AppFilters */
 
 let failed = 0;
@@ -936,6 +937,63 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   });
   I18N.setLocale('cs');
   ok(miss20.length === 0, miss20.length ? 'chybí klíče: ' + miss20.join(', ') : 'goal check i18n kompletní (cs/en/de)');
+})();
+
+/* --- 21) nápověda jako knowledge base: pokrytí, hledání, changelog, Copilot --- */
+(function () {
+  I18N.setLocale('cs');
+  /* pokrytí: všechna témata přeložená ve 3 jazycích, žádné syrové klíče */
+  let missH = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    HelpKB.topics(null).forEach(tp => {
+      if (/^help\./.test(tp.title)) missH.push(loc + ':' + tp.id + ':title');
+      tp.items.forEach((it, i) => { if (/^help\./.test(it)) missH.push(loc + ':' + tp.id + ':' + (i + 1)); });
+    });
+    HelpKB.changelog().forEach(e => { if (/^ch\./.test(e.title) || /^ch\./.test(e.desc)) missH.push(loc + ':ch:' + e.date); });
+    ['help.news', 'help.newsTitle', 'help.newsSub', 'help.searchPh', 'help.noResults', 'help.open'].forEach(k => { if (t(k) === k) missH.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missH.length === 0, missH.length ? 'nepřeloženo: ' + missH.slice(0, 8).join(', ') : 'nápověda: všechna témata + changelog přeloženy (cs/en/de)');
+  /* pokrytí funkcí: nové moduly mají téma a texty zmiňují poslední featury */
+  const ids = HelpKB.topics(null).map(tp => tp.id);
+  ok(['feedback', 'copilot', 'goals'].every(id => ids.includes(id)), 'témata: zpětná vazba, copilot i cíle existují');
+  const goalsTxt = HelpKB.topics(null).find(tp => tp.id === 'goals').items.join(' ');
+  ok(goalsTxt.includes('Alignment') && /kvart/i.test(goalsTxt), 'téma cíle popisuje Alignment i kvartální check');
+  /* role: každá role má proces + moduly */
+  ['employee', 'manager', 'hr'].forEach(rl => {
+    const tps = HelpKB.topics(rl);
+    ok(tps.some(x => x.id === 'proc-' + rl) && tps.some(x => x.id === 'mod-' + rl), `role ${rl}: proces + moduly`);
+  });
+  /* hledání bez diakritiky */
+  const s1 = HelpKB.search('konstruktivni vazba');
+  ok(s1.length && s1[0].topic.id === 'feedback', 'hledání: „konstruktivní vazba" → téma zpětné vazby');
+  ok((HelpKB.search('alignment')[0] || {}).topic.id === 'goals', 'hledání: „alignment" → téma cílů');
+  ok(HelpKB.search('9-box').length > 0, 'hledání: „9-box" najde talent obsah');
+  ok(HelpKB.search('xyzblabla').length === 0, 'hledání: nesmysl → prázdný výsledek');
+  /* changelog: řazení a obsah */
+  const log21 = HelpKB.changelog();
+  ok(log21.length >= 8, `changelog: ${log21.length} záznamů`);
+  ok(log21.every((e, i) => i === 0 || log21[i - 1].date >= e.date), 'changelog: nejnovější nahoře');
+  ok(log21[0].title === t('ch.gc.t'), 'changelog: poslední změna = kvartální check');
+  /* answer API pro Copilota */
+  const a21 = HelpKB.answer('jak funguje historie plnění');
+  ok(a21 && /histori/i.test(a21.text), 'answer: vrací relevantní odstavec');
+  /* Copilot: changelog intent + howto fallback do KB */
+  ok(Copilot.detect('co je nového v aplikaci') === 'r.changelog', 'copilot detect: novinky v aplikaci → changelog');
+  ok(Copilot.detect('novinky') === 'r.notif', 'copilot detect: samotné „novinky" zůstávají notifikace');
+  Store.patchSettings({ viewAs: null, copilotEnabled: true });
+  const thH = Copilot.newThread();
+  Copilot.process(thH, 'co je nového v aplikaci?');
+  const lastH = thH.msgs[thH.msgs.length - 1];
+  ok(lastH.html.includes(t('ch.gc.t')), 'copilot: changelog odpovídá z HelpKB');
+  Copilot.process(thH, 'jak funguje historie plnění cílů?');
+  const lastH2 = thH.msgs[thH.msgs.length - 1];
+  ok(/histori/i.test(lastH2.html) && !lastH2.html.includes(t('cop.f.capabilities')), 'copilot: howto fallback odpovídá z KB, ne výpisem schopností');
+  /* view: hledání + novinky tab existují (zdrojová kontrola) */
+  const appSrc21 = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc21.includes('help-q') && appSrc21.includes("data-htab=\"${rl}\"") && appSrc21.includes('HelpKB.changelog()'), 'view: hledání + tab Novinky');
+  ok(appSrc21.includes("param === 'news'"), 'view: deep-link #/help/news');
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
