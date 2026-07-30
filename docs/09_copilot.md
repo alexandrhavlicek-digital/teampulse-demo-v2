@@ -1,6 +1,6 @@
 # 09 — TeamPulse Copilot (realizační dokument)
 
-**Verze:** 1.2 · **Datum:** 2026-07-30 · **Stav:** plné pokrytí aplikace + nápověda v chatu (simulovaný engine) · **Soubory:** `js/copilot.js`, `js/help.js`
+**Verze:** 1.3 · **Datum:** 2026-07-30 · **Stav:** plné pokrytí aplikace + nápověda v chatu (simulovaný engine) · **Soubory:** `js/copilot.js`, `js/help.js`
 
 ## 1. Koncept
 
@@ -56,6 +56,17 @@ Copilot odpovídá i na otázky **o aplikaci samotné**. Obsah se nikde nedubluj
 - **Volba tématu:** každé téma má klíčová slova (`kw`, bez diakritiky, cs/en/de), která váží nejvíc; pak název, nejlepší odstavec a pokrytí dotazu. Porovnává se na hranici slova a přes kmen, takže „nástupnictví" nespadne do „stupnice" a „hodnocením" sedne na „hodnocení".
 - **Odpověď** = nadpis + celé téma v odrážkách (trefené odstavce první) + chipy „Otevřít (sekce)", „Nápověda" a dvě související témata bez duplicit.
 - **Objevitelnost:** uvítání nabízí příklady otázek a chip s vysvětlením procesu, „co umíš" vypisuje i seznam témat pro moji roli.
+- **Práh relevance:** odpověď se vezme jen když dotaz trefil klíčové slovo tématu, nebo pokryl většinu svých nosných slov (4+ znaků). Jinak Copilot přizná, že to neví (`cop.kb.noMatch`) — „jak si změním heslo" ani „kolik stojí licence" už nevrátí náhodné téma. Krátká zájmena („si", „mi") jsou ve stop-listu, protože jako podřetězec sedla skoro všude.
+
+### Dotazy na moje data (v1.3)
+
+Tři otázky, které vypadají jako nápověda, ale odpověď je v datech, mají vlastní intenty — text nápovědy by tu byl vyhýbavý:
+
+| Dotaz | Intent | Odpověď |
+|---|---|---|
+| „kdo mě hodnotí", „kdo je můj manažer" | `r.myEval` | jméno a role hodnotitele (fallback na nadřízeného) + proklik na hodnocení |
+| „co mám dnes udělat", „co mě čeká" | `r.myTodo` | co visí na mně: sebehodnocení, potvrzení, vyhodnocení týmu, rozhovory, eNPS, 360, kvartální check — chipy spouští akci rovnou v chatu |
+| „kdo v týmu nemá nástupce" | `r.succGaps` | nekryté klíčové pozice ve scope (manažer tým, HR firma; zaměstnanec nikdy) |
 
 ## 4. Proaktivita
 
@@ -86,9 +97,9 @@ Dvousloupcový layout: vlevo historie vláken (pin 📌, mazání), uložené pr
 
 ## 8. Testy
 
-`test-headless.js` bloky 13 + 13b + 22 (~90 checků): migrace kolekcí, welcome + chipy, intent parser, všechny flows end-to-end (propis do Store + stavové přechody), plánování a spouštění úloh, prompty per persona, práva zaměstnance, vypnutí, i18n úplnost `cop.*` (×3 jazyky), render smoke.
+`test-headless.js` bloky 13 + 13b + 22 + 23 (~105 checků): migrace kolekcí, welcome + chipy, intent parser, všechny flows end-to-end (propis do Store + stavové přechody), plánování a spouštění úloh, prompty per persona, práva zaměstnance, vypnutí, i18n úplnost `cop.*` (×3 jazyky), render smoke.
 
-Blok 22 hlídá nápovědu v chatu: 12 otázek musí (a) být rozpoznáno jako dotaz, (b) trefit **konkrétní** téma — ne jen „nějakou odpověď", (c) vrátit věcný text, ne výpis schopností. Dál se ověřuje, že odpověď obsahuje texty z klíčů `help.*` (jeden zdroj pravdy), nabízí prokliky na související témata, že nová témata jsou i v sekci Nápověda, a i18n ve třech jazycích.
+Blok 23 hlídá práh relevance (5 dotazů mimo doménu musí být odmítnuto), správné směrování dotazů na moje data, jméno hodnotitele z dat, práva u nástupnictví a i18n. Blok 22 hlídá nápovědu v chatu: 12 otázek musí (a) být rozpoznáno jako dotaz, (b) trefit **konkrétní** téma — ne jen „nějakou odpověď", (c) vrátit věcný text, ne výpis schopností. Dál se ověřuje, že odpověď obsahuje texty z klíčů `help.*` (jeden zdroj pravdy), nabízí prokliky na související témata, že nová témata jsou i v sekci Nápověda, a i18n ve třech jazycích.
 
 ## 9. Roadmap
 

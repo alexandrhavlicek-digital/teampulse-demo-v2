@@ -597,9 +597,17 @@
         .forEach(r => { evalCounts[r.evaluatorId] = (evalCounts[r.evaluatorId] || 0) + 1; });
       const demoMgrId = Object.keys(evalCounts).sort((a, b) => evalCounts[b] - evalCounts[a])[0];
       const demoMgr = demoMgrId ? people.find(p => p.id === demoMgrId) : null;
-      if (!demoMgr || keyPositions.some(kp => kp.holderId === demoMgr.id)) return;
+      if (!demoMgr) return;
       const checklist = {};
       shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).forEach((q, j) => { checklist['q' + q] = j < 9; });
+      /* pozici už mít může (je mezi vedoucími) - ale musí vyjít jako KLÍČOVÁ,
+         jinak by karta Nástupnictví v Můj tým zůstala prázdná */
+      const own = keyPositions.find(kp => kp.holderId === demoMgr.id);
+      if (own) {
+        const yes = Object.values(own.checklist || {}).filter(Boolean).length;
+        if (yes < 7) own.checklist = checklist;
+        return;
+      }
       /* jeden nástupce, ale připravený až za 1-2 roky → manažer má na čem pracovat */
       const reports = people.filter(p => p.managerId === demoMgr.id);
       const successors = reports.length

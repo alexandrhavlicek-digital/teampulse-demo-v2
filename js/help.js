@@ -55,13 +55,19 @@
       }));
   }
   /* fulltext bez diakritiky napříč VŠEMI tématy (i mimo aktuální roli - výsledek nese role badge) */
-  const STOP = new Set(['jak', 'funguje', 'funguji', 'fungujou', 'co', 'je', 'jsou', 'se', 'na', 'do', 'pro', 'the', 'how', 'does', 'do', 'what', 'is', 'are', 'wie', 'was', 'ist', 'sind', 'und', 'der', 'die', 'das']);
+  /* Slova bez informační hodnoty. Krátká zájmena („si", „mi") jsou zvlášť zrádná -
+     jako podřetězec sedí skoro všude a dělala falešné shody („jak si změním heslo"). */
+  const STOP = new Set(['jak', 'jaky', 'jaka', 'jake', 'jaky', 'kdo', 'komu', 'koho', 'kdy', 'kde', 'proc',
+    'funguje', 'funguji', 'fungujou', 'co', 'je', 'jsou', 'se', 'si', 'na', 'do', 'pro', 'mi', 'me', 'mne',
+    'muj', 'moje', 'mych', 'mym', 'ti', 'tam', 'ten', 'ta', 'to', 'tohle', 'chci', 'mam', 'mate', 'byt',
+    'the', 'how', 'does', 'do', 'what', 'is', 'are', 'my', 'me', 'can', 'who',
+    'wie', 'was', 'ist', 'sind', 'und', 'der', 'die', 'das', 'ich', 'mein', 'meine']);
   function search(q) {
     /* interpunkci pryč - „hodnocení?" musí sednout na „hodnocení" */
     const nq = norm(q).replace(/[^a-z0-9]+/g, ' ').trim();
     if (nq.length < 2) return [];
-    let words = nq.split(/\s+/).filter(w => w.length >= 2 && !STOP.has(w));
-    if (!words.length) words = nq.split(/\s+/).filter(w => w.length >= 2);
+    let words = nq.split(/\s+/).filter(w => w.length >= 3 && !STOP.has(w));
+    if (!words.length) words = nq.split(/\s+/).filter(w => w.length >= 3);
     /* české tvary („hodnocení / hodnocením") porovnáváme přes kmen */
     const stem = w => (w.length > 5 ? w.slice(0, w.length - 2) : w);
     const terms = words.map(w => ({ w, st: stem(w) }));
@@ -83,7 +89,8 @@
       /* klíčová slova tématu (kw) hledáme v celém dotazu - „kdo vidí moje data" → soukromí */
       const kwScore = (tp.kw || []).filter(k => new RegExp('(^|[^a-z0-9])' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(nq)).length;
       const score = kwScore * 6 + titleScore * 3 + best * 2 + covered;
-      return { topic: tp, hits: hits.sort((a, b) => b.score - a.score).map(h => h.i), score };
+      const strongHit = terms.some(tm => tm.w.length >= 4 && (inText(nTitle, tm) || nItems.some(it => inText(it, tm))));
+      return { topic: tp, hits: hits.sort((a, b) => b.score - a.score).map(h => h.i), score, kwScore, covered, strongHit, terms: terms.length };
     }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
   }
   function changelog() {
@@ -91,8 +98,20 @@
   }
   /* pro Copilota: nejlepší odpověď na dotaz - téma, nejrelevantnější odstavce
      (items = celé téma, aby chat odpovídal souvisle, ne jednou větou) a další témata */
+  /* Práh relevance: „jak si změním heslo" nebo „kolik stojí licence" do nápovědy nepatří.
+     Bereme odpověď jen když dotaz trefil klíčové slovo tématu, nebo pokryl aspoň
+     polovinu svých slov (u jednoslovných dotazů stačí jedno). Jinak null → Copilot
+     přizná, že to neví, místo aby vrátil náhodné téma. */
+  function relevant(r) {
+    if (!r) return false;
+    if (r.kwScore > 0) return true;
+    /* většina nosných slov dotazu musí sedět - jinak je to trefa náhodou */
+    const need = Math.max(1, Math.ceil(r.terms * 0.6));
+    /* musí sedět i aspoň jedno „nosné" slovo (4+ znaků), ne jen krátké spojky */
+    return r.covered >= need && r.score >= 3 && r.strongHit;
+  }
   function answer(q) {
-    const res = search(q);
+    const res = search(q).filter(relevant);
     if (!res.length) return null;
     const best = res[0];
     const idx = best.hits.length ? best.hits[0] : 0;
@@ -108,5 +127,5 @@
         .slice(0, 2).map(r => ({ id: r.topic.id, title: r.topic.title, hash: r.topic.hash })),
     };
   }
-  window.HelpKB = { topics, search, changelog, answer };
+  window.HelpKB = { topics, search, changelog, answer, relevant };
 })();

@@ -200,6 +200,10 @@
     remindOther: /\b(vsem|all|allen)\b|(pripomen|remind|erinner)/,
     howto: /(jak\s+(funguje|na\b|pridam|prid|udelam|spustim|zadam|vyplnim|zapnu|vypnu|nastavim|nastavit|probiha|se|mam|bych|zapisu|zapsat|zaznamenam|zalozim|otevru|najdu|smazu|zrusim|pozvu|poslu|potvrdim|dokoncim|vytvorim|casto)|co je\b|co znamena|co to je|co delat|co kdyz|co se stane|nesouhlas|kde (najdu|je|se|vypnu|zapnu|nastavim|zmenim|najdes|mam|si)|k cemu|proc\b|kdo (vidi|uvidi|ma pristup|je na tahu)|vysvetli|rozdil mezi|krok za krokem|navod|prirucka|muj postup|jak postupovat|what is|what if|how (does|do i)|where (do i|can i)|why\b|who (can|sees)|step by step|was (ist|passiert|wenn)|wie (funktioniert|kann)|warum|wer (sieht|kann))/,
     switchOff: /(vypni|vypnout|deaktivuj|disable|abschalt).*(copilot)|copilot.*(vypni|vypnout|off)/,
+    /* dotazy na MOJE data - odpověď z dat má přednost před textem nápovědy */
+    myEval: /(kdo (me|mne) (hodnoti|bude hodnotit)|kdo je (muj|moje) (hodnotitel|manazer|nadrizen|sef)|muj (hodnotitel|manazer|nadrizen)|who (evaluates|reviews) me|who is my (manager|evaluator)|wer bewertet mich|wer ist mein (chef|vorgesetzter))/,
+    myTodo: /(co mam (dnes |ted |tento tyden )?(delat|udelat|na praci)|co me ceka|moje ukoly|co visi na mne|mam neco k vyrizeni|what (do i|should i) (need to )?do|my tasks|was muss ich (tun|machen)|meine aufgaben)/,
+    succGaps: /((nema|nemaji|bez|chybi)\s+\S*\s*(nastupc|naslednik)|nekryt\w* pozic|(nastupnictvi|succession).*(chybi|gap|mezer)|without a successor|no successor|ohne nachfolg)/,
   };
 
   function detect(text) {
@@ -208,6 +212,9 @@
     if (RX.changelog.test(n)) return 'r.changelog';
     if (RX.notif.test(n)) return 'r.notif';
     if (RX.scaleQ.test(n)) return 'r.scale';
+    if (RX.myEval.test(n)) return 'r.myEval';
+    if (RX.myTodo.test(n)) return 'r.myTodo';
+    if (RX.succGaps.test(n)) return 'r.succGaps';
     /* …a OTÁZKA („co je / jak funguje / kde / proč / kdo vidí") má přednost před AKCÍ:
        „zapiš 1:1 s Petrem" = akce, ale „jak zapíšu 1:1?" = nápověda. */
     if (RX.howto.test(n)) return 'howto';
@@ -1390,8 +1397,75 @@
     /* záloha: kurátorované mini odpovědi */
     const hit = topics.find(([rx]) => new RegExp(rx).test(n));
     if (hit) return bot(th, esc(t(hit[1])), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: hit[2] }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
-    bot(th, capabilitiesHtml(), defaultChips());
+    /* radši přiznat neznalost, než vrátit náhodné téma z nápovědy */
+    bot(th, esc(t('cop.kb.noMatch')) + '<br><br>' + capabilitiesHtml(),
+      chipsOf([{ label: t('nav.help'), act: 'nav', val: '#/help' }]).concat(defaultChips()));
   }
+  /* „kdo mě hodnotí / kdo je můj manažer" - odpověď z dat, ne z nápovědy */
+  function rMyEvaluator(th, text) {
+    const p = meP();
+    if (!p) return bot(th, t('cop.r.noData'));
+    const wantMgr = /(manazer|nadrizen|sef|boss|manager|vorgesetzt)/.test(norm(text));
+    if (wantMgr) {
+      const m = p.managerId ? byId(p.managerId) : null;
+      return bot(th, m ? fmt('cop.my.mgr', { name: m.name, role: m.role }) : t('cop.my.evalNone'),
+        chipsOf(m ? [{ label: t('cop.ch.open'), act: 'nav', val: '#/org' }] : []));
+    }
+    const r = revs().filter(x => x.subjectId === p.id && x.period === Generator.CURRENT_PERIOD)
+      .concat(revs().filter(x => x.subjectId === p.id)).find(Boolean);
+    const ev = r && r.evaluatorId ? byId(r.evaluatorId) : (p.managerId ? byId(p.managerId) : null);
+    if (!ev) return bot(th, t('cop.my.evalNone'));
+    bot(th, fmt('cop.my.evaluator', { name: ev.name, role: ev.role }),
+      chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: r ? '#/review/' + r.id : '#/myreviews' }]));
+  }
+
+  /* „co mám dnes udělat" - úkoly, které visí na mně (stejná logika jako Přehled) */
+  function rMyTodo(th) {
+    const v = va(), p = meP(), items = [];
+    if (!p) return bot(th, t('cop.r.noData'));
+    const mine = revs().filter(r => r.subjectId === p.id && r.period === Generator.CURRENT_PERIOD);
+    mine.forEach(r => {
+      if (['pending_self', 'self_in_progress'].includes(r.status))
+        items.push({ txt: fmt('cop.my.todoSelf', { days: ReviewLogic.daysLeft(r) }), ask: t('cop.ask.self') });
+      if (r.status === 'awaiting_employee_confirmation')
+        items.push({ txt: fmt('cop.my.todoConfirm', { days: ReviewLogic.daysLeft(r) }), ask: t('cop.ask.confirm') });
+    });
+    if (v.role !== 'employee') {
+      const cur = revs().filter(r => r.period === Generator.CURRENT_PERIOD && r.evaluatorId === p.id);
+      const toEval = cur.filter(r => ['self_done', 'manager_in_progress'].includes(r.status));
+      if (toEval.length) items.push({ txt: fmt('cop.my.todoEval', { names: toEval.slice(0, 4).map(r => (byId(r.subjectId) || {}).firstName).join(', ') }), ask: t('cop.ask.eval') });
+      const toConv = cur.filter(r => r.status === 'manager_done');
+      if (toConv.length) items.push({ txt: fmt('cop.my.todoConv', { names: toConv.slice(0, 4).map(r => (byId(r.subjectId) || {}).firstName).join(', ') }), nav: '#/team' });
+    }
+    if (window.NPS && NPS.pendingWaveFor(p.id)) items.push({ txt: t('cop.my.todoNps'), ask: t('cop.ask.nps') });
+    const f360 = Store.list('feedback360').filter(f => f.status !== 'closed'
+      && (f.respondents || []).some(r2 => r2.personId === p.id && !r2.done));
+    if (f360.length) items.push({ txt: fmt('cop.my.todo360', { n: f360.length }), ask: t('cop.ask.f360') });
+    if (window.GoalCheck && GoalCheck.pendingFor && GoalCheck.pendingFor(p.id).length)
+      items.push({ txt: t('cop.my.todoCheck'), nav: '#/goals' });
+    if (!items.length) return bot(th, t('cop.my.todoNone'), defaultChips());
+    bot(th, `<b>${esc(t('cop.my.todoTitle'))}</b><ul>${items.map(i2 => `<li>${esc(i2.txt)}</li>`).join('')}</ul>`,
+      chipsOf(items.slice(0, 3).map(i2 => i2.ask
+        ? { label: i2.txt.split(' (')[0], act: 'ask', val: i2.ask }
+        : { label: i2.txt.split(' (')[0], act: 'nav', val: i2.nav })));
+  }
+
+  /* „kdo v týmu nemá nástupce" - nekryté klíčové pozice dle práv */
+  function rSuccGaps(th) {
+    const v = va();
+    if (v.role === 'employee' || !window.SuccLogic) return bot(th, '🔒 ' + t('cop.sg.denied'));
+    let kps = Store.list('keyPositions').filter(kp => SuccLogic.kpRated(kp) && SuccLogic.kpIsKey(kp));
+    if (v.role === 'manager') {
+      const ids = new Set(teamOf(v.personId).map(x => x.id).concat(v.personId));
+      kps = kps.filter(kp => ids.has(kp.holderId));
+    }
+    const gaps = kps.filter(kp => !(kp.successors || []).length);
+    if (!gaps.length) return bot(th, '✅ ' + t('cop.sg.none'), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: v.role === 'hr' ? '#/talent' : '#/myteam' }]));
+    bot(th, `<b>${esc(t('cop.sg.title'))} (${gaps.length})</b><ul>` +
+      gaps.slice(0, 8).map(kp => `<li>${esc(fmt('cop.sg.row', { title: kp.title, holder: (byId(kp.holderId) || {}).name || '-' }))}</li>`).join('') + '</ul>',
+      chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: v.role === 'hr' ? '#/talent' : '#/myteam' }]));
+  }
+
   /* changelog: co je v aplikaci nového */
   function rChangelog(th) {
     if (!window.HelpKB) return bot(th, t('cop.r.noData'));
@@ -1418,7 +1492,7 @@
     /* Copilot je zároveň nápověda - ukážeme i témata, která umí vysvětlit */
     const kbTopics = window.HelpKB ? HelpKB.topics(va().role).map(x => `<li>${esc(x.title)}</li>`).join('') : '';
     return `<b>${esc(t('cop.f.capabilities'))}</b><ul>` +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>' +
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>' +
       (kbTopics ? `<b>${esc(t('cop.kb.topicsTitle'))}</b><ul>${kbTopics}</ul>` : '');
   }
   /* chip „Vysvětli mi <téma>" - vrací se zpět do znalostní báze */
@@ -1470,6 +1544,9 @@
     if (intent === 'r.team') return rTeam(th);
     if (intent === 'r.notif') return rNotif(th);
     if (intent === 'r.changelog') return rChangelog(th);
+    if (intent === 'r.myEval') return rMyEvaluator(th, text);
+    if (intent === 'r.myTodo') return rMyTodo(th);
+    if (intent === 'r.succGaps') return rSuccGaps(th);
     if (intent === 'r.scale') return rScale(th);
     if (intent === 'r.talent') return rTalent(th);
     if (intent === 'r.f360') return rF360(th, text);

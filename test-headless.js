@@ -1159,6 +1159,68 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(miss22.length === 0, miss22.length ? 'chybí: ' + miss22.slice(0, 6).join(', ') : 'nápověda v chatu: i18n kompletní (cs/en/de)');
 })();
 
+/* --- 23) Copilot: práh relevance + odpovědi z dat místo textu --- */
+(function () {
+  Generator.install('it', 60);
+  Store.patchSettings({ viewAs: null, copilotEnabled: true });
+  I18N.setLocale('cs');
+
+  /* a) mimo doménu → přiznaná neznalost, ne náhodné téma nápovědy */
+  const OFF = ['jak si změním heslo?', 'kolik stojí licence?', 'jaké je počasí?', 'kdy mám dovolenou?', 'jak si nastavím e-mail?'];
+  let falsePos = [];
+  OFF.forEach(q => { const a = HelpKB.answer(q); if (a) falsePos.push(`"${q}" → ${a.id}`); });
+  ok(falsePos.length === 0, falsePos.length ? `nápověda si vymýšlí (${falsePos.length}): ` + falsePos.join(' | ') : `${OFF.length} dotazů mimo doménu správně odmítnuto`);
+  const thOff = Copilot.newThread();
+  Copilot.process(thOff, 'jak si změním heslo?');
+  ok(thOff.msgs[thOff.msgs.length - 1].html.includes(t('cop.kb.noMatch').slice(0, 30)), 'Copilot řekne, že to neví (místo náhodné odpovědi)');
+
+  /* b) dotazy s odpovědí v datech nesmí spadnout do textu nápovědy */
+  ok(Copilot.detect('kdo mě hodnotí?') === 'r.myEval', 'detect: kdo mě hodnotí → data');
+  ok(Copilot.detect('kdo je můj manažer?') === 'r.myEval', 'detect: kdo je můj manažer → data');
+  ok(Copilot.detect('co mám dnes udělat?') === 'r.myTodo', 'detect: co mám dnes udělat → moje úkoly');
+  ok(Copilot.detect('co mě čeká?') === 'r.myTodo', 'detect: co mě čeká → moje úkoly');
+  ok(Copilot.detect('kdo v týmu nemá nástupce?') === 'r.succGaps', 'detect: nekryté klíčové pozice → data');
+
+  /* c) hodnotitel: jméno z dat, ne obecný text */
+  const emp23 = Store.list('people').find(p => p.managerId && Store.list('reviews').some(r => r.subjectId === p.id));
+  Store.patchSettings({ viewAs: { role: 'employee', personId: emp23.id } });
+  const th23 = Copilot.newThread();
+  Copilot.process(th23, 'kdo mě hodnotí?');
+  const ev23 = Store.list('reviews').filter(r => r.subjectId === emp23.id).map(r => r.evaluatorId).filter(Boolean)[0];
+  const evP = ev23 ? Store.get('people', ev23) : Store.get('people', emp23.managerId);
+  ok(th23.msgs[th23.msgs.length - 1].html.includes(evP.name), 'odpověď obsahuje jméno hodnotitele z dat');
+
+  /* d) moje úkoly: zaměstnanec dostane jen svoje, ne cizí */
+  const th23b = Copilot.newThread();
+  Copilot.process(th23b, 'co mám dnes udělat?');
+  const todo23 = th23b.msgs[th23b.msgs.length - 1].html;
+  ok(todo23.includes(t('cop.my.todoTitle')) || todo23.includes(t('cop.my.todoNone')), 'moje úkoly: věcná odpověď');
+  ok(!todo23.includes(t('cop.my.todoEval').split('{')[0].trim()), 'zaměstnanec nedostane úkoly hodnotitele');
+
+  /* e) nástupnictví: zaměstnanec nikdy, manažer jen svůj tým */
+  const th23c = Copilot.newThread();
+  Copilot.process(th23c, 'kdo v týmu nemá nástupce?');
+  ok(th23c.msgs[th23c.msgs.length - 1].html.includes(t('cop.sg.denied')), 'nástupnictví: zaměstnanec nevidí (práva)');
+  Store.patchSettings({ viewAs: null });
+  const th23d = Copilot.newThread();
+  Copilot.process(th23d, 'které klíčové pozice nemají nástupce?');
+  const gaps23 = th23d.msgs[th23d.msgs.length - 1].html;
+  const realGaps = Store.list('keyPositions').filter(kp => SuccLogic.kpRated(kp) && SuccLogic.kpIsKey(kp) && !(kp.successors || []).length);
+  ok(realGaps.length ? gaps23.includes(t('cop.sg.title')) : gaps23.includes(t('cop.sg.none')), 'HR: seznam nekrytých pozic odpovídá datům');
+
+  /* f) i18n */
+  let miss23 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['cop.cap.12', 'cop.kb.noMatch', 'cop.my.evaluator', 'cop.my.evalNone', 'cop.my.mgr', 'cop.my.todoTitle', 'cop.my.todoNone',
+     'cop.my.todoSelf', 'cop.my.todoConfirm', 'cop.my.todoEval', 'cop.my.todoConv', 'cop.my.todoNps',
+     'cop.my.todo360', 'cop.my.todoCheck', 'cop.sg.title', 'cop.sg.none', 'cop.sg.row', 'cop.sg.denied']
+      .forEach(k => { if (t(k) === k) miss23.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss23.length === 0, miss23.length ? 'chybí: ' + miss23.slice(0, 6).join(', ') : 'nové odpovědi: i18n kompletní (cs/en/de)');
+})();
+
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }
