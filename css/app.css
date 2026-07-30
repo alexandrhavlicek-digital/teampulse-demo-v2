@@ -582,6 +582,12 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
   .al-head .al-bar, .al-head .al-pct { margin-left: auto; }
 }
 
+/* kvartální check cílů */
+.gc-item { padding: 10px 0; border-bottom: 1px dashed var(--hairline); }
+.gc-item.gc-missing textarea { border-color: var(--danger); }
+.gc-log { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px dashed var(--hairline); font-size: .9rem; }
+.gc-log:last-of-type { border-bottom: none; }
+
 /* průběžná konstruktivní vazba (SBI karta) */
 .fb-card { border-left: 4px solid var(--hairline); }
 .fb-sbi { margin-top: 10px; display: grid; gap: 6px; }

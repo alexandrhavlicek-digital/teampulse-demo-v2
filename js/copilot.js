@@ -806,8 +806,14 @@
     bot(th, t('cop.g.which'), chipsOf(pool.map(x => ({ label: x.title.slice(0, 36) + ' (' + x.progress + ' %)', val: x.id }))));
   }
   function applyGoalProg(th, g, pct) {
+    /* progress se nemění bez odůvodnění - vyžádej komentář (auditní stopa v progressLog) */
+    th.state = { flow: 'goalp', step: 'note', data: { gid: g.id, pct } };
+    bot(th, fmt('cop.g.note', { title: g.title, pct }));
+  }
+  function finishGoalProg(th, g, pct, note) {
     th.state = null;
-    Store.update('goals', g.id, { progress: pct });
+    if (window.GoalCheck) GoalCheck.applyProgress(g.id, pct, note, va().personId || null);
+    else Store.update('goals', g.id, { progress: pct });
     bot(th, '✓ ' + fmt('cop.g.prog', { title: g.title, pct }) +
       `<div class="brow"><span>${esc(g.title.slice(0, 30))}</span><div class="progressbar"><div style="width:${pct}%"></div></div><b>${pct} %</b></div>`,
       chipsOf([{ label: t('nav.goals'), act: 'nav', val: '#/goals' }]));
@@ -827,6 +833,14 @@
       const pct = Math.max(0, Math.min(100, +(input.val != null ? input.val : (norm(input.text || '').match(/\d+/) || [g ? g.progress : 0])[0])));
       if (g) return applyGoalProg(th, g, pct);
       th.state = null;
+      return;
+    }
+    if (st.step === 'note') {
+      const note = (input.text || input.label || '').trim();
+      if (!note) return bot(th, t('gc.noteReq'));
+      const g = Store.get('goals', d.gid);
+      if (!g) { th.state = null; return bot(th, t('cop.r.noData')); }
+      return finishGoalProg(th, g, d.pct, note);
     }
   }
 

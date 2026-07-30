@@ -34,6 +34,7 @@ load('js/reviews.js');
 load('js/talent.js');
 load('js/feedback360.js');
 load('js/feedback.js');
+load('js/goalcheck.js');
 load('js/app.js'); /* boot proběhne proti stub DOM (onboarding větev) - dává window.App a AppFilters */
 
 let failed = 0;
@@ -525,9 +526,13 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   if (thA.state && thA.state.step === 'weight') Copilot.reply(thA, { val: '30' });
   const newG = Store.list('goals').slice(-1)[0];
   ok(Store.list('goals').length === gb + 1 && newG.ownerId === emp6.id && !thA.state, 'goalAdd: cíl založen přes chat');
-  /* cíl: progress */
+  /* cíl: progress - nově s povinným komentářem (auditní stopa) */
   Copilot.process(thA, 'nastav progress cíle prezentační na 60 %');
+  ok(thA.state && thA.state.step === 'note', 'goalProg: před uložením se vyžádá komentář');
+  Copilot.reply(thA, { text: 'Odprezentováno první demo pro tým.' });
   ok(Store.get('goals', newG.id).progress === 60 && !thA.state, 'goalProg: progress 60 % (fuzzy match názvu)');
+  const gpLog = Store.get('goals', newG.id).progressLog || [];
+  ok(gpLog.length && gpLog.slice(-1)[0].to === 60 && gpLog.slice(-1)[0].note.length > 5, 'goalProg: změna zapsána do progressLog s komentářem');
 
   /* potvrzení hodnocení (zaměstnanec) */
   const rc6 = Store.list('reviews').find(r => r.status === 'awaiting_employee_confirmation');
@@ -873,6 +878,64 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   });
   I18N.setLocale('cs');
   ok(miss19.length === 0, miss19.length ? 'chybí klíče: ' + miss19.join(', ') : 'alignment i18n kompletní (cs/en/de)');
+})();
+
+/* --- 20) kvartální check cílů (progress s auditní stopou) --- */
+(function () {
+  I18N.setLocale('cs');
+  Generator.install('it', 50);
+  ok(GoalCheck.cadence() === 'q', 'kadence: default kvartálně (cycleConfig.goalCheck)');
+  ok(/^\d{4}-Q[1-4]$/.test(GoalCheck.quarterKey()), 'quarterKey: formát RRRR-Qn');
+  /* seed: progress má auditní stopu */
+  const gs20 = Store.list('goals').filter(g => g.type === 'personal');
+  const withLog = gs20.filter(g => (g.progressLog || []).length);
+  ok(withLog.length > 10, `seed: progressLog u cílů s plněním (${withLog.length})`);
+  ok(withLog.every(g => g.progressLog.every(e => e.note && e.from !== e.to && e.byId)), 'seed: každý zápis má komentář, posun a autora');
+  ok(withLog.every(g => g.progressLog.slice(-1)[0].to === g.progress), 'seed: poslední zápis končí na aktuálním plnění');
+  /* pendingFor + recordCheck */
+  const emp20 = Store.list('people').find(p => p.managerId && GoalCheck.goalsOf(p.id).length);
+  ok(GoalCheck.pendingFor(emp20.id) === true, 'todo: člověk s cíli a bez checku má pending');
+  GoalCheck.recordCheck(emp20.id);
+  ok(GoalCheck.pendingFor(emp20.id) === false, 'todo: po checku pending zmizí');
+  /* applyProgress: hodnota + log, beze změny nic */
+  const g20 = GoalCheck.goalsOf(emp20.id)[0];
+  const len0 = (g20.progressLog || []).length;
+  GoalCheck.applyProgress(g20.id, g20.progress, 'nic se nemění', emp20.id);
+  ok((Store.get('goals', g20.id).progressLog || []).length === len0, 'applyProgress: stejná hodnota → žádný zápis');
+  GoalCheck.applyProgress(g20.id, Math.min(100, g20.progress + 10), 'posun doložen reportem', emp20.id);
+  const g20b = Store.get('goals', g20.id);
+  ok(g20b.progressLog.length === len0 + 1 && g20b.progressLog.slice(-1)[0].note === 'posun doložen reportem', 'applyProgress: změna zapsána s komentářem');
+  ok(GoalCheck.applyProgress(g20.id, 250, 'x', emp20.id).progress === 100, 'applyProgress: clamp na 0-100');
+  /* semi check ve stejném kvartálu potlačí todo */
+  const emp20b = Store.list('people').find(p => p.managerId && p.id !== emp20.id && GoalCheck.goalsOf(p.id).length);
+  Store.insert('reviews', { id: uid(), subjectId: emp20b.id, evaluatorId: emp20b.managerId, type: 'semi', period: Generator.CURRENT_PERIOD, status: 'pending_self', startedAt: Date.now(), deadline: Date.now() + 14 * 86400000, form: Generator.emptyForm() });
+  ok(GoalCheck.pendingFor(emp20b.id) === false, 'todo: běžící pololetní check v kvartálu jej nahrazuje');
+  /* kadence off */
+  const co20 = Store.getCompany();
+  co20.cycleConfig = Object.assign({}, co20.cycleConfig, { goalCheck: 'off' });
+  Store.setCompany(co20);
+  ok(GoalCheck.pendingFor(emp20.id) === false && GoalCheck.cadence() === 'off', 'kadence: off vypne todo');
+  co20.cycleConfig.goalCheck = 'q'; Store.setCompany(co20);
+  /* integrace (zdrojové kontroly) */
+  const appSrc20 = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc20.includes("va.role === 'hr' ? `<input type=\"range\""), 'sekce Cíle: volný posuvník jen pro HR (korekce)');
+  ok(appSrc20.includes('GoalCheck.applyProgress') && appSrc20.includes("t('gc.hrFix')"), 'HR korekce jde přes applyProgress s označením v logu');
+  ok(appSrc20.includes('data-gctodo') && appSrc20.includes('GoalCheck.pendingFor'), 'Přehled: todo kvartálního checku');
+  ok(appSrc20.includes('pol-gc'), 'HR Pravidla cyklu: kadence checku cílů');
+  const revSrc20 = fs.readFileSync('js/reviews.js', 'utf8');
+  ok(revSrc20.includes('GoalCheck.applyProgress'), 'pololetní check: propis progressu zapisuje do logu');
+  ok(revSrc20.includes('GoalCheck.recentLogs'), 'Podklady z období: poslední změny plnění s komentáři');
+  const copSrc20 = fs.readFileSync('js/copilot.js', 'utf8');
+  ok(copSrc20.includes("step: 'note', data: { gid:") && copSrc20.includes('GoalCheck.applyProgress'), 'copilot: progress flow vyžaduje komentář a loguje');
+  /* i18n úplnost */
+  let miss20 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['gc.todo', 'gc.title', 'gc.hint', 'gc.note', 'gc.noteReq', 'gc.saved',
+     'gc.history', 'gc.noHistory', 'gc.cadence', 'gc.hrFix', 'cop.g.note'].forEach(k => { if (t(k) === k) miss20.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss20.length === 0, miss20.length ? 'chybí klíče: ' + miss20.join(', ') : 'goal check i18n kompletní (cs/en/de)');
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */

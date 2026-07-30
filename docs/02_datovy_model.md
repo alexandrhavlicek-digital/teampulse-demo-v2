@@ -57,8 +57,14 @@ form: {
 ```
 id, ownerId, areaKey (teamwork|growth|quality), title, desc
 weight (Σ v oblasti = 100), progress (0-100)
+progressLog: [{at, from, to, note, byId}]   // auditní stopa změn plnění; zapisuje výhradně GoalCheck.applyProgress
 kpiRef: null | {type: company|team, id}
 confirmedByManager, due, type (personal|company), period
+```
+
+### goalChecks
+```
+{id, personId, q ('2026-Q3'), at}   // kdo má hotový kvartální check; kadence v company.cycleConfig.goalCheck (q|semi|off)
 ```
 
 ### keyPositions / talentChecks (modul Talent & nástupnictví — detail v 08)
@@ -95,7 +101,8 @@ theme (corp|glass|genz), locale (cs|en|de), onboarded, viewAs {role, personId}
 | company | `tenants` + `tenant_settings` | kpis/teamKpis → `kpis` tabulka s `scope` (company/team) + `dept_key` |
 | people | `users` + `manager_relationships` | RLS: tenant_id; viz docs/07_rls_strategy.md v kořeni repa |
 | reviews | `reviews` + `review_versions` (snapshoty jsonb) | `form` → normalizovat: `review_section_responses`, `review_goal_evals` |
-| goals | `goals` | FK `kpi_id` nullable + check constraint na KPI_REQUIRED dle oblasti |
+| goals | `goals` + `goal_progress_log` | FK `kpi_id` nullable + check constraint na KPI_REQUIRED dle oblasti; změna progress jen s log záznamem (trigger) |
+| goalChecks | `goal_checks` | RLS: vlastník + manažer + HR; unikát (person_id, quarter) |
 | kudos / checkins | `feedback` (typ kudos) / `checkins` | |
 | feedback | `feedback` (typ sbi) | RLS: čtení jen from/to/manažer příjemce; HR pouze agregované počty (view) |
 | notifications | `notifications` + scheduler (pg-boss / Supabase cron) | |

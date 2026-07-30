@@ -446,6 +446,12 @@
         + (NPS.draftOf && NPS.draftOf(me.id, myNps.id) ? ' (' + t('nps.draft') + ')' : ''),
       nps: myNps.id, d: Math.max(0, Math.ceil((myNps.deadline - Date.now()) / 86400000)),
     });
+    /* kvartální check cílů: progress se aktualizuje jen s komentářem */
+    if (me && window.GoalCheck && GoalCheck.pendingFor(me.id)) todos.push({
+      ico: icon('target', 16),
+      txt: t('gc.todo') + ' · ' + GoalCheck.quarterKey(),
+      gc: true, d: GoalCheck.quarterDaysLeft(),
+    });
     const myGoals = me ? Store.list('goals').filter(g => g.ownerId === me.id) : [];
     const lastKudos = Store.list('kudos').slice(-3).reverse();
     const confirmed = reviews().filter(r => r.period === Generator.CURRENT_PERIOD && ['confirmed', 'closed_by_hr'].includes(r.status)).length;
@@ -458,7 +464,7 @@
         <div class="card">
           <h2>${icon('doc', 18)}${esc(t('home.todo'))}</h2>
           ${todos.length ? todos.map(td => `
-            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : td.nps ? `data-nps="${td.nps}"` : `onclick="location.hash='${td.hash}'"`}>
+            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : td.nps ? `data-nps="${td.nps}"` : td.gc ? 'data-gctodo="1"' : `onclick="location.hash='${td.hash}'"`}>
               ${td.ico} ${esc(td.txt)} <span class="badge ${td.d <= 7 ? 'b-amber' : ''}" style="margin-left:auto">${td.d} ${esc(t('home.daysLeft'))}</span>
             </button>`).join('') : `<div class="empty">${icon('spark', 52)}<br>${esc(t('home.noTodo'))}</div>`}
         </div>
@@ -490,6 +496,7 @@
       const w2 = Store.get('npsWaves', b.dataset.nps);
       if (w2) NPSViews.respondModal(w2, me.id, render);
     });
+    root.querySelectorAll('[data-gctodo]').forEach(b => b.onclick = () => GoalCheckViews.checkModal(me.id, render));
   };
 
   /* ---- my reviews ---- */
@@ -659,9 +666,10 @@
           ${UI.kpiChip(g.kpiRef)}
           ${g.confirmedByManager ? `<span class="badge b-green">${icon('check', 11)} ${esc(t('goals.confirmed'))}</span>` : `<span class="badge b-amber">${esc(t('goals.notConfirmed'))}</span>`}
           <div style="font-size:.82rem;color:var(--text-muted)">${esc(g.desc)}${va.role === 'hr' && owner ? ' · ' + esc(owner.name) : ''}</div></div>
-        <div style="width:120px"><div class="progressbar"><div style="width:${g.progress}%"></div></div></div>
-        <input type="range" min="0" max="100" value="${g.progress}" data-gp="${g.id}" style="width:80px">
-        <b style="width:42px;text-align:right">${g.progress}%</b></div>`;
+        <div style="width:140px"><div class="progressbar"><div style="width:${g.progress}%"></div></div></div>
+        <b style="width:42px;text-align:right">${g.progress}%</b>
+        ${va.role === 'hr' ? `<input type="range" min="0" max="100" step="1" value="${g.progress}" data-gp="${g.id}" style="width:80px" title="${esc(t('gc.hrFix'))}">` : ''}
+        <button class="btn btn-sm" data-gh="${g.id}" title="${esc(t('gc.history'))}">${icon('clock', 13)}</button></div>`;
     };
 
     const areaSection = (a, pool) => {
@@ -707,10 +715,12 @@
       const pool = (va.role === 'hr' && (fG.q || fG.dept))
         ? personal.filter(g => personMatch(person(g.ownerId), fG)) : personal;
       root.querySelector('#g-areas').innerHTML = ['teamwork', 'growth', 'quality'].map(a => areaSection(a, pool)).join('');
+      /* HR korekce: i ta jde přes applyProgress → zapíše se do historie s označením */
       root.querySelectorAll('[data-gp]').forEach(sl => sl.onchange = () => {
-        Store.update('goals', sl.dataset.gp, { progress: +sl.value });
+        GoalCheck.applyProgress(sl.dataset.gp, +sl.value, t('gc.hrFix'), va.personId);
         toast(t('common.saved')); render();
       });
+      root.querySelectorAll('[data-gh]').forEach(b => b.onclick = () => GoalCheckViews.historyModal(b.dataset.gh));
     };
     drawAreas();
     if (va.role === 'hr') bindFilterBar(root, 'goals', drawAreas);
@@ -1330,6 +1340,12 @@
             <label style="flex:1;margin:0">${esc(t('cand.threshold'))} <small style="color:var(--text-muted)">(/21)</small></label>
             <input class="input" style="width:160px" type="number" min="11" max="21" id="pol-cand" value="${(((co && co.cycleConfig) || {}).candidateThreshold || 16)}">
           </div>
+          <div class="field" style="display:flex;align-items:center;gap:10px">
+            <label style="flex:1;margin:0">${esc(t('gc.cadence'))}</label>
+            <select class="input" style="width:160px" id="pol-gc">
+              ${['q', 'semi', 'off'].map(k => `<option value="${k}" ${(((co && co.cycleConfig) || {}).goalCheck || 'q') === k ? 'selected' : ''}>${esc(t('tc.cad.' + k))}</option>`).join('')}
+            </select>
+          </div>
           <button class="btn btn-sm" id="pol-save">${esc(t('common.save'))}</button>
         </div>
         <div class="card"><h2>${icon('gauge', 18)}${esc(t('hr.compBands'))}</h2>
@@ -1397,10 +1413,12 @@
       const semiEl = root.querySelector('#pol-semi');
       const tcEl = root.querySelector('#pol-tc');
       const candEl = root.querySelector('#pol-cand');
+      const gcEl = root.querySelector('#pol-gc');
       co.cycleConfig = Object.assign({ semiEnabled: true }, co.cycleConfig,
         semiEl ? { semiEnabled: semiEl.checked } : {},
         tcEl ? { talentCheck: tcEl.value } : {},
-        candEl ? { candidateThreshold: Math.max(11, Math.min(21, +candEl.value || 16)) } : {});
+        candEl ? { candidateThreshold: Math.max(11, Math.min(21, +candEl.value || 16)) } : {},
+        gcEl ? { goalCheck: gcEl.value } : {});
       Store.setCompany(co); toast(t('common.saved'));
     };
     const cSimple = root.querySelector('#comp-simple');

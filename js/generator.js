@@ -184,6 +184,16 @@
     'Splněno. Klíčová byla změna přístupu po prvním kvartálu.',
     'Nesplněno dle plánu - objektivní překážky (změna priorit), dohodnut nový rámec.',
   ];
+  /* komentáře ke změnám plnění cílů (kvartální check) */
+  const GC_NOTES = [
+    'První tech talk proběhl, druhý naplánovaný na příští měsíc.',
+    'Hotová polovina rozsahu, doloženo v týmovém reportu.',
+    'Posun po dokončení projektu pro klíčového klienta.',
+    'Certifikační kurz dokončen, termín zkoušky potvrzen.',
+    'Zpomalení kvůli změně priorit - dohodnuto s manažerem na 1:1.',
+    'Milník odevzdán, čeká se na zpětnou vazbu zákazníka.',
+  ];
+
   /* průběžná konstruktivní vazba - SBI příklady (situace/chování/dopad/doporučení) */
   const FB_SBI = [
     { kind: 'develop', sit: 'Pondělní status meeting s klientem', beh: 'Prezentace čísel šla hodně do detailu bez shrnutí na úvod', imp: 'Klient se ztrácel a dvakrát se ptal na hlavní závěr', sug: 'Zkus začínat jedním slidem „co si odnést" a detail nechat do přílohy' },
@@ -308,12 +318,22 @@
       const pool = shuffle(tpls[areaKey]);
       for (let i = 0; i < n; i++) {
         const tpl = pool[i % pool.length];
+        const progress = Math.floor(rnd() * 90);
+        /* auditní stopa: progress vznikl kvartálními checky, ne z ničeho */
+        const day = 86400000, today = Date.now();
+        const mid = Math.floor(progress * (0.3 + rnd() * 0.5));
+        const progressLog = progress > 0 ? [
+          { at: today - (95 + Math.floor(rnd() * 20)) * day, from: 0, to: mid, byId: p.id,
+            note: pick(GC_NOTES) },
+          { at: today - (10 + Math.floor(rnd() * 20)) * day, from: mid, to: progress, byId: p.id,
+            note: pick(GC_NOTES) },
+        ].filter(e => e.from !== e.to) : [];
         out.push({
           id: uid(), ownerId: p.id, areaKey,
           title: tpl[0] + (i >= pool.length ? ' II' : ''),
           desc: tpl[1],
           weight: ws[i],
-          progress: Math.floor(rnd() * 90),
+          progress, progressLog,
           kpiRef: kpiRefFor(areaKey, p, company),
           confirmedByManager: true,
           due: '2026-12-31', type: 'personal', period,
@@ -721,6 +741,7 @@
       Store.replaceAll('goals', g.goals);
       Store.replaceAll('kudos', g.kudos);
       Store.replaceAll('feedback', g.feedback || []);
+      Store.replaceAll('goalChecks', []); /* aktuální kvartál bez checku → demo ukáže todo na Přehledu */
       Store.replaceAll('checkins', g.checkins);
       Store.replaceAll('notifications', g.notifications);
       Store.replaceAll('keyPositions', g.keyPositions || []);
@@ -732,7 +753,7 @@
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','feedback','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','feedback','goalChecks','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

@@ -583,6 +583,13 @@
           let h = '';
           if (gls.length) h += `<div class="bars" style="margin-bottom:10px">${gls.map(g => `
             <div class="brow"><span>${esc(g.title)}</span><div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}</div>`;
+          /* poslední změny plnění s komentáři z kvartálních checků */
+          if (window.GoalCheck) {
+            const plogs = GoalCheck.recentLogs(r.subjectId, since, 3);
+            if (plogs.length) h += plogs.map(({ goal, e }) =>
+              `<p style="font-size:.88rem;margin-bottom:4px">${icon('target', 13)} <b>${esc(goal.title)}</b>
+                <span class="badge">${e.from} → ${e.to} %</span> ${esc(e.note)}</p>`).join('');
+          }
           if (kud.length) h += kud.map(k => { const fr = person(k.fromId); return `<p style="font-size:.88rem;margin-bottom:4px">${icon('heart', 13)} <b>${esc(fr ? fr.name : '?')}</b>: ${esc(k.msg)}</p>`; }).join('');
           /* průběžná konstruktivní vazba (viditelnost: manažer subjektu ji vidí z titulu role) */
           if (window.Feedback) {
@@ -1009,14 +1016,16 @@
     });
   }
 
-  /* Pololetní check: po potvrzení propsat progress + schválené váhy do cílů */
+  /* Pololetní check: po potvrzení propsat progress + schválené váhy do cílů.
+     Progress jde přes GoalCheck.applyProgress → auditní stopa s komentářem z checku. */
   function applySemiChanges(r) {
     r.form.goalsEval.forEach(g => {
       const goal = Store.get('goals', g.goalId); if (!goal) return;
-      Store.update('goals', g.goalId, {
-        progress: g.progress != null ? g.progress : goal.progress,
-        weight: (g.mgrConfirmed && g.newWeight) ? g.newWeight : goal.weight,
-      });
+      if (g.progress != null && g.progress !== goal.progress && window.GoalCheck)
+        GoalCheck.applyProgress(g.goalId, g.progress, g.outcome || t('misc.semi'), r.subjectId);
+      else if (g.progress != null)
+        Store.update('goals', g.goalId, { progress: g.progress });
+      Store.update('goals', g.goalId, { weight: (g.mgrConfirmed && g.newWeight) ? g.newWeight : goal.weight });
     });
   }
 

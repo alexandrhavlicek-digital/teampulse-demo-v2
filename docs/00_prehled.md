@@ -9,7 +9,7 @@ Performance & Growth platforma pro firmy 15–300 lidí. Digitalizuje hodnoticí
 ## Klíčové principy
 
 1. **Hodnocení je dialog, ne monolog.** Základem je sebehodnocení; hodnocení se uzavírá výhradně vzájemnou shodou (potvrzením obou stran). Neshoda v hodnocení cíle se automaticky stává bodem hodnoticího rozhovoru.
-2. **Cíle táhnou strategii.** Osobní cíle visí pod třemi oblastmi hodnocení a vážou se na firemní či týmové KPI. Váhy cílů v oblasti dávají vždy přesně 100 % — vynucuje systém. Záložka **Alignment** v sekci Cíle vazbu vizualizuje (KPI → navázané cíle, % pokrytí, KPI bez jediného cíle) — lehký pohled z existujících dat, žádná OKR kaskáda.
+2. **Cíle táhnou strategii.** Osobní cíle visí pod třemi oblastmi hodnocení a vážou se na firemní či týmové KPI. Váhy cílů v oblasti dávají vždy přesně 100 % — vynucuje systém. Záložka **Alignment** v sekci Cíle vazbu vizualizuje (KPI → navázané cíle, % pokrytí, KPI bez jediného cíle) — lehký pohled z existujících dat, žádná OKR kaskáda. Plnění cílů se neposouvá „od oka": mění se jen v **kvartálním checku** (či pololetním checku) s povinným komentářem a auditní stopou; KPI hodnoty spravuje HR odděleně.
 3. **Čas manažera je nejdražší měna.** Tichá shoda (předvyplnění ze sebehodnocení), podklady z období (kudos, check-iny, plnění cílů) a rollover cílů snižují systémovou práci z ~60 na ~15–20 minut na hodnoceného.
 4. **Odměňování doporučujeme, nepočítáme.** Vážené skóre → indikativní pásmo viditelné jen manažerovi a HR. Rozhodnutí zůstává na lidech.
 
