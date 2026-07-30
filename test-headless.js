@@ -142,9 +142,10 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
 /* --- 11) succession: klíčové pozice --- */
 (function () {
   const kps = Store.list('keyPositions');
-  ok(kps.length === 4, `seed keyPositions (${kps.length}/4)`);
+  /* 4 pozice ze seedu + 1 pro demo personu manažera (aby měl co spravovat v Můj tým) */
+  ok(kps.length >= 4, `seed keyPositions (${kps.length})`);
   const keyOnes = kps.filter(SuccLogic.kpIsKey);
-  ok(keyOnes.length === 3, `3 klíčové dle checklistu (${keyOnes.length})`);
+  ok(keyOnes.length >= 3, `klíčové dle checklistu (${keyOnes.length})`);
   const uncovered = keyOnes.filter(kp => !kp.successors.length);
   ok(uncovered.length >= 1, `aspoň 1 nekrytá pozice (${uncovered.length})`);
   ok(kps.some(kp => !SuccLogic.kpIsKey(kp)), 'checklist funguje jako filtr (1 neklíčová)');
@@ -153,7 +154,7 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(SuccLogic.kpIsKey(mk(7)) && !SuccLogic.kpIsKey(mk(6)), 'práh většiny: 7/12 ANO');
   /* mapy pro org overlay */
   const maps = SuccLogic.succMaps();
-  ok(Object.keys(maps.kpByHolder).length === 3, 'org overlay: jen klíčové pozice');
+  ok(Object.keys(maps.kpByHolder).length === keyOnes.length, 'org overlay: jen klíčové pozice');
   ok(Object.keys(maps.succLevel).length >= 2, 'org overlay: nástupci namapováni');
   /* HR view obsahuje sekci */
   Store.patchSettings({ viewAs: null });
@@ -994,6 +995,163 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   const appSrc21 = fs.readFileSync('js/app.js', 'utf8');
   ok(appSrc21.includes('help-q') && appSrc21.includes("data-htab=\"${rl}\"") && appSrc21.includes('HelpKB.changelog()'), 'view: hledání + tab Novinky');
   ok(appSrc21.includes("param === 'news'"), 'view: deep-link #/help/news');
+})();
+
+/* --- 18) nástupnictví pro manažera: scope, seed, práva --- */
+(function () {
+  Generator.install('it', 60);
+  const ps10 = Store.list('people');
+  /* demo persona manažera (stejná logika jako personas() v app.js) */
+  const cnt10 = {};
+  Store.list('reviews').filter(r => r.period === Generator.CURRENT_PERIOD && r.evaluatorId)
+    .forEach(r => { cnt10[r.evaluatorId] = (cnt10[r.evaluatorId] || 0) + 1; });
+  const mgrId10 = Object.keys(cnt10).sort((a, b) => cnt10[b] - cnt10[a])[0];
+  const team10 = ps10.filter(p => p.managerId === mgrId10);
+  const ids10 = new Set(team10.map(p => p.id).concat(mgrId10));
+  const mine10 = Store.list('keyPositions')
+    .filter(kp => kp.holderId && ids10.has(kp.holderId) && SuccLogic.kpRated(kp) && SuccLogic.kpIsKey(kp));
+  ok(mine10.length >= 1, `seed: demo manažer má klíčovou pozici ve scope (${mine10.length}) — karta Nástupnictví není prázdná`);
+  /* scope: manažer nevidí pozice mimo svůj tým */
+  const all10 = Store.list('keyPositions').filter(SuccLogic.kpIsKey);
+  ok(mine10.length < all10.length, `scope: manažer vidí ${mine10.length} z ${all10.length} klíčových pozic (ne celou firmu)`);
+  ok(mine10.every(kp => ids10.has(kp.holderId)), 'scope: všechny viditelné pozice mají držitele ve scope manažera');
+  /* karta se vykreslí i pro manažera (vždy viditelná, klikatelná) */
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mgrId10 } });
+  const r10 = fakeEl();
+  TalentViews.renderMyTeam(r10);
+  ok(r10.innerHTML.includes('kp-row') && r10.innerHTML.includes('data-kp-edit'), 'Můj tým: karta nástupnictví je klikatelná (správa nástupců)');
+  ok(!r10.innerHTML.match(/kp\.\w/), 'žádné nepřeložené kp.* klíče v manažerském pohledu');
+  /* mgrMode: 12otázkový checklist klíčovosti se manažerovi nenabízí */
+  const tSrc10 = fs.readFileSync('js/talent.js', 'utf8');
+  ok(tSrc10.includes('mgrMode') && tSrc10.includes('kp.mgrLocked'), 'kpEditModal: režim manažera (klíčovost a držitel jsou HR)');
+  ok(tSrc10.includes("data-kps-cand"), 'kpEditModal: manažer otevře checklist kandidáta');
+  /* i18n nové sady */
+  let miss10 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['kp.myTeamTitle', 'kp.myTeamSub', 'kp.myTeamEmpty', 'kp.mgrModalTitle', 'kp.mgrHint', 'kp.mgrLocked', 'cand.open']
+      .forEach(k => { if (t(k) === k) miss10.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss10.length === 0, miss10.length ? 'chybí: ' + miss10.join(', ') : 'nástupnictví mgr: i18n kompletní (cs/en/de)');
+  Store.patchSettings({ viewAs: null });
+})();
+
+/* --- 19) „Na tahu": komu se připomíná a kdy je to naopak moje akce --- */
+(function () {
+  I18N.setLocale('cs');
+  /* míč u hodnoceného */
+  ['pending_self', 'self_in_progress', 'awaiting_employee_confirmation'].forEach(st =>
+    ok(ReviewLogic.nextActor(st) === 'subject', `na tahu hodnocený: ${st}`));
+  /* míč u hodnotitele (manažera) */
+  ['self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done'].forEach(st =>
+    ok(ReviewLogic.nextActor(st) === 'evaluator', `na tahu hodnotitel: ${st}`));
+  ok(ReviewLogic.nextActor('confirmed') === null, 'uzavřené hodnocení: nikdo na tahu');
+  /* akce hodnotitele mají popisek, u hodnoceného se nabízí připomenutí */
+  ok(ReviewLogic.nextActionKey('self_done') === 'act.evaluate' && ReviewLogic.nextActionKey('manager_done') === 'act.schedule',
+    'popisky další akce hodnotitele (Vyhodnotit / Naplánovat rozhovor)');
+  ok(ReviewLogic.nextActionKey('pending_self') === null, 'u hodnoceného není akce hodnotitele');
+  /* žádné plošné notify(…, "all") u připomínek */
+  const tSrc11 = fs.readFileSync('js/talent.js', 'utf8');
+  const aSrc11 = fs.readFileSync('js/app.js', 'utf8');
+  const cSrc11 = fs.readFileSync('js/copilot.js', 'utf8');
+  ok(!/hr\.reminded'\), 'all'/.test(tSrc11 + aSrc11 + cSrc11), 'připomínka už nechodí plošně „všem"');
+  ok(tSrc11.includes('ReviewLogic.nextActor(r.status)') && aSrc11.includes('ReviewLogic.nextActor(r.status)'),
+    'Můj tým i HR centrum cílí připomínku na toho, kdo je na tahu');
+  ok(tSrc11.includes("t(actKey || 'rev.view')"), 'Můj tým: když je míč u manažera, nabízí se akce místo připomínky');
+  /* i18n */
+  let miss11 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['act.ball', 'act.you', 'act.remindPerson', 'act.remindMsg', 'act.remindSent',
+     'act.evaluate', 'act.finishEval', 'act.schedule', 'act.conversationDone', 'act.sendToConfirm']
+      .forEach(k => { if (t(k) === k) miss11.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss11.length === 0, miss11.length ? 'chybí: ' + miss11.join(', ') : 'act.* i18n kompletní (cs/en/de)');
+})();
+
+/* --- 22) Copilot jako nápověda: odpoví na otázky o aplikaci z HelpKB --- */
+(function () {
+  Generator.install('it', 60);
+  Store.patchSettings({ viewAs: null, copilotEnabled: true });
+  I18N.setLocale('cs');
+  const th22 = Copilot.newThread();
+  const last22 = () => th22.msgs[th22.msgs.length - 1].html;
+  const caps22 = t('cop.f.capabilities');
+
+  /* [otázka, očekávané téma znalostní báze] - téma musí být jednoznačné, ne náhodná trefa */
+  const QA22 = [
+    ['jak funguje hodnocení?', 'flow'],
+    ['jaký je průběh hodnocení krok za krokem?', 'flow'],
+    ['jaké jsou typy hodnocení?', 'types'],
+    ['jak často se hodnotí?', 'types'],
+    ['jak funguje model cílů a váhy?', 'goals'],
+    ['kdo vidí moje data?', 'privacy'],
+    ['kdo má přístup k mým hodnocením?', 'privacy'],
+    ['co je tichá shoda?', 'agreement'],
+    ['co když nesouhlasím s hodnocením?', 'agreement'],
+    ['kdo je na tahu?', 'ball'],
+    ['co je konstruktivní zpětná vazba?', 'feedback'],
+    ['k čemu je copilot?', 'copilot'],
+  ];
+  let wrong22 = [], empty22 = [], notRouted22 = [];
+  QA22.forEach(([q, want]) => {
+    const a = HelpKB.answer(q);
+    if (!a || a.id !== want) wrong22.push(`"${q}" → ${a ? a.id : 'nic'} (čekáno ${want})`);
+    if (Copilot.detect(q) !== 'howto') notRouted22.push(q);
+    Copilot.process(th22, q);
+    const html = last22();
+    if (html.includes(caps22) || html.length < 60) empty22.push(q);
+  });
+  ok(notRouted22.length === 0, notRouted22.length ? `dotaz nemíří do nápovědy (${notRouted22.length}): ` + notRouted22.slice(0, 4).join(' | ') : 'každá otázka je rozpoznaná jako dotaz na nápovědu');
+  ok(wrong22.length === 0, wrong22.length ? `špatné téma (${wrong22.length}): ` + wrong22.slice(0, 4).join(' | ') : `všech ${QA22.length} otázek trefilo správné téma nápovědy`);
+  ok(empty22.length === 0, empty22.length ? `bez věcné odpovědi: ${empty22.slice(0, 4).join(' | ')}` : 'na každou otázku přišla věcná odpověď (ne výpis schopností)');
+
+  /* škála má odpověď rovnou z dat (slovní stupně, žádné zkratky) */
+  ok(Copilot.detect('jaká je hodnoticí škála?') === 'r.scale', 'škála: odpověď z dat, ne z textu nápovědy');
+  ok(HelpKB.answer('jaká je hodnoticí škála?').id === 'scale', 'škála: nápověda má vlastní téma');
+  Copilot.process(th22, 'jaká je hodnoticí škála?');
+  ok(last22().includes(ReviewLogic.scaleWord('KV')), 'škála: Copilot vypíše slovní stupně');
+
+  /* odpověď je souvislá (celé téma, ne jedna věta) a čerpá z klíčů Nápovědy */
+  Copilot.process(th22, 'jak funguje hodnocení?');
+  const flow22 = last22();
+  ok(flow22.includes(t('help.flow.1').slice(0, 25)) && flow22.includes(t('help.flow.4').slice(0, 20)),
+    'odpověď o procesu čerpá z klíčů Nápovědy a je souvislá (jeden zdroj pravdy)');
+  const chips22 = th22.msgs[th22.msgs.length - 1].chips || [];
+  ok(chips22.some(c => /vysv/i.test(c.val || '')), 'odpověď nabízí prokliky na související témata');
+
+  /* nová témata nápovědy jsou i v sekci Nápověda (ne jen v chatu) */
+  const ids22 = HelpKB.topics('employee').map(x => x.id);
+  ['flow', 'scale', 'agreement', 'ball', 'privacy'].forEach(id => ok(ids22.includes(id), 'Nápověda má téma: ' + id));
+
+  /* role-aware: postup pro moji roli */
+  Store.patchSettings({ viewAs: { role: 'employee', personId: Store.list('people').find(p => p.managerId).id } });
+  const th23 = Copilot.newThread();
+  Copilot.process(th23, 'jak mám postupovat krok za krokem?');
+  ok(th23.msgs[th23.msgs.length - 1].html.length > 60, 'role-aware: zaměstnanec dostane návod, ne odmítnutí');
+  Store.patchSettings({ viewAs: null });
+
+  /* „co umíš" ukazuje i témata nápovědy → je objevitelná */
+  const th24 = Copilot.newThread();
+  Copilot.process(th24, 'co umíš?');
+  const caps24 = th24.msgs[th24.msgs.length - 1].html;
+  ok(caps24.includes(t('cop.kb.topicsTitle')) && caps24.includes(t('help.flowTitle')), 'výpis schopností nabízí i témata nápovědy');
+
+  /* i18n nových sad */
+  let miss22 = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['cop.cap.11', 'cop.kb.askAbout', 'cop.kb.topicsTitle', 'cop.kb.alsoAsk', 'cop.kb.exampleQ',
+     'help.privacy.title', 'help.agree.title', 'help.ball.title']
+      .concat([1, 2, 3, 4].map(i => 'help.privacy.' + i))
+      .concat([1, 2, 3, 4].map(i => 'help.agree.' + i))
+      .concat([1, 2, 3, 4].map(i => 'help.ball.' + i))
+      .forEach(k => { if (t(k) === k) miss22.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(miss22.length === 0, miss22.length ? 'chybí: ' + miss22.slice(0, 6).join(', ') : 'nápověda v chatu: i18n kompletní (cs/en/de)');
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */

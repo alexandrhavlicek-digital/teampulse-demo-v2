@@ -81,6 +81,23 @@
   const scaleWord = k => k ? t('scale.short.' + (k === 'NA' ? 'NA' : k)) : '-';
   const RATING_VALUE = { TN: 1.2, PO: 1.1, KV: 1.0, NR: 0.85, NU: 0.7 };
 
+  /* kdo je „na tahu" v daném stavu - 'subject' = hodnocený, 'evaluator' = hodnotitel.
+     Používá Můj tým i HR centrum, aby připomínka chodila tomu, kdo má míč. */
+  const ACTOR = {
+    pending_self: 'subject', self_in_progress: 'subject',
+    self_done: 'evaluator', manager_in_progress: 'evaluator',
+    manager_done: 'evaluator', conversation_scheduled: 'evaluator', conversation_done: 'evaluator',
+    awaiting_employee_confirmation: 'subject',
+  };
+  const nextActor = st => ACTOR[st] || null;
+  /* popisek další akce hodnotitele (pro stavy, kde je míč u něj) */
+  const EVAL_ACTION = {
+    self_done: 'act.evaluate', manager_in_progress: 'act.finishEval',
+    manager_done: 'act.schedule', conversation_scheduled: 'act.conversationDone',
+    conversation_done: 'act.sendToConfirm',
+  };
+  const nextActionKey = st => EVAL_ACTION[st] || null;
+
   function daysLeft(r) { return Math.ceil((r.deadline - Date.now()) / 86400000); }
   function risk(r) {
     if (['confirmed', 'closed_by_hr', 'cancelled'].includes(r.status)) return 'none';
@@ -133,7 +150,7 @@
 
   /* materializeNewGoals + applySemiChanges jsou function declarations níže (hoisting) -
      export pro Copilot, aby potvrzení hodnocení chatem dělalo totéž co UI */
-  window.ReviewLogic = { daysLeft, risk, SCALE_DEF, scaleLabel, scaleWord, RATING_VALUE, computeScore, band, materializeNewGoals, applySemiChanges };
+  window.ReviewLogic = { daysLeft, risk, SCALE_DEF, scaleLabel, scaleWord, RATING_VALUE, computeScore, band, materializeNewGoals, applySemiChanges, nextActor, nextActionKey };
 
   function getReview(id) { return Store.get('reviews', id); }
   function person(id) { return Store.get('people', id); }

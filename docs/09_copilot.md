@@ -1,6 +1,6 @@
 # 09 — TeamPulse Copilot (realizační dokument)
 
-**Verze:** 1.1 · **Datum:** 2026-07-28 · **Stav:** plné pokrytí aplikace (simulovaný engine) · **Soubor:** `js/copilot.js`
+**Verze:** 1.2 · **Datum:** 2026-07-30 · **Stav:** plné pokrytí aplikace + nápověda v chatu (simulovaný engine) · **Soubory:** `js/copilot.js`, `js/help.js`
 
 ## 1. Koncept
 
@@ -41,10 +41,21 @@ Produkční výhled: rozhraní `Copilot.reply(thread, input)` je jediný vstupn�
 | Přidání člověka | manažer, HR | jméno + oddělení chipem + manažer chipem → `people` insert |
 | Vzhled + jazyk | všichni | „přepni na glass" / „switch to english" → settings |
 | Vypnutí Copilota | všichni | „vypni se" + potvrzení → `copilotEnabled:false` a přesměrování do Nastavení |
-| Reporting | dle role | stav hodnocení, rizika, nálada+stale, eNPS, kudos, cíle, KPI, **kdo je X** (karta člověka), **můj tým v kostce**, notifikace, škála TN-NU, **talent přehled** (jen mgr/HR: hvězdy, riziko, retenč. rizika, klíčové pozice), 360 výsledky (agregát), mini nápověda „jak na…" |
+| Reporting | dle role | stav hodnocení, rizika, nálada+stale, eNPS, kudos, cíle, KPI, **kdo je X** (karta člověka), **můj tým v kostce**, notifikace, hodnoticí škála, **talent přehled** (jen mgr/HR: hvězdy, riziko, retenč. rizika, klíčové pozice), 360 výsledky (agregát), mini nápověda „jak na…" |
 | Naplánované úlohy | všichni | `copilotTasks`; denně/týdně/měsíčně/jednorázově; spouští se při otevření Copilota a přeplánují se |
 
-Nerozpoznaný vstup → přehled schopností (žádné halucinace).
+Nerozpoznaný vstup → přehled schopností **a témata nápovědy** (žádné halucinace).
+
+## 3b. Copilot jako nápověda (znalostní báze)
+
+Copilot odpovídá i na otázky **o aplikaci samotné**. Obsah se nikde nedubluje: zdrojem je `HelpKB` (`js/help.js`) — tedy přesně to, co je v sekci Nápověda. Jeden zdroj pravdy, texty žijí v i18n (cs/en/de).
+
+- **Témata** (`HelpKB.topics`): příručka pro moji roli, průběh hodnocení v 5 fázích, typy hodnocení, model cílů a váhy, hodnoticí škála, zpětná vazba (uznání + konstruktivní vazba), moduly (talent, nálada, 1:1, přehledy), **shoda a potvrzení**, **stavy a kdo je na tahu**, **kdo co vidí (soukromí)**, Copilot. Poslední tři přibyly s verzí 1.2 — chyběly a přitom je to nejčastější dotaz uživatelů.
+- **Rozpoznání dotazu:** tázací rámce („jak funguje / co je / kde najdu / proč / kdo vidí / co když") mají v routeru přednost před akcemi — „zapiš 1:1 s Petrem" je akce, „jak zapíšu 1:1?" je nápověda. Dotazy s odpovědí z dat (novinky, škála, notifikace) mají přednost před textem.
+- **Když rámec chybí** („jaké jsou typy hodnocení?"), sáhne router na konci po `HelpKB.search` a odpoví z nápovědy místo „tohle neumím".
+- **Volba tématu:** každé téma má klíčová slova (`kw`, bez diakritiky, cs/en/de), která váží nejvíc; pak název, nejlepší odstavec a pokrytí dotazu. Porovnává se na hranici slova a přes kmen, takže „nástupnictví" nespadne do „stupnice" a „hodnocením" sedne na „hodnocení".
+- **Odpověď** = nadpis + celé téma v odrážkách (trefené odstavce první) + chipy „Otevřít (sekce)", „Nápověda" a dvě související témata bez duplicit.
+- **Objevitelnost:** uvítání nabízí příklady otázek a chip s vysvětlením procesu, „co umíš" vypisuje i seznam témat pro moji roli.
 
 ## 4. Proaktivita
 
@@ -75,11 +86,13 @@ Dvousloupcový layout: vlevo historie vláken (pin 📌, mazání), uložené pr
 
 ## 8. Testy
 
-`test-headless.js` bloky 13 + 13b (~65 checků): migrace kolekcí, welcome + chipy, intent parser, všechny 4 flows end-to-end (propis do Store + stavové přechody), plánování a spouštění úloh, prompty per persona, práva zaměstnance, vypnutí, i18n úplnost `cop.*` (×3 jazyky), render smoke.
+`test-headless.js` bloky 13 + 13b + 22 (~90 checků): migrace kolekcí, welcome + chipy, intent parser, všechny flows end-to-end (propis do Store + stavové přechody), plánování a spouštění úloh, prompty per persona, práva zaměstnance, vypnutí, i18n úplnost `cop.*` (×3 jazyky), render smoke.
+
+Blok 22 hlídá nápovědu v chatu: 12 otázek musí (a) být rozpoznáno jako dotaz, (b) trefit **konkrétní** téma — ne jen „nějakou odpověď", (c) vrátit věcný text, ne výpis schopností. Dál se ověřuje, že odpověď obsahuje texty z klíčů `help.*` (jeden zdroj pravdy), nabízí prokliky na související témata, že nová témata jsou i v sekci Nápověda, a i18n ve třech jazycích.
 
 ## 9. Roadmap
 
-1. LLM adapter (Azure OpenAI EU) za `Copilot.reply` — function-calling nad stávajícími akcemi, RAG nad nápovědou/směrnicemi HR.
+1. LLM adapter (Azure OpenAI EU) za `Copilot.reply` — function-calling nad stávajícími akcemi, RAG nad nápovědou/směrnicemi HR (`HelpKB` už je připravená jako korpus).
 2. Copilot jako samostatná PWA na `copilot.teampulse.cz` (mobilní app) — stejný Store přes Supabase.
 3. Další flows: návrhy cílů z KPI, sumarizace 1:1 historie před rozhovorem, kalibrační podklady. (Pololetní check, rozhovory, cyklus, eNPS, 360, KPI a správa lidí už chat umí - v1.1.)
 4. Push notifikace pro naplánované úlohy (dnes se spouští při otevření).

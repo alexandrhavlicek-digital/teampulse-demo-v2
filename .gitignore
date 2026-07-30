@@ -3,3 +3,4 @@
 wrangler.toml
 .wrangler/
 _to_delete/
+PUSH.sh

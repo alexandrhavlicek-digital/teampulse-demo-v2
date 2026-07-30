@@ -589,6 +589,27 @@
       });
     });
 
+    /* Demo persona manažera musí mít klíčovou pozici, jinak sekce Nástupnictví
+       v Můj tým vypadá jako by neexistovala. Bereme toho, kdo hodnotí nejvíc lidí. */
+    (function seedMgrKeyPosition() {
+      const evalCounts = {};
+      reviews.filter(r => r.period === CURRENT_PERIOD && r.evaluatorId)
+        .forEach(r => { evalCounts[r.evaluatorId] = (evalCounts[r.evaluatorId] || 0) + 1; });
+      const demoMgrId = Object.keys(evalCounts).sort((a, b) => evalCounts[b] - evalCounts[a])[0];
+      const demoMgr = demoMgrId ? people.find(p => p.id === demoMgrId) : null;
+      if (!demoMgr || keyPositions.some(kp => kp.holderId === demoMgr.id)) return;
+      const checklist = {};
+      shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).forEach((q, j) => { checklist['q' + q] = j < 9; });
+      /* jeden nástupce, ale připravený až za 1-2 roky → manažer má na čem pracovat */
+      const reports = people.filter(p => p.managerId === demoMgr.id);
+      const successors = reports.length
+        ? [{ personId: reports[0].id, level: 'successor', readiness: 'r12' }] : [];
+      keyPositions.push({
+        id: uid(), deptKey: demoMgr.deptKey, dept: demoMgr.dept, title: demoMgr.role,
+        holderId: demoMgr.id, checklist, proposedBy: null, confirmedByHr: true, successors,
+      });
+    })();
+
     /* kvartální talent checky v různých stavech (ať HR karta při demu žije):
        1. manažer = final s jedním overridem, 2. = debate (čeká na HR), zbytek bez checku */
     const talentChecks = [];

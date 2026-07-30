@@ -1284,3 +1284,9 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 /* delší slovní popisky na tlačítkách hodnoticí škály */
 .scale-opt b { overflow-wrap: break-word; }
 @media (max-width: 640px) { .f36-opt { padding: 8px 12px; } }
+
+/* nástupnictví: režim manažera (hlavička read-only) */
+.kp-mgr-head {
+  padding: 12px 14px; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--hairline); margin-bottom: 14px;
+}

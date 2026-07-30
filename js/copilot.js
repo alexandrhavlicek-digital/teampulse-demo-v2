@@ -50,6 +50,10 @@
 
   /* fuzzy match jmen (zvládá české skloňování přes 4-znakové stemy) */
   function matchPeople(text) {
+    const n0 = norm(text);
+    /* přesná shoda na celé jméno má přednost před fuzzy skórováním (jmenovci) */
+    const exact = ppl().filter(p => p.firstName && p.lastName && n0.includes(norm(p.firstName + ' ' + p.lastName)));
+    if (exact.length === 1) return exact;
     const tokens = norm(text).split(/[^a-z0-9]+/).filter(w => w.length >= 3);
     const scored = [];
     ppl().forEach(p => {
@@ -141,11 +145,14 @@
     } else {
       html += `<br><span style="color:var(--text-muted)">${esc(t('cop.rec.none'))}</span>`;
     }
-    const chips = rr.flatMap(r => r.chips).slice(0, 4);
+    /* Copilot je i nápověda - hned na uvítanou nabídnu vysvětlení procesu */
+    html += `<br><br><span style="color:var(--text-muted)">${esc(t('cop.kb.alsoAsk'))} <i>${esc(t('cop.kb.exampleQ'))}</i></span>`;
+    const chips = rr.flatMap(r => r.chips).slice(0, 3);
     if (!chips.length) chips.push(
       { label: t('cop.ch.reportStatus'), act: 'ask', val: t('cop.ask.status') },
       { label: t('cop.ch.mood'), act: 'ask', val: t('cop.ask.mood') },
       { label: t('cop.ch.kudos'), act: 'ask', val: t('cop.ask.kudos') });
+    chips.push.apply(chips, askTopicChip('flow'));
     bot(th, html, chips);
   }
 
@@ -191,14 +198,20 @@
     lang: /(prepni|zmen|switch|change|wechsel).*(jazyk|language|sprache)|do (anglictiny|nemciny|cestiny)|to (english|german|czech)|auf (englisch|deutsch|tschechisch)/,
     cycle: /(spust|zahaj|start|nov[eyá])\w*\s+(?:\S+\s+)?(cyklus|cycle|zyklus|kolo hodnocen)|(cyklus|cycle|zyklus).*(spust|start|zahaj)/,
     remindOther: /\b(vsem|all|allen)\b|(pripomen|remind|erinner)/,
-    howto: /jak\s+(funguje|na\b|pridam|udelam|spustim|zadam|vyplnim|zapnu|vypnu|nastavim)/,
+    howto: /(jak\s+(funguje|na\b|pridam|prid|udelam|spustim|zadam|vyplnim|zapnu|vypnu|nastavim|nastavit|probiha|se|mam|bych|zapisu|zapsat|zaznamenam|zalozim|otevru|najdu|smazu|zrusim|pozvu|poslu|potvrdim|dokoncim|vytvorim|casto)|co je\b|co znamena|co to je|co delat|co kdyz|co se stane|nesouhlas|kde (najdu|je|se|vypnu|zapnu|nastavim|zmenim|najdes|mam|si)|k cemu|proc\b|kdo (vidi|uvidi|ma pristup|je na tahu)|vysvetli|rozdil mezi|krok za krokem|navod|prirucka|muj postup|jak postupovat|what is|what if|how (does|do i)|where (do i|can i)|why\b|who (can|sees)|step by step|was (ist|passiert|wenn)|wie (funktioniert|kann)|warum|wer (sieht|kann))/,
     switchOff: /(vypni|vypnout|deaktivuj|disable|abschalt).*(copilot)|copilot.*(vypni|vypnout|off)/,
   };
 
   function detect(text) {
     const n = norm(text);
-    if (RX.switchOff.test(n)) return 'copOff';
+    /* dotazy s odpovědí Z DAT mají přednost před nápovědou… */
+    if (RX.changelog.test(n)) return 'r.changelog';
+    if (RX.notif.test(n)) return 'r.notif';
+    if (RX.scaleQ.test(n)) return 'r.scale';
+    /* …a OTÁZKA („co je / jak funguje / kde / proč / kdo vidí") má přednost před AKCÍ:
+       „zapiš 1:1 s Petrem" = akce, ale „jak zapíšu 1:1?" = nápověda. */
     if (RX.howto.test(n)) return 'howto';
+    if (RX.switchOff.test(n)) return 'copOff';
     if (RX.help.test(n)) return 'help';
     /* rozhovor má přednost před plánovačem („naplánuj rozhovor s…") */
     if (RX.conv.test(n) && !RX.f360.test(n)) return 'conv';
@@ -245,6 +258,8 @@
     if (RX.theme.test(n)) return 'theme';
     if (RX.greet.test(n) && n.length < 40) return 'greet';
     if (matchPeople(text).length === 1 && n.split(/\s+/).length <= 3) return 'r.person';
+    /* poslední záchrana: sedí-li dotaz na téma Nápovědy, odpověz z ní místo „tohle neumím" */
+    if (window.HelpKB && n.split(/\s+/).length >= 2 && HelpKB.search(text).length) return 'howto';
     return null;
   }
 
@@ -979,8 +994,15 @@
     if (m.length) targets = cur.filter(r => m.some(p => p.id === r.subjectId));
     else targets = cur.filter(r => ['risk', 'blocked'].includes(ReviewLogic.risk(r)));
     if (!targets.length) return bot(th, t('cop.rm.none'));
-    targets.slice(0, 20).forEach(() => notify(t('hr.reminded'), 'all'));
-    bot(th, '📨 ' + fmt('cop.rm.done', { n: targets.length, names: targets.slice(0, 5).map(r => (byId(r.subjectId) || {}).firstName || '').join(', ') }));
+    /* připomínka jde tomu, kdo je na tahu (hodnocený vs. hodnotitel), ne plošně */
+    const names = [];
+    targets.slice(0, 20).forEach(r => {
+      const isEval = ReviewLogic.nextActor(r.status) === 'evaluator';
+      const tgt = byId(isEval ? r.evaluatorId : r.subjectId);
+      if (tgt) names.push(tgt.firstName);
+      notify(t('act.remindMsg').split('{name}').join(tgt ? tgt.name : ''), isEval ? 'manager' : 'employee');
+    });
+    bot(th, '📨 ' + fmt('cop.rm.done', { n: targets.length, names: [...new Set(names)].slice(0, 5).join(', ') }));
   }
 
   /* ---------- eNPS odpověď ---------- */
@@ -1247,7 +1269,12 @@
   function rPerson(th, text) {
     const m = matchPeople(text);
     if (!m.length) return bot(th, t('cop.r.noData'));
-    if (m.length > 1) return bot(th, t('cop.k.whoAmbig'), chipsOf(m.slice(0, 5).map(p => ({ label: p.name, act: 'ask', val: t('cop.ask.whois') + ' ' + p.name }))));
+    if (m.length > 1) {
+      /* jmenovci: v textu vypíšeme i roli a útvar, aby šlo poznat, kdo je kdo */
+      const list = m.slice(0, 5).map(p => `<li><b>${esc(p.name)}</b> · ${esc(p.role)} · ${esc(p.dept)}</li>`).join('');
+      return bot(th, `${esc(t('cop.k.whoAmbig'))}<ul>${list}</ul>`,
+        chipsOf(m.slice(0, 5).map(p => ({ label: p.name + ' (' + p.dept + ')', act: 'ask', val: t('cop.ask.whois') + ' ' + p.name }))));
+    }
     const p = m[0];
     const v = va();
     const mgr = p.managerId ? byId(p.managerId) : null;
@@ -1354,8 +1381,12 @@
     ];
     /* primární zdroj = stejná knowledge base jako sekce Nápověda (HelpKB) */
     const kb = window.HelpKB ? HelpKB.answer(text) : null;
-    if (kb) return bot(th, `<b>${esc(kb.title)}</b><br>${esc(kb.text)}`,
-      chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: kb.hash }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
+    if (kb) {
+      const body = (kb.items && kb.items.length ? kb.items : [kb.text]).map(x => `<li>${esc(x)}</li>`).join('');
+      return bot(th, `<b>${esc(kb.title)}</b><ul>${body}</ul>`,
+        chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: kb.hash }, { label: t('nav.help'), act: 'nav', val: '#/help' }]
+          .concat((kb.related || []).map(r2 => ({ label: r2.title, act: 'ask', val: t('cop.kb.askAbout') + ' ' + r2.title })))));
+    }
     /* záloha: kurátorované mini odpovědi */
     const hit = topics.find(([rx]) => new RegExp(rx).test(n));
     if (hit) return bot(th, esc(t(hit[1])), chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: hit[2] }, { label: t('nav.help'), act: 'nav', val: '#/help' }]));
@@ -1384,8 +1415,16 @@
 
   /* ================= router ================= */
   function capabilitiesHtml() {
+    /* Copilot je zároveň nápověda - ukážeme i témata, která umí vysvětlit */
+    const kbTopics = window.HelpKB ? HelpKB.topics(va().role).map(x => `<li>${esc(x.title)}</li>`).join('') : '';
     return `<b>${esc(t('cop.f.capabilities'))}</b><ul>` +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>';
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>' +
+      (kbTopics ? `<b>${esc(t('cop.kb.topicsTitle'))}</b><ul>${kbTopics}</ul>` : '');
+  }
+  /* chip „Vysvětli mi <téma>" - vrací se zpět do znalostní báze */
+  function askTopicChip(id) {
+    const tp = window.HelpKB ? HelpKB.topics(va().role).find(x => x.id === id) : null;
+    return tp ? [{ label: tp.title, act: 'ask', val: t('cop.kb.askAbout') + ' ' + tp.title }] : [];
   }
   function defaultChips() {
     return chipsOf([

@@ -231,3 +231,13 @@ Talent sekce se seeduje v `filledMgr` (deterministický `rnd()` se seedem): pote
 6. Bump `?v=` v index.html (cache bust; formát `RRRRMMDD[a-z]`).
 7. Aktualizuj tento dokument (§ čeho se změna týká) + 00_prehled (mapa) + případně příručky 05/06.
 8. Commit do větve, merge do `main` rozhoduje zadavatel (deploy = GitHub Actions → Cloudflare Pages, viz 03).
+
+## Nástupnictví v roli manažera
+
+Manažer vidí v sekci **Můj tým** kartu *Klíčové pozice v týmu* — vždy, i když je prázdná (jinak modul vypadá, že neexistuje; prázdný stav vysvětlí, že klíčovost určuje HR). Scope = pozice, jejichž držitel je on sám nebo někdo z jeho týmu.
+
+Klik na řádek otevře editor v **režimu manažera**: název pozice, držitele a 12otázkové vyhodnocení klíčovosti drží HR (read-only rekapitulace s poznámkou `kp.mgrLocked`), manažer spravuje **nástupce** a přes tlačítko u každého nástupce otevře 21otázkový checklist kandidáta. Seed demo dat proto přiřazuje klíčovou pozici i demo personě manažera (`seedMgrKeyPosition` v `generator.js`).
+
+## Kdo je na tahu (a komu se připomíná)
+
+`ReviewLogic.nextActor(status)` vrací `subject` (hodnocený) nebo `evaluator` (hodnotitel); `nextActionKey(status)` k tomu dává popisek další akce hodnotitele. Tabulky rizikových hodnocení v **Můj tým** i **HR centrum** mají sloupec *Na tahu*. Tlačítko **Připomenout** se nabízí jen tam, kde míč drží druhá strana — a notifikace jde adresně jemu, ne plošně všem. Když je míč u manažera, místo připomínky se nabízí rovnou akce (*Vyhodnotit*, *Dokončit hodnocení*, *Naplánovat rozhovor*, *Rozhovor proběhl*, *Odeslat k potvrzení*). Stejné pravidlo platí pro připomínky z Copilota.

@@ -426,7 +426,10 @@
       ${avatar(p, 22)} ${esc(p.firstName)} ${s.readiness ? `<small>${esc(t('tal.rd.' + s.readiness))}</small>` : ''}${mark}</span>`;
   }
 
-  function kpEditModal(kp, onDone) {
+  /* opts.mgrMode = manažer svého týmu: spravuje NÁSTUPCE (a přes chip checklist
+     kandidáta), zatímco název pozice, držitele a vyhodnocení klíčovosti drží HR. */
+  function kpEditModal(kp, onDone, opts) {
+    const mgrMode = !!(opts && opts.mgrMode);
     const co = Store.getCompany();
     const ps = Store.list('people');
     const isNew = !kp;
@@ -436,6 +439,15 @@
     const render = m => {
       const yes = kpYes(kp);
       m.querySelector('#kp-body').innerHTML = `
+        ${mgrMode ? (() => {
+          const h = kp.holderId ? Store.get('people', kp.holderId) : null;
+          return `<div class="kp-mgr-head">
+            <b>${esc(kp.title)}</b> <span class="badge">${esc(kp.dept || '')}</span>
+            <div class="kp-holder" style="margin-top:4px">${h ? avatar(h, 24) + ' ' + esc(h.name) : '-'}</div>
+            <span class="badge ${kpIsKey(kp) ? 'b-blue' : ''}" style="margin-top:8px;display:inline-block">${esc(t(kpIsKey(kp) ? 'kp.result.key' : 'kp.result.notKey'))} · ${yes}/12</span>
+            <p class="hint" style="color:var(--text-muted);margin-top:8px">${esc(t('kp.mgrLocked'))}</p>
+          </div>`;
+        })() : `
         <div class="grid cols-2">
           <div class="field"><label>${esc(t('kp.title'))}</label><input class="input" id="kpf-title" value="${esc(kp.title)}"></div>
           <div class="field"><label>${esc(t('people.dept'))}</label>
@@ -452,7 +464,7 @@
             <span class="kp-yn">
               <button type="button" class="btn btn-sm ${kp.checklist['q' + q] === true ? 'btn-primary' : ''}" data-kpq="${q}:1">${esc(t('kp.yes'))}</button>
               <button type="button" class="btn btn-sm ${kp.checklist['q' + q] === false ? 'kp-no' : ''}" data-kpq="${q}:0">${esc(t('kp.no'))}</button>
-            </span></div>`).join('')}</div>`).join('')}
+            </span></div>`).join('')}</div>`).join('')}`}
         <div style="display:flex;align-items:center;gap:8px;margin:12px 0 6px">
           <b>${esc(t('kp.succ'))}</b>
           ${kpRated(kp) && kpIsKey(kp) && !kp.successors.length ? `<span class="badge b-red">${esc(t('kp.noSucc'))}</span>` : ''}
@@ -462,7 +474,10 @@
           return `<div class="kp-q"><span>${p ? avatar(p, 22) + ' ' + esc(p.name) : '?'}
             <span class="badge ${s.level === 'key' ? 'b-green' : 'b-amber'}">${esc(t(s.level === 'key' ? 'kp.succKey' : 'kp.succReg'))}</span>
             ${s.readiness ? `<span class="badge">${esc(t('tal.rd.' + s.readiness))}</span>` : ''}</span>
-            <button type="button" class="btn btn-sm" data-kps-del="${i}">${icon('trash', 12)}</button></div>`;
+            <span style="display:flex;gap:6px">
+              <button type="button" class="btn btn-sm" data-kps-cand="${i}">${icon('doc', 12)} ${esc(t('cand.open'))}</button>
+              <button type="button" class="btn btn-sm" data-kps-del="${i}">${icon('trash', 12)}</button>
+            </span></div>`;
         }).join('')}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
           <select class="input" id="kps-person" style="flex:2;min-width:160px"><option value="">${esc(t('kp.addSucc'))}…</option>
@@ -475,10 +490,19 @@
         </div>`;
 
       const collect = () => {
-        kp.title = m.querySelector('#kpf-title').value;
+        const ti = m.querySelector('#kpf-title');
+        if (!ti) return; /* režim manažera: hlavička je read-only */
+        kp.title = ti.value;
         kp.deptKey = m.querySelector('#kpf-dept') ? m.querySelector('#kpf-dept').value : kp.deptKey;
         kp.holderId = m.querySelector('#kpf-holder').value || null;
       };
+      m.querySelectorAll('[data-kps-cand]').forEach(bc => bc.onclick = () => {
+        collect();
+        const orig = Store.get('keyPositions', kp.id);
+        if (orig) { Object.assign(orig, kp); Store.update('keyPositions', kp.id, {}); }
+        closeModal();
+        candChecklistModal(Store.get('keyPositions', kp.id) || kp, +bc.dataset.kpsCand, onDone);
+      });
       m.querySelectorAll('[data-kpq]').forEach(bq => bq.onclick = () => {
         collect();
         const [q, v] = bq.dataset.kpq.split(':');
@@ -496,9 +520,11 @@
       };
       m.querySelector('#kp-save').onclick = () => {
         collect();
-        if (!kp.title.trim()) { UI.toast(t('kp.title')); return; }
-        const dept = depts.find(d => d.key === kp.deptKey);
-        kp.dept = dept ? dept.name : kp.deptKey;
+        if (!mgrMode) {
+          if (!kp.title.trim()) { UI.toast(t('kp.title')); return; }
+          const dept = depts.find(d => d.key === kp.deptKey);
+          kp.dept = dept ? dept.name : kp.deptKey;
+        }
         if (isNew) Store.insert('keyPositions', kp);
         else { const orig = Store.get('keyPositions', kp.id); Object.assign(orig, kp); Store.update('keyPositions', kp.id, {}); }
         closeModal(); UI.toast(t('common.saved')); onDone();
@@ -508,11 +534,11 @@
       m.querySelector('#kp-cancel').onclick = closeModal;
     };
 
-    modal(`<h3>${icon('grid9', 18)}${esc(t('kp.modalTitle'))}</h3>
-      <p class="hint" style="color:var(--text-muted);margin-bottom:12px">${esc(t('kp.hint'))}</p>
+    modal(`<h3>${icon('grid9', 18)}${esc(t(mgrMode ? 'kp.mgrModalTitle' : 'kp.modalTitle'))}</h3>
+      <p class="hint" style="color:var(--text-muted);margin-bottom:12px">${esc(t(mgrMode ? 'kp.mgrHint' : 'kp.hint'))}</p>
       <div id="kp-body" style="max-height:56vh;overflow:auto;padding-right:4px"></div>
       <div class="wizard-foot">
-        ${isNew ? '<span></span>' : `<button class="btn btn-danger" id="kp-del">${icon('trash', 14)} ${esc(t('common.delete'))}</button>`}
+        ${(isNew || mgrMode) ? '<span></span>' : `<button class="btn btn-danger" id="kp-del">${icon('trash', 14)} ${esc(t('common.delete'))}</button>`}
         <div style="display:flex;gap:8px">
           <button class="btn" id="kp-cancel">${esc(t('common.cancel'))}</button>
           <button class="btn btn-primary" id="kp-save">${esc(t('common.save'))}</button>
@@ -549,10 +575,10 @@
     </div>`;
   }
 
-  function bindSuccessionCard(root, rerender) {
+  function bindSuccessionCard(root, rerender, opts) {
     const add = root.querySelector('#kp-add-btn');
     if (add) add.onclick = () => kpEditModal(null, rerender);
-    root.querySelectorAll('[data-kp-edit]').forEach(row => row.onclick = () => kpEditModal(Store.get('keyPositions', row.dataset.kpEdit), rerender));
+    root.querySelectorAll('[data-kp-edit]').forEach(row => row.onclick = () => kpEditModal(Store.get('keyPositions', row.dataset.kpEdit), rerender, opts));
     /* chip nástupce → checklist kandidáta (stopPropagation, ať se neotevře editor pozice) */
     root.querySelectorAll('[data-cand]').forEach(ch => ch.onclick = ev => {
       ev.stopPropagation();
@@ -689,14 +715,21 @@
 
       <div class="card">
         <h2>${icon('alert', 18)}${esc(t('hr.atRisk'))}</h2>
-        ${st.atRisk.length ? `<table class="table"><tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
+        ${st.atRisk.length ? `<table class="table"><tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('act.ball'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
           ${st.atRisk.slice(0, 10).map(r => {
             const p = Store.get('people', r.subjectId);
             const d = ReviewLogic.daysLeft(r);
+            /* míč u hodnoceného → má smysl připomínat; míč u manažera → rovnou akce */
+            const actor = ReviewLogic.nextActor(r.status);
+            const mine = actor === 'evaluator';
+            const actKey = ReviewLogic.nextActionKey(r.status);
             return `<tr><td>${avatar(p, 28)} ${esc(p ? p.name : '')}</td><td>${stBadge(r.status)}</td>
+              <td>${actor ? `<span class="badge ${mine ? 'b-amber' : ''}">${esc(mine ? t('act.you') : (p ? p.firstName : t('role.employee')))}</span>` : '-'}</td>
               <td><span class="badge ${d < 0 ? 'b-red' : 'b-amber'}">${d} d</span></td>
-              <td style="white-space:nowrap"><button class="btn btn-sm" data-mt-remind="${r.id}">${icon('send', 13)} ${esc(t('hr.remind'))}</button>
-                <button class="btn btn-sm" onclick="location.hash='#/review/${r.id}'">${esc(t('rev.view'))}</button></td></tr>`;
+              <td style="white-space:nowrap">${mine
+                ? `<button class="btn btn-sm btn-primary" onclick="location.hash='#/review/${r.id}'">${esc(t(actKey || 'rev.view'))}</button>`
+                : `<button class="btn btn-sm" data-mt-remind="${r.id}">${icon('send', 13)} ${esc(t('act.remindPerson'))}</button>
+                   <button class="btn btn-sm" onclick="location.hash='#/review/${r.id}'">${esc(t('rev.view'))}</button>`}</td></tr>`;
           }).join('')}</table>` : `<p class="page-sub">${esc(t('hr.noRisk'))}</p>`}
       </div>
 
@@ -725,29 +758,44 @@
         ${gridHtml(entries)}
       </div>
       ${(() => {
-        /* klíčové pozice v mém týmu (držitel = já nebo můj člověk) - jen čtení */
+        /* Nástupnictví ve scope manažera (držitel = já nebo můj člověk).
+           Manažer spravuje NÁSTUPCE; co je klíčová pozice, definuje HR. Karta je
+           vždy viditelná - i prázdná, aby bylo zřejmé, že modul existuje. */
         const ids = new Set(team.map(p => p.id).concat(me.id));
         const mine = Store.list('keyPositions').filter(kp => kp.holderId && ids.has(kp.holderId) && kpRated(kp) && kpIsKey(kp));
-        return mine.length ? `<div class="card">
-          <h2>${icon('tree', 18)}${esc(t('kp.myTeamTitle'))}</h2>
-          ${mine.map(kp => {
+        const uncovered = mine.filter(kp => !(kp.successors || []).length).length;
+        return `<div class="card">
+          <h2>${icon('tree', 18)}${esc(t('kp.myTeamTitle'))}
+            ${mine.length ? `<span class="badge b-blue" style="margin-left:8px">${mine.length}</span>` : ''}
+            ${uncovered ? `<span class="badge b-red">${icon('alert', 11)} ${uncovered}× ${esc(t('kp.noSucc'))}</span>` : ''}</h2>
+          <p class="page-sub" style="margin-bottom:10px">${esc(t('kp.myTeamSub'))}</p>
+          ${mine.length ? mine.map(kp => {
             const holder = Store.get('people', kp.holderId);
-            return `<div class="kp-row" style="cursor:default">
+            const isU = !(kp.successors || []).length;
+            return `<div class="kp-row ${isU ? 'kp-row-uncovered' : ''}" data-kp-edit="${kp.id}" title="${esc(t('kp.mgrModalTitle'))}">
               <div class="kp-main"><b>${esc(kp.title)}</b>
                 <div class="kp-holder">${holder ? avatar(holder, 24) + ' ' + esc(holder.name) : '-'}</div></div>
-              <div class="kp-succs">${(kp.successors || []).length ? kp.successors.map(succChip).join('') : `<span class="badge b-red">${icon('alert', 12)} ${esc(t('kp.noSucc'))}</span>`}</div>
+              <div class="kp-succs">${(kp.successors || []).length
+                ? kp.successors.map((s2, i2) => succChip(s2, kp.id, i2)).join('')
+                : `<span class="badge b-red">${icon('alert', 12)} ${esc(t('kp.noSucc'))}</span>`}</div>
             </div>`;
-          }).join('')}
-        </div>` : '';
+          }).join('') : `<div class="empty" style="padding:22px">${icon('tree', 40)}<br>${esc(t('kp.myTeamEmpty'))}</div>`}
+        </div>`;
       })()}
       <h2 class="mt-sec">${icon('team', 18)}${esc(t('mt.cards'))}</h2>
       <div class="mt-cards">${entries.map(teamCardHtml).join('')}</div>`;
 
     root.querySelectorAll('[data-tal-p]').forEach(bn => bn.onclick = () => profileModal(bn.dataset.talP));
+    bindSuccessionCard(root, () => renderMyTeam(root), { mgrMode: true });
     root.querySelectorAll('[data-mt-scope]').forEach(bn => bn.onclick = () => { mtUi.scope = bn.dataset.mtScope; renderMyTeam(root); });
     root.querySelectorAll('[data-mt-remind]').forEach(bn => bn.onclick = ev => {
       ev.stopPropagation();
-      UI.notify(t('hr.reminded'), 'all'); UI.toast(t('hr.reminded'));
+      const r = Store.get('reviews', bn.dataset.mtRemind);
+      if (!r) return;
+      /* připomínáme VŽDY tomu, kdo je na tahu (zde hodnocený) - ne plošně „všem" */
+      const target = Store.get('people', ReviewLogic.nextActor(r.status) === 'evaluator' ? r.evaluatorId : r.subjectId);
+      UI.notify(t('act.remindMsg').split('{name}').join(target ? target.name : ''), 'employee');
+      UI.toast(t('act.remindSent').split('{name}').join(target ? CzName.full(target.name, 'acc') : ''));
     });
   }
 

@@ -1300,13 +1300,19 @@
       </div>
 
       <div class="card"><h2>${icon('alert', 18)}${esc(t('hr.atRisk'))}</h2>
-        ${atRisk.length ? `<table class="table"><tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
+        ${atRisk.length ? `<table class="table"><tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.status'))}</th><th>${esc(t('act.ball'))}</th><th>${esc(t('rev.deadline'))}</th><th></th></tr>
           ${atRisk.slice(0, 12).map(r => {
             const p = person(r.subjectId), ev = person(r.evaluatorId);
             const d = ReviewLogic.daysLeft(r);
+            /* HR připomíná tomu, kdo je na tahu - hodnocenému, nebo hodnotiteli */
+            const actor = ReviewLogic.nextActor(r.status);
+            const target = actor === 'evaluator' ? ev : p;
             return `<tr><td>${avatar(p, 28)} ${esc(p ? p.name : '')}</td><td>${esc(ev ? ev.name : '')}</td>
-              <td>${stBadge(r.status)}</td><td><span class="badge ${d < 0 ? 'b-red' : 'b-amber'}">${d} d</span></td>
-              <td><button class="btn btn-sm" data-remind="${r.id}">${icon('send', 13)} ${esc(t('hr.remind'))}</button></td></tr>`;
+              <td>${stBadge(r.status)}</td>
+              <td>${target ? `<span class="badge ${actor === 'evaluator' ? 'b-amber' : ''}">${esc(target.firstName)}</span>` : '-'}</td>
+              <td><span class="badge ${d < 0 ? 'b-red' : 'b-amber'}">${d} d</span></td>
+              <td style="white-space:nowrap"><button class="btn btn-sm" data-remind="${r.id}">${icon('send', 13)} ${esc(t('act.remindPerson'))}</button>
+                <button class="btn btn-sm" onclick="location.hash='#/review/${r.id}'">${esc(t('rev.view'))}</button></td></tr>`;
           }).join('')}</table>` : `<p class="page-sub">${esc(t('hr.noRisk'))}</p>`}
       </div>
 
@@ -1403,7 +1409,13 @@
         <ul class="timeline">${tl.map(([d, key]) => `<li><span class="tday">${esc(t('common.day'))} ${d}</span> ${esc(t(key))}</li>`).join('')}</ul></div>`;
 
     root.querySelectorAll('[data-remind]').forEach(b => b.onclick = () => {
-      notify(t('hr.reminded'), 'all'); toast(t('hr.reminded'));
+      /* cílená připomínka: dostane ji ten, kdo je na tahu - ne plošně všichni */
+      const r = reviews().find(x => x.id === b.dataset.remind);
+      if (!r) return;
+      const toEval = ReviewLogic.nextActor(r.status) === 'evaluator';
+      const target = person(toEval ? r.evaluatorId : r.subjectId);
+      notify(t('act.remindMsg').split('{name}').join(target ? target.name : ''), toEval ? 'manager' : 'employee');
+      toast(t('act.remindSent').split('{name}').join(target ? CzName.full(target.name, 'acc') : ''));
     });
     const polSave = root.querySelector('#pol-save');
     if (polSave) polSave.onclick = () => {
