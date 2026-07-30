@@ -1,6 +1,6 @@
 # Funkční specifikace — hodnoticí proces
 
-**Verze:** 1.1 · **Datum:** 2026-07-22 · **Zdroj pravdy:** kód v `demo-v2/js/`
+**Verze:** 1.2 · **Datum:** 2026-07-30 · **Zdroj pravdy:** kód v `demo-v2/js/`
 
 ## 1. Role a oprávnění
 
@@ -31,7 +31,7 @@ Autosave po každé změně; BACK se vrací na předchozí krok; rozpracovaný w
 ## 4. Manažerský flow
 
 - Vstup od stavu `self_done`. **Tichá shoda:** rating oblastí/kompetencí a ratingy cílů se předvyplní z hodnot hodnoceného (`mgrPrefilled` flag); manažer mění jen neshody.
-- **Podklady z období:** kudos přijatá hodnoceným, 1:1 check-iny a plnění cílů od posledního hodnocení.
+- **Podklady z období:** kudos přijatá hodnoceným, konstruktivní vazby (§14), 1:1 check-iny a plnění cílů od posledního hodnocení.
 - **Rozhodnutí per cíl** (staré i nově navržené): `Souhlasím` / `K rozhovoru` (`mgrDecision`). U vyhodnocovaných cílů navíc vlastní rating (`mgrRating`) a nepovinná poznámka (`mgrNote`).
 - **Auto-rozpor:** pokud se `mgrRating` liší od ratingu hodnoceného, cíl se označí `K rozhovoru` automaticky (i bez poznámky). Návrat ratingu ke shodě auto-rozpor zruší; ruční rozpor s poznámkou zůstává.
 - Rozporované body se agregují do bloku **Body k rozhovoru z cílů** (agenda 1:1).
@@ -91,6 +91,16 @@ Rozsah dat podle role: manažer vidí jen svoje 1:1, HR všechny. Zaměstnanec s
 
 Poslední položka menu pro všechny role (lze vypnout v Nastavení, `settings.copilotEnabled`). Chatové rozhraní: historie vláken s pinem, uložené prompty, naplánované úlohy (denně/týdně/měsíčně/jednorázově — spouští se při otevření sekce), proaktivní uvítání s doporučeními ze stavu dat persony. Akce přirozeným jazykem se propisují do ostatních modulů: kudos, záznam 1:1 (jen mgr/HR), sebehodnocení i pololetní check (→ `self_done`), manažerské vyhodnocení (tichá shoda → `manager_done`), potvrzení hodnocení zaměstnancem (→ `confirmed`), plánování rozhovorů, spuštění cyklu (HR), připomenutí, cíle (založení + progress), KPI (čtení všem, zápis HR), eNPS odpověď (anonymně), 360 (vyžádání i vyplnění), přidání člověka, přepnutí tématu a jazyka. Reporting respektuje roli (zaměstnanec jen vlastní data). Engine je deterministický — bez externí AI; detaily a stavové automaty flows v 09_copilot.md. Česká jména se v oslovení a větách skloňují (`js/czname.js`: vokativ/akuzativ/instrumentál, jen locale cs, whitelist českých jmen — cizí jména beze změny); platí i pro pozdrav na Přehledu. Mobilní navigace: hlavní taby + tlačítko **Více** s kompletním menu dle role — všechny sekce aplikace jsou dostupné i na mobilu.
 
-## 14. Mimo scope dema (plán produkce)
+## 14. Průběžná konstruktivní vazba (2026-07-30)
+
+Sekce Zpětná vazba (`#/kudos`) má dvě záložky: **Uznání** (veřejná kudos, beze změny) a **Konstruktivní vazba** (`js/feedback.js`, kolekce `feedback`). Kdokoli může komukoli poslat strukturovanou rozvojovou vazbu kdykoli během roku — reakce na gap vůči continuous-feedback platformám (LutherOne).
+
+- **Struktura SBI:** Situace + Chování + Dopad (povinné) + Doporučení (volitelné). Typ: Ocenění / K rozvoji. Volitelný štítek oblast/kompetence dle aktivního rámce (3 oblasti, v detailním režimu 7 kompetencí).
+- **Viditelnost (rozhodnutí 2026-07-30):** vazbu vidí pouze odesílatel, příjemce a přímý manažer příjemce (`Feedback.canSee`). Propisuje se do Podkladů z období v manažerském editoru (`Feedback.forEvidence`). HR vidí pouze počty (KPI karta HR centra). Vazba se netiskne a NENÍ anonymní — autor je součástí sdělení.
+- **Zobrazení:** záložka má sekce Přijaté / Odeslané / Můj tým (jen pro manažera s podřízenými).
+- **Copilot:** intent `fb` („dej vazbu Janě", „konstruktivní vazba") — slot-filling flow kdo → typ → S → B → I → doporučení (přeskočitelné) → štítek (přeskočitelný) → potvrzení. Požadavky s „vyžádej/360" zůstávají v 360 flow.
+- **Seed:** generátor vytváří ~10 vazeb (manažer→podřízený, občas peer→peer) za poslední 2 měsíce.
+
+## 15. Mimo scope dema (plán produkce)
 
 Auth/SSO (Supabase Auth), e-mailové notifikace, multi-tenant RLS, šablony formulářů per pozice, NÁHLED ALL (read-only přehled vybraných vedoucích), kalibrační session, CMS pro tutoriály/dokumenty. Talent modul je implementovaný celý včetně checklistu kandidáta, červené karty a 360 (viz §11 a 08_talent_succession.md); kandidáti na další iterace jsou v 08 §10.

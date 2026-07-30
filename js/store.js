@@ -33,6 +33,7 @@
         talentChecks: [],       // kvartální talent check: [{id,period,managerId,status:draft|debate|final,items:[{personId,box{pot,perf}|null,source,note,attrition}],createdAt,sentAt,discussedAt}]
         redCards: [],           // červená karta: [{id,personId,needed:bool,trouble:bool,note,byId,at}] - jen mgr+HR
         feedback360: [],        // 360: [{id,subjectId,requestedById,period,deadline,status:collecting|closed,respondents:[{personId,group,status:invited|done,ratings{key:rating},strengths,growth}]}]
+        feedback: [],           // průběžná konstruktivní vazba: [{id,fromId,toId,kind:'praise'|'develop',tagKind:'area'|'comp'|null,tagKey,sit,beh,imp,sug,at}] - vidí příjemce+jeho manažer, HR jen počty
         npsWaves: [],           // eNPS pulse: [{id,label,theme,themeQ,startedAt,deadline,status,responses:[{id,deptKey,teamId,nps,dims{},theme,comment,at}] BEZ personId, respondedIds:[personId] odděleně}]
         copilotThreads: [],     // Copilot chaty: [{id,ownerKey:'role|personId',title,pinned,createdAt,updatedAt,msgs:[],state}]
         copilotPrompts: [],     // uložené prompty: [{id,ownerKey,label,text,at}]

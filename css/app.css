@@ -563,6 +563,20 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 .kudo { border-left: 4px solid var(--accent); }
 [data-theme="genz"] .kudo { border-left-color: var(--accent-2); }
 
+/* průběžná konstruktivní vazba (SBI karta) */
+.fb-card { border-left: 4px solid var(--hairline); }
+.fb-sbi { margin-top: 10px; display: grid; gap: 6px; }
+.fb-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: baseline; }
+.fb-row > span { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.fb-row > p { margin: 0; font-size: .9rem; min-width: 0; overflow-wrap: break-word; }
+.fb-row.fb-sug > span, .fb-row.fb-sug > p { color: var(--accent); }
+@media (max-width: 540px) {
+  .fb-row { grid-template-columns: 1fr; gap: 2px; }
+  /* segmentové přepínače uvnitř obsahu (záložky sekcí) na mobilu nechávat viditelné -
+     skrývá se jen jazykový přepínač v topbaru */
+  .view .lang-seg { display: inline-flex; }
+}
+
 /* Onboarding */
 .onboarding-root {
   position: fixed; inset: 0; z-index: 50; overflow: auto;

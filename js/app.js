@@ -906,19 +906,34 @@
     });
   };
 
-  /* ---- kudos ---- */
+  /* ---- kudos + konstruktivní vazba ---- */
+  const kdUi = { tab: 'kudos' };
   views.kudos = root => {
     const va = viewAs();
     const f = fltState('kudos');
     const VAL = { team: 'kudos.value.team', quality: 'kudos.value.quality', growth: 'kudos.value.growth', client: 'kudos.value.client' };
     const KICON = { team: 'link2', quality: 'gem', growth: 'sprout', client: 'heart' };
+    const fbTab = kdUi.tab === 'fb';
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <h1 class="page-title" style="margin:0">${esc(t('kudos.title'))}</h1><span style="flex:1"></span>
-        <button class="btn btn-primary btn-sm" id="k-give">${icon('heartPulse', 15)} ${esc(t('kudos.give'))}</button></div>
-      <p class="page-sub">${esc(t('kudos.sub'))}</p>
-      ${filterBarHtml('kudos')}
+        <h1 class="page-title" style="margin:0">${esc(t('fb.pageTitle'))}</h1>
+        <span class="lang-seg">
+          <button data-kd-tab="kudos" class="${!fbTab ? 'on' : ''}">${esc(t('kudos.title'))}</button>
+          <button data-kd-tab="fb" class="${fbTab ? 'on' : ''}">${esc(t('fb.tab'))}</button>
+        </span>
+        <span style="flex:1"></span>
+        ${fbTab
+          ? `<button class="btn btn-primary btn-sm" id="fb-give">${icon('coach', 15)} ${esc(t('fb.give'))}</button>`
+          : `<button class="btn btn-primary btn-sm" id="k-give">${icon('heartPulse', 15)} ${esc(t('kudos.give'))}</button>`}</div>
+      <p class="page-sub">${esc(fbTab ? t('fb.sub') : t('kudos.sub'))}</p>
+      ${fbTab ? '' : filterBarHtml('kudos')}
       <div id="k-list"></div>`;
+    root.querySelectorAll('[data-kd-tab]').forEach(b => b.onclick = () => { kdUi.tab = b.dataset.kdTab; views.kudos(root); });
+    if (fbTab) {
+      FeedbackViews.renderTab(root.querySelector('#k-list'), () => views.kudos(root));
+      root.querySelector('#fb-give').onclick = () => FeedbackViews.giveModal(() => views.kudos(root));
+      return;
+    }
     const draw = () => {
       let list = Store.list('kudos').slice().reverse();
       if (f.q || f.dept) list = list.filter(k => [person(k.fromId), person(k.toId)].some(p => personMatch(p, f)));
@@ -1170,7 +1185,8 @@
         <div class="card"><div class="kpi-num">${cur.length}</div><div class="kpi-label">${esc(t('hr.participants'))}</div></div>
         <div class="card"><div class="kpi-num">${cur.length ? Math.round(done / cur.length * 100) : 0}%</div><div class="kpi-label">${esc(t('hr.completion'))}</div></div>
         <div class="card"><div class="kpi-num" style="color:${atRisk.length ? 'var(--warn)' : 'var(--ok)'}">${atRisk.length}</div><div class="kpi-label">${esc(t('hr.atRisk'))}</div></div>
-        <div class="card"><div class="kpi-num">${Store.list('kudos').length}</div><div class="kpi-label">${esc(t('kudos.title'))}</div></div>
+        <div class="card"><div class="kpi-num">${Store.list('kudos').length}</div><div class="kpi-label">${esc(t('kudos.title'))}</div>
+          <div class="kpi-label" style="margin-top:4px">${Store.list('feedback').length} × ${esc(t('fb.tab'))}</div></div>
       </div>
 
       <div class="grid cols-2" style="margin-top:16px">

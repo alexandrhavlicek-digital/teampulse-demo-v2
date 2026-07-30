@@ -33,6 +33,7 @@ load('js/generator.js');
 load('js/reviews.js');
 load('js/talent.js');
 load('js/feedback360.js');
+load('js/feedback.js');
 load('js/app.js'); /* boot proběhne proti stub DOM (onboarding větev) - dává window.App a AppFilters */
 
 let failed = 0;
@@ -768,6 +769,73 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(fSrc9.includes('f36-opt') && fSrc9.includes("t('f360.freq.'") && !fSrc9.includes('<b>${sd.k}</b>'), '360 dotazník: frekvenční slova, žádné zkratky');
   const cSrc9 = fs.readFileSync('js/copilot.js', 'utf8');
   ok(cSrc9.includes('ReviewLogic.scaleWord(k)') && cSrc9.includes('freqChips'), 'copilot: chipy škály slovně + 360 items flow');
+})();
+
+/* --- 18) průběžná konstruktivní vazba (SBI) --- */
+(function () {
+  I18N.setLocale('cs');
+  Generator.install('it', 50);
+  const fb = Store.list('feedback');
+  ok(fb.length >= 6, `seed: konstruktivní vazby vygenerovány (${fb.length})`);
+  ok(fb.every(i => i.sit && i.beh && i.imp && ['praise', 'develop'].includes(i.kind)), 'seed: SBI kompletní + platný typ');
+  ok(fb.every(i => i.fromId !== i.toId), 'seed: nikdo nedává vazbu sám sobě');
+  /* viditelnost: odesílatel, příjemce, manažer příjemce - nikdo jiný */
+  const it0 = fb[0];
+  const toP = Store.get('people', it0.toId);
+  ok(Feedback.canSee(it0, it0.fromId) && Feedback.canSee(it0, it0.toId), 'viditelnost: odesílatel + příjemce vidí');
+  ok(!toP.managerId || Feedback.canSee(it0, toP.managerId), 'viditelnost: manažer příjemce vidí');
+  const outsider = Store.list('people').find(p =>
+    p.id !== it0.fromId && p.id !== it0.toId && p.id !== toP.managerId);
+  ok(outsider && !Feedback.canSee(it0, outsider.id), 'viditelnost: nikdo další vazbu nevidí');
+  /* podklady z období + tisk (zdrojová kontrola) */
+  const revSrcF = fs.readFileSync('js/reviews.js', 'utf8');
+  ok(revSrcF.includes('Feedback.forEvidence'), 'Podklady z období: vazby se propisují manažerovi');
+  const printBlockF = revSrcF.slice(revSrcF.indexOf('function printReview'), revSrcF.indexOf('/* ====================== dispatcher'));
+  ok(!printBlockF.includes('Feedback.'), 'printReview: vazba se netiskne');
+  /* tagy dle aktivního rámce */
+  const coF = Store.getCompany();
+  coF.competencies = null; Store.setCompany(coF);
+  ok(Feedback.tags().length === 3 && Feedback.tags()[0].kind === 'area', 'tagy: 3 oblasti v jednoduchém režimu');
+  coF.competencies = Generator.COMP_LIB.map(c => Object.assign({}, c)); Store.setCompany(coF);
+  ok(Feedback.tags().length === 7 && Feedback.tags()[0].kind === 'comp', 'tagy: 7 kompetencí v detailním režimu');
+  coF.competencies = null; Store.setCompany(coF);
+  /* i18n úplnost */
+  let missF = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['fb.pageTitle', 'fb.tab', 'fb.sub', 'fb.give', 'fb.privacy', 'fb.kind', 'fb.kind.praise', 'fb.kind.develop',
+     'fb.tag', 'fb.optional', 'fb.sit', 'fb.sitHint', 'fb.beh', 'fb.behHint', 'fb.imp', 'fb.impHint',
+     'fb.sug', 'fb.sugHint', 'fb.fillSbi', 'fb.received', 'fb.sent', 'fb.team',
+     'fb.noneReceived', 'fb.noneSent', 'fb.noneTeam', 'fb.notif',
+     'cop.fb.who', 'cop.fb.whoAmbig', 'cop.fb.kind', 'cop.fb.sit', 'cop.fb.beh', 'cop.fb.imp',
+     'cop.fb.sug', 'cop.fb.skip', 'cop.fb.tag', 'cop.fb.preview', 'cop.fb.done', 'cop.h.fb'].forEach(k => { if (t(k) === k) missF.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missF.length === 0, missF.length ? 'chybí klíče: ' + missF.slice(0, 8).join(', ') : 'fb i18n kompletní (cs/en/de)');
+  /* Copilot: detekce + celý flow e2e */
+  ok(Copilot.detect('dej vazbu Janě') === 'fb', 'detect: „dej vazbu" → fb flow');
+  ok(Copilot.detect('chci dát konstruktivní zpětnou vazbu') === 'fb', 'detect: „konstruktivní" → fb flow');
+  ok(Copilot.detect('vyžádej 360 na Janu') !== 'fb', 'detect: 360 požadavek nejde do fb');
+  const psF = Store.list('people');
+  const mgrF = psF.find(p => psF.some(x => x.managerId === p.id));
+  const repF = psF.find(p => p.managerId === mgrF.id);
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mgrF.id } });
+  const thF = Copilot.newThread();
+  const beforeF = Store.list('feedback').length;
+  Copilot.process(thF, 'dej vazbu ' + repF.firstName + ' ' + repF.lastName);
+  ok(thF.state && thF.state.flow === 'fb', 'copilot: flow fb spuštěn');
+  if (thF.state && thF.state.step === 'who') Copilot.reply(thF, { val: repF.id, label: repF.name });
+  if (thF.state && thF.state.step === 'kind') Copilot.reply(thF, { val: 'develop', label: 'k rozvoji' });
+  if (thF.state && thF.state.step === 'sit') Copilot.reply(thF, { text: 'Úterní schůzka s klientem' });
+  if (thF.state && thF.state.step === 'beh') Copilot.reply(thF, { text: 'Prezentace šla do detailu bez shrnutí' });
+  if (thF.state && thF.state.step === 'imp') Copilot.reply(thF, { text: 'Klient se ztrácel v číslech' });
+  if (thF.state && thF.state.step === 'sug') Copilot.reply(thF, { val: 'skip', label: 'skip' });
+  if (thF.state && thF.state.step === 'tag') Copilot.reply(thF, { val: 'area:quality', label: 'Kvalita' });
+  if (thF.state && thF.state.step === 'confirm') Copilot.reply(thF, { val: 'ok', label: 'ok' });
+  ok(Store.list('feedback').length === beforeF + 1 && !thF.state, 'copilot: flow uloží vazbu do Store');
+  const savedF = Store.list('feedback').slice(-1)[0];
+  ok(savedF.toId === repF.id && savedF.kind === 'develop' && savedF.tagKey === 'quality' && savedF.fromId === mgrF.id, 'copilot: data vazby správně (příjemce/typ/tag/autor)');
+  Store.patchSettings({ viewAs: null });
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */

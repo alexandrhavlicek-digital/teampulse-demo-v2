@@ -184,6 +184,16 @@
     'Splněno. Klíčová byla změna přístupu po prvním kvartálu.',
     'Nesplněno dle plánu - objektivní překážky (změna priorit), dohodnut nový rámec.',
   ];
+  /* průběžná konstruktivní vazba - SBI příklady (situace/chování/dopad/doporučení) */
+  const FB_SBI = [
+    { kind: 'develop', sit: 'Pondělní status meeting s klientem', beh: 'Prezentace čísel šla hodně do detailu bez shrnutí na úvod', imp: 'Klient se ztrácel a dvakrát se ptal na hlavní závěr', sug: 'Zkus začínat jedním slidem „co si odnést" a detail nechat do přílohy' },
+    { kind: 'develop', sit: 'Předávka úkolu kolegovi před dovolenou', beh: 'Kontext byl předaný jen ústně na chodbě', imp: 'Kolega musel dohledávat zadání a ztratili jsme den', sug: 'Krátká písemná předávka (5 odrážek) by úplně stačila' },
+    { kind: 'praise', sit: 'Čtvrteční výpadek systému', beh: 'Převzal/a jsi komunikaci se zákazníky, aniž se o to někdo prosil', imp: 'Tým se mohl soustředit na opravu a nikdo z klientů neeskaloval', sug: '' },
+    { kind: 'develop', sit: 'Review podkladů pro vedení', beh: 'Připomínky přišly až v den odevzdání', imp: 'Na zapracování nezbyl čas a verze šla ven s chybou', sug: 'Dohodněme si mezitermín na připomínky' },
+    { kind: 'praise', sit: 'Zaučování nové kolegyně', beh: 'Každý den sis našel/la 20 minut na její dotazy', imp: 'Za dva týdny jela samostatně - nejrychlejší onboarding u nás', sug: '' },
+    { kind: 'develop', sit: 'Týmová retrospektiva', beh: 'Skákal/a jsi ostatním do řeči, když popisovali problémy', imp: 'Dva kolegové svůj bod radši nedokončili', sug: 'Zkus si dělat poznámky a reagovat až v bloku na to určeném' },
+    { kind: 'praise', sit: 'Příprava nabídky pro klíčového zákazníka', beh: 'Sám/sama jsi propočítal/a tři cenové varianty', imp: 'Obchod měl na jednání okamžité odpovědi a zakázku jsme získali', sug: '' },
+  ];
   const KUDOS_MSGS = [
     'Díky za záchranu prezentace pro klienta na poslední chvíli! 🙏',
     'Skvělé zaučení nového kolegy - ptal se, kdo ho to tak dobře nastavil.',
@@ -490,6 +500,28 @@
       });
     }
 
+    /* průběžná konstruktivní vazba - hlavně manažer → podřízený, občas peer;
+       poslední ~2 měsíce, ať se propisuje do Podkladů z období */
+    const feedback = [];
+    const fbMgrs = people.filter(p => p.isHead || p.isLead);
+    for (let i = 0; i < Math.min(10, employees.length); i++) {
+      const tpl = FB_SBI[i % FB_SBI.length];
+      let from, to;
+      if (i % 3 === 2) { /* peer→peer */
+        to = pick(employees); from = pick(employees.filter(e => e.id !== to.id && e.deptKey === to.deptKey)) || pick(employees.filter(e => e.id !== to.id));
+      } else {           /* manažer→podřízený */
+        from = pick(fbMgrs); const reps = employees.filter(e => e.managerId === from.id);
+        to = reps.length ? pick(reps) : pick(employees.filter(e => e.id !== from.id));
+      }
+      if (!from || !to || from.id === to.id) continue;
+      feedback.push({
+        id: uid(), fromId: from.id, toId: to.id, kind: tpl.kind,
+        tagKind: 'area', tagKey: pick(['teamwork', 'quality', 'growth']),
+        sit: tpl.sit, beh: tpl.beh, imp: tpl.imp, sug: tpl.sug,
+        at: today - Math.floor(rnd() * 60) * day,
+      });
+    }
+
     /* check-ins for managers - ~5 mesicu historie, aby tab Prehled ukazoval vyvoj nalady v case */
     const MOOD_LADDER = ['😟', '😐', '🙂', '😄'];
     people.filter(p => p.isHead || p.isLead).forEach((m, mi) => {
@@ -668,7 +700,7 @@
       status: 'collecting', responses: curResp, respondedIds: curIds,
     });
 
-    return { reviews, goals, kudos, checkins, notifications, keyPositions, talentChecks, redCards, feedback360, npsWaves };
+    return { reviews, goals, kudos, feedback, checkins, notifications, keyPositions, talentChecks, redCards, feedback360, npsWaves };
   }
 
   /* ---------------- public API ---------------- */
@@ -688,6 +720,7 @@
       Store.replaceAll('reviews', g.reviews);
       Store.replaceAll('goals', g.goals);
       Store.replaceAll('kudos', g.kudos);
+      Store.replaceAll('feedback', g.feedback || []);
       Store.replaceAll('checkins', g.checkins);
       Store.replaceAll('notifications', g.notifications);
       Store.replaceAll('keyPositions', g.keyPositions || []);
@@ -699,7 +732,7 @@
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','feedback','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

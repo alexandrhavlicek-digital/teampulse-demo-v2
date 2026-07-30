@@ -584,6 +584,16 @@
           if (gls.length) h += `<div class="bars" style="margin-bottom:10px">${gls.map(g => `
             <div class="brow"><span>${esc(g.title)}</span><div class="progressbar"><div style="width:${g.progress}%"></div></div><b>${g.progress}%</b></div>`).join('')}</div>`;
           if (kud.length) h += kud.map(k => { const fr = person(k.fromId); return `<p style="font-size:.88rem;margin-bottom:4px">${icon('heart', 13)} <b>${esc(fr ? fr.name : '?')}</b>: ${esc(k.msg)}</p>`; }).join('');
+          /* průběžná konstruktivní vazba (viditelnost: manažer subjektu ji vidí z titulu role) */
+          if (window.Feedback) {
+            const fbs = Feedback.forEvidence(r.subjectId, since).slice(-4);
+            if (fbs.length) h += fbs.map(x => {
+              const fr = person(x.fromId);
+              return `<p style="font-size:.88rem;margin-bottom:4px">${icon('coach', 13)} <b>${esc(fr ? fr.name : '?')}</b>
+                <span class="badge ${x.kind === 'praise' ? 'b-green' : 'b-amber'}">${esc(t('fb.kind.' + x.kind))}</span>${x.tagKey ? ` <span class="badge">${esc(Feedback.tagLabel(x))}</span>` : ''}:
+                ${esc(x.beh)} → ${esc(x.imp)}${x.sug ? ` · <i>${esc(x.sug)}</i>` : ''}</p>`;
+            }).join('');
+          }
           if (cis.length) h += cis.map(c => `<p style="font-size:.88rem;margin-bottom:4px;color:var(--text-muted)">${icon('checkin', 13)} ${fmtDate(c.at)} ${c.mood} - ${esc(c.notes)}</p>`).join('');
           /* 360: tři pohledy (self · 360 · mgr) + běžící sběr + vyžádání */
           if (window.Feedback360Views) {

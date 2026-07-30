@@ -154,6 +154,7 @@
     cancel: /\b(zrus|zrusit|cancel|stop\b|abbrech|konec)/,
     schedule: /(naplanuj|pripomen|pripominej|kazdy (den|tyden|mesic)|kazdou|remind|schedule|erinner|every (day|week|month)|jeden (tag|woche|monat)|zitra|tomorrow|morgen|za \d+ (dni|dny|den|days?|tage))/,
     kudos: /\b(pochval|kudos|uznani|ocen|podekuj|praise|anerkenn|lob(en|e)?\b)/,
+    fbGive: /(konstruktivn\w*\s*(vazb|feedback|zpetn))|((dej|dam|dat|napis|posli|poslat|give|gib)\w*\s+(?:\S+\s+){0,2}?(vazbu?\b|feedback))/,
     checkin: /(1 ?: ?1|one.?on.?one|check.?in|zaznam)/,
     self: /(sebehodnocen|self.?(assessment|review|evaluation)|selbsteinschatz|moje hodnocen|vyplnit hodnocen)/,
     evalT: /(vyhodnot|ohodnot|zhodnot|evaluate|bewerte|beurteil|assess)/,
@@ -208,6 +209,8 @@
     }
     if (RX.confirmR.test(n)) return 'confirm';
     if (RX.npsFill.test(n)) return 'npsFill';
+    /* „dej vazbu Janě" = konstruktivní vazba; „vyžádej (360/zpětnou vazbu) na Janu" zůstává 360 */
+    if (RX.fbGive.test(n) && !/\b360\b/.test(n) && !RX.f360Req.test(n)) return 'fb';
     if (RX.f360.test(n)) {
       if (RX.f360Req.test(n)) return 'f360Req';
       if (RX.f360Fill.test(n)) return 'f360Fill';
@@ -293,6 +296,62 @@
       return bot(th, '🎉 ' + fmt('cop.k.done', { name: CzName.first(byId(d.toId).firstName, 'acc') }), chipsOf([{ label: t('nav.kudos'), act: 'nav', val: '#/kudos' }]));
     }
     nextKudos(th);
+  }
+
+  /* ---------- konstruktivní vazba (SBI) ---------- */
+  function startFb(th, text) {
+    const data = {};
+    const m = matchPeople(text);
+    if (m.length === 1) data.toId = m[0].id;
+    th.state = { flow: 'fb', step: null, data };
+    if (!data.toId && m.length > 1) { th.state.step = 'who'; return bot(th, t('cop.fb.whoAmbig'), peopleChips(m)); }
+    nextFb(th);
+  }
+  function nextFb(th) {
+    const d = th.state.data;
+    if (!d.toId) { th.state.step = 'who'; return bot(th, t('cop.fb.who'), peopleChips(scopePeople().length > 1 ? scopePeople() : ppl())); }
+    if (!d.kind) {
+      th.state.step = 'kind';
+      return bot(th, t('cop.fb.kind'), chipsOf([{ label: t('fb.kind.praise'), val: 'praise' }, { label: t('fb.kind.develop'), val: 'develop' }]));
+    }
+    if (!d.sit) { th.state.step = 'sit'; return bot(th, fmt('cop.fb.sit', { name: CzName.first(byId(d.toId).firstName, 'acc') })); }
+    if (!d.beh) { th.state.step = 'beh'; return bot(th, t('cop.fb.beh')); }
+    if (!d.imp) { th.state.step = 'imp'; return bot(th, t('cop.fb.imp')); }
+    if (d.sug === undefined) { th.state.step = 'sug'; return bot(th, t('cop.fb.sug'), chipsOf([{ label: t('cop.fb.skip'), val: 'skip' }])); }
+    if (d.tagKey === undefined) {
+      th.state.step = 'tag';
+      return bot(th, t('cop.fb.tag'), chipsOf(Feedback.tags().map(tg => ({ label: tg.label, val: tg.kind + ':' + tg.key }))
+        .concat([{ label: t('cop.fb.skip'), val: 'skip' }])));
+    }
+    th.state.step = 'confirm';
+    bot(th, `${esc(t('cop.fb.preview'))}<br><b>${esc(byId(d.toId).name)}</b> · <i>${esc(t('fb.kind.' + d.kind))}</i><br>${esc(d.sit)} → ${esc(d.beh)} → ${esc(d.imp)}${d.sug ? '<br><i>' + esc(d.sug) + '</i>' : ''}`,
+      chipsOf([{ label: '✓ ' + t('common.send'), val: 'ok' }, { label: t('common.cancel'), val: 'cancel' }]));
+  }
+  function contFb(th, input) {
+    const st = th.state, d = st.data;
+    if (st.step === 'who') {
+      if (input.val) d.toId = input.val;
+      else { const m = matchPeople(input.text || ''); if (m.length === 1) d.toId = m[0].id; else return bot(th, t('cop.fb.whoAmbig'), peopleChips(m.length ? m : ppl())); }
+    } else if (st.step === 'kind') d.kind = input.val || 'develop';
+    else if (st.step === 'sit') d.sit = (input.text || '').trim();
+    else if (st.step === 'beh') d.beh = (input.text || '').trim();
+    else if (st.step === 'imp') d.imp = (input.text || '').trim();
+    else if (st.step === 'sug') d.sug = input.val === 'skip' ? '' : (input.text || '').trim();
+    else if (st.step === 'tag') {
+      if (!input.val || input.val === 'skip') { d.tagKey = null; d.tagKind = null; }
+      else { const [tk, key] = input.val.split(':'); d.tagKind = tk; d.tagKey = key; }
+    } else if (st.step === 'confirm') {
+      th.state = null;
+      if (input.val !== 'ok') return bot(th, t('cop.cancelled'));
+      Store.insert('feedback', {
+        id: uid(), fromId: va().personId || (ppl()[0] || {}).id, toId: d.toId, kind: d.kind,
+        tagKind: d.tagKind, tagKey: d.tagKey, sit: d.sit, beh: d.beh, imp: d.imp, sug: d.sug || '', at: Date.now(),
+      });
+      notify(t('fb.notif'), 'all');
+      return bot(th, fmt('cop.fb.done', { name: CzName.first(byId(d.toId).firstName, 'acc') }),
+        chipsOf([{ label: t('fb.tab'), act: 'nav', val: '#/kudos' }]));
+    }
+    nextFb(th);
   }
 
   /* ---------- 1:1 check-in ---------- */
@@ -1271,7 +1330,8 @@
     const n = norm(text);
     const topics = [
       ['hodnocen|review', 'cop.h.review', '#/myreviews'], ['cil|goal', 'cop.h.goals', '#/goals'],
-      ['kudos|uznani|pochval', 'cop.h.kudos', '#/kudos'], ['1 ?: ?1|check', 'cop.h.checkin', '#/checkins'],
+      ['kudos|uznani|pochval', 'cop.h.kudos', '#/kudos'], ['konstruktivn|vazb', 'cop.h.fb', '#/kudos'],
+      ['1 ?: ?1|check', 'cop.h.checkin', '#/checkins'],
       ['nps|puls', 'cop.h.nps', '#/home'], ['360', 'cop.h.f360', '#/people'],
       ['cyklus|cycle', 'cop.h.cycle', '#/hr'], ['copilot|vypn|zapn', 'cop.h.copilot', '#/settings'],
     ];
@@ -1316,6 +1376,7 @@
     if (intent === 'confirm') return startConfirm(th);
     if (intent === 'self') return startSelf(th);
     if (intent === 'kudos') return startKudos(th, text);
+    if (intent === 'fb') return startFb(th, text);
     if (intent === 'checkin') return startCheckin(th, text);
     if (intent === 'eval') return startEval(th, text);
     if (intent === 'goalAdd') return startGoalAdd(th, text);
@@ -1347,7 +1408,7 @@
 
   /* registry pokračování flows (thread.state.flow → handler) */
   const CONT = {
-    kudos: contKudos, checkin: contCheckin, self: contSelf, semi: contSemi, eval: contEval,
+    kudos: contKudos, fb: contFb, checkin: contCheckin, self: contSelf, semi: contSemi, eval: contEval,
     schedule: contSchedule, goal: contGoalAdd, goalp: contGoalProg, confirm: contConfirm,
     conv: contConv, cycle: contCycle, nps: contNpsFill, f360f: contF360Fill, f360r: contF360Req,
     kpi: contKpiSet, person: contPersonAdd, theme: contTheme, langf: contLang, coff: contCopOff,

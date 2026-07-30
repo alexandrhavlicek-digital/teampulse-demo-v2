@@ -55,6 +55,9 @@
     /* talent 9-box grid */
     grid9: '<rect x="4" y="4" width="16" height="16" rx="2.2"/><path d="M9.4 4v16M14.6 4v16M4 9.4h16M4 14.6h16"/>',
 
+    /* konstruktivní vazba — bublina s rostoucí linkou (rozvojový rozhovor) */
+    coach: '<path d="M3.8 6.4A2.5 2.5 0 0 1 6.3 3.9h11.4a2.5 2.5 0 0 1 2.5 2.5v6.6a2.5 2.5 0 0 1-2.5 2.5h-4.5l-4.1 3.9v-3.9H6.3a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M7.4 11.4l2.5-2.5 1.9 1.9 3.6-3.6"/><path d="M13 7.2h2.4v2.4"/>',
+
     /* kudos values */
     link2: '<circle cx="9" cy="12" r="4.6"/><circle cx="15" cy="12" r="4.6"/>',
     gem: '<path d="M7.2 4.4h9.6l3.4 4.8L12 20.4 3.8 9.2z"/><path d="M3.8 9.2h16.4"/><path d="M12 4.4 9 9.2l3 11.2 3-11.2z"/>',

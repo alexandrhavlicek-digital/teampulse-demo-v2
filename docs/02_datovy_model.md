@@ -1,6 +1,6 @@
 # Datový model a rozhraní Store
 
-**Verze:** 1.1 · **Datum:** 2026-07-22 · **Zdroj pravdy:** `js/store.js`, `js/generator.js`, `js/talent.js`
+**Verze:** 1.2 · **Datum:** 2026-07-30 · **Zdroj pravdy:** `js/store.js`, `js/generator.js`, `js/talent.js`
 
 ## 1. Princip
 
@@ -13,7 +13,7 @@ Store.list(coll) / get(coll, id) / insert(coll, item) / update(coll, id, patch)
 Store.remove(coll, id) / replaceAll(coll, items) / resetAll()
 ```
 
-Kolekce: `people`, `reviews`, `goals`, `kudos`, `checkins`, `notifications`, `keyPositions`, `talentChecks`, `redCards`, `feedback360`, `npsWaves`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
+Kolekce: `people`, `reviews`, `goals`, `kudos`, `feedback`, `checkins`, `notifications`, `keyPositions`, `talentChecks`, `redCards`, `feedback360`, `npsWaves`. Chybějící kolekce se do starších localStorage DB doplňují automaticky při `load()` (migrace přes `blank()`).
 
 ## 2. Entity
 
@@ -74,9 +74,11 @@ talentChecks: {id, period, managerId, status (draft|debate|final),
                createdAt, sentAt, discussedAt}
 ```
 
-### kudos / checkins / notifications
+### kudos / feedback / checkins / notifications
 ```
 kudos:    {id, fromId, toId, msg, value (team|quality|growth|client), at}
+feedback: {id, fromId, toId, kind (praise|develop), tagKind (area|comp|null), tagKey,
+           sit, beh, imp, sug, at}    // SBI konstruktivní vazba; vidí from/to/manažer příjemce (Feedback.canSee)
 checkins: {id, managerId, employeeId, at, mood, notes, next}
 notifications: {id, text, forRole, at, read}
 ```
@@ -95,6 +97,7 @@ theme (corp|glass|genz), locale (cs|en|de), onboarded, viewAs {role, personId}
 | reviews | `reviews` + `review_versions` (snapshoty jsonb) | `form` → normalizovat: `review_section_responses`, `review_goal_evals` |
 | goals | `goals` | FK `kpi_id` nullable + check constraint na KPI_REQUIRED dle oblasti |
 | kudos / checkins | `feedback` (typ kudos) / `checkins` | |
+| feedback | `feedback` (typ sbi) | RLS: čtení jen from/to/manažer příjemce; HR pouze agregované počty (view) |
 | notifications | `notifications` + scheduler (pg-boss / Supabase cron) | |
 | keyPositions | `key_positions` + `succession_candidates` | RLS: mgr svůj strom, HR vše; subjekt nikdy |
 | talentChecks | `talent_checks` + `talent_check_items` | draft čitelný JEN autorem; final propisuje overridy do matice |
