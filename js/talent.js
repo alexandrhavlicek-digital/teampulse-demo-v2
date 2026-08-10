@@ -782,11 +782,13 @@
           }).join('') : `<div class="empty" style="padding:22px">${icon('tree', 40)}<br>${esc(t('kp.myTeamEmpty'))}</div>`}
         </div>`;
       })()}
+      ${rcCardHtml({ scopeIds: new Set(team.map(p => p.id)), mgrMode: true })}
       <h2 class="mt-sec">${icon('team', 18)}${esc(t('mt.cards'))}</h2>
       <div class="mt-cards">${entries.map(teamCardHtml).join('')}</div>`;
 
     root.querySelectorAll('[data-tal-p]').forEach(bn => bn.onclick = () => profileModal(bn.dataset.talP));
     bindSuccessionCard(root, () => renderMyTeam(root), { mgrMode: true });
+    bindRcCard(root, () => renderMyTeam(root), { scope: team });
     root.querySelectorAll('[data-mt-scope]').forEach(bn => bn.onclick = () => { mtUi.scope = bn.dataset.mtScope; renderMyTeam(root); });
     root.querySelectorAll('[data-mt-remind]').forEach(bn => bn.onclick = ev => {
       ev.stopPropagation();
@@ -808,18 +810,31 @@
   function rcOf(pid) { return Store.list('redCards').find(r => r.personId === pid) || null; }
   window.RedCard = { rcQuadrant, rcOf };
 
-  function rcModal(existing, presetPersonId, rerender) {
-    const ps = Store.list('people').filter(p => p.managerId);
+  function rcModal(existing, presetPersonId, rerender, opts) {
+    opts = opts || {};
+    /* mgr scope: kartu smí udělit jen lidem ve svém týmu/podstromu */
+    const ps = (opts.scope || Store.list('people')).filter(p => p.managerId);
     const rc = existing ? JSON.parse(JSON.stringify(existing))
       : { id: uid(), personId: presetPersonId || '', needed: true, trouble: true, note: '', byId: null, at: null };
+    /* fulltextový výběr osoby - drop-down neškáluje na stovky lidí (rozhodnutí 2026-08-10) */
+    let q = '';
+    let firstRender = true;
+    const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const eligible = () => ps.filter(p => !rcOf(p.id) || rc.personId === p.id);
     const render = m => {
+      const selP = rc.personId ? Store.get('people', rc.personId) : null;
       m.querySelector('#rc-body').innerHTML = `
         <div class="field"><label>${esc(t('people.name'))}</label>
-          <select class="input" id="rcf-p" ${existing ? 'disabled' : ''}>
-            <option value="">-</option>
-            ${ps.filter(p => !rcOf(p.id) || (existing && existing.personId === p.id)).map(p =>
-              `<option value="${p.id}" ${rc.personId === p.id ? 'selected' : ''}>${esc(p.name)} (${esc(p.role)})</option>`).join('')}
-          </select></div>
+          ${selP ? `
+          <div class="f3-selrow" style="margin-bottom:0">
+            <span class="f3-chip">${avatar(selP, 20)} ${esc(selP.name)}&nbsp;<small style="color:var(--text-muted)">${esc(selP.role)}</small>
+              ${existing ? '' : `<button type="button" id="rcf-clear" title="${esc(t('common.cancel'))}">✕</button>`}</span>
+          </div>`
+        : `
+          <div class="filterbar" style="margin:0 0 6px">${icon('search', 15)}
+            <input class="input" id="rcf-q" placeholder="${esc(t('rc.searchPerson'))}"></div>
+          <div class="f3-list" id="rcf-list" style="max-height:30vh"></div>`}
+        </div>
         <div class="grid cols-2">
           <div class="field"><label>${esc(t('rc.needed'))}</label>
             <div class="scale-row">
@@ -838,19 +853,43 @@
       m.querySelectorAll('[data-rcn]').forEach(bn => bn.onclick = () => { rc.needed = bn.dataset.rcn === '1'; collect(m); render(m); });
       m.querySelectorAll('[data-rct]').forEach(bn => bn.onclick = () => { rc.trouble = bn.dataset.rct === '1'; collect(m); render(m); });
       const collect = mm => {
-        const sel = mm.querySelector('#rcf-p'); if (sel && !sel.disabled) rc.personId = sel.value;
         rc.note = mm.querySelector('#rcf-note').value;
       };
+      /* výsledky hledání se překreslují samostatně → fokus v inputu drží */
+      const listEl = m.querySelector('#rcf-list');
+      const renderList = () => {
+        if (!listEl) return;
+        const vis = eligible().filter(p => !q || norm(p.name + ' ' + p.role + ' ' + (p.dept || '')).includes(norm(q)));
+        listEl.innerHTML = (vis.slice(0, 60).map(p => `
+          <button type="button" class="f3-row" data-rcp="${p.id}">
+            ${avatar(p, 30)}
+            <span class="f3-nm"><b>${esc(p.name)}</b><small>${esc(p.role)}${p.dept ? ' · ' + esc(p.dept) : ''}</small></span>
+            <span class="f3-check">${icon('plus', 15)}</span>
+          </button>`).join('') + (vis.length > 60 ? `<div class="f3-chip-empty">+${vis.length - 60}</div>` : ''))
+          || `<div class="f3-chip-empty">${esc(t('flt.noMatch'))}</div>`;
+        listEl.querySelectorAll('[data-rcp]').forEach(bn => bn.onclick = () => { collect(m); rc.personId = bn.dataset.rcp; render(m); });
+      };
+      const qi = m.querySelector('#rcf-q');
+      if (qi) {
+        qi.value = q;
+        qi.oninput = () => { q = qi.value; renderList(); };
+        if (firstRender) qi.focus();
+      }
+      renderList();
+      const clr = m.querySelector('#rcf-clear');
+      if (clr) clr.onclick = () => { collect(m); rc.personId = ''; q = ''; firstRender = true; render(m); };
+      firstRender = false;
       m.querySelector('#rc-save').onclick = () => {
         collect(m);
         if (!rc.personId) { UI.toast(t('people.name')); return; }
         rc.byId = (App.viewAs() || {}).personId || null; rc.at = Date.now();
         if (existing) { Object.assign(Store.get('redCards', rc.id), rc); Store.update('redCards', rc.id, {}); }
         else Store.insert('redCards', rc);
+        rcNotifyHr(rc, existing ? 'rc.notifHrUpd' : 'rc.notifHrNew');
         closeModal(); UI.toast(t('common.saved')); rerender();
       };
       const del = m.querySelector('#rc-del');
-      if (del) del.onclick = () => { Store.remove('redCards', rc.id); closeModal(); UI.toast(t('common.saved')); rerender(); };
+      if (del) del.onclick = () => { rcNotifyHr(rc, 'rc.notifHrDel'); Store.remove('redCards', rc.id); closeModal(); UI.toast(t('common.saved')); rerender(); };
       m.querySelector('#rc-cancel').onclick = closeModal;
     };
     modal(`<h3>${icon('alert', 18)}${esc(t('rc.modalTitle'))}</h3>
@@ -864,8 +903,16 @@
         </div></div>`, render);
   }
 
-  function rcCardHtml() {
-    const cards = Store.list('redCards');
+  /* flow: kartu udělenou/změněnou manažerem se HR dozví notifikací (rozhodnutí 2026-08-10) */
+  function rcNotifyHr(rc, key) {
+    if ((App.viewAs() || {}).role !== 'manager') return;
+    const p = Store.get('people', rc.personId);
+    UI.notify(t(key).split('{name}').join(p ? p.name : '') + ' - ' + t('rc.q.' + rcQuadrant(rc)), 'hr');
+  }
+
+  function rcCardHtml(opts) {
+    opts = opts || {};
+    const cards = Store.list('redCards').filter(rc => !opts.scopeIds || opts.scopeIds.has(rc.personId));
     const { kpByHolder } = succMaps();
     const cell = q => {
       const items = cards.filter(rc => rcQuadrant(rc) === q);
@@ -889,7 +936,7 @@
         <span style="flex:1"></span>
         <button class="btn btn-sm" id="rc-add">${icon('plus', 14)} ${esc(t('rc.add'))}</button>
       </div>
-      <p class="page-sub" style="margin:6px 0 10px">${esc(t('rc.sub'))}</p>
+      <p class="page-sub" style="margin:6px 0 10px">${esc(t(opts.mgrMode ? 'rc.subMgr' : 'rc.sub'))}</p>
       ${cards.length ? `
       <div class="rc-grid">
         <div class="rc-ylab">${esc(t('rc.needed'))} ↑</div>
@@ -901,10 +948,10 @@
       </div>` : `<div class="empty" style="padding:16px">${icon('alert', 36)}<br>${esc(t('rc.empty'))}</div>`}
     </div>`;
   }
-  function bindRcCard(root, rerender) {
+  function bindRcCard(root, rerender, opts) {
     const add = root.querySelector('#rc-add');
-    if (add) add.onclick = () => rcModal(null, null, rerender);
-    root.querySelectorAll('[data-rc-edit]').forEach(bn => bn.onclick = () => rcModal(Store.get('redCards', bn.dataset.rcEdit), null, rerender));
+    if (add) add.onclick = () => rcModal(null, null, rerender, opts);
+    root.querySelectorAll('[data-rc-edit]').forEach(bn => bn.onclick = () => rcModal(Store.get('redCards', bn.dataset.rcEdit), null, rerender, opts));
   }
 
   /* ---------------- kvartální talent check ----------------

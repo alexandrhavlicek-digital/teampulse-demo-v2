@@ -976,7 +976,7 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   const log21 = HelpKB.changelog();
   ok(log21.length >= 8, `changelog: ${log21.length} záznamů`);
   ok(log21.every((e, i) => i === 0 || log21[i - 1].date >= e.date), 'changelog: nejnovější nahoře');
-  ok(log21[0].title === t('ch.gc.t'), 'changelog: poslední změna = kvartální check');
+  ok(log21[0].title === t('ch.onb.t'), 'changelog: poslední změna = onboarding nováčků');
   /* answer API pro Copilota */
   const a21 = HelpKB.answer('jak funguje historie plnění');
   ok(a21 && /histori/i.test(a21.text), 'answer: vrací relevantní odstavec');
@@ -1219,6 +1219,92 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   });
   I18N.setLocale('cs');
   ok(miss23.length === 0, miss23.length ? 'chybí: ' + miss23.slice(0, 6).join(', ') : 'nové odpovědi: i18n kompletní (cs/en/de)');
+})();
+
+
+/* --- 24) onboarding nováčků (koncept 2026-08-10) --- */
+(function () {
+  load('js/onboarding.js');
+  Generator.install('travel', 80);
+  const plans = Store.list('onboardingPlans');
+  const tpls = Store.list('onboardingTemplates');
+  ok(tpls.length >= 2, `šablony v seedu (${tpls.length})`);
+  ok(plans.length === 2, `2 nováčci v seedu (${plans.length})`);
+  ok(Store.list('people').every(p => p.hiredAt), 'všichni lidé mají hiredAt');
+
+  const fresh = plans.find(pl => Onboarding.pulseDue(pl) === 7);
+  const near = plans.find(pl => Onboarding.reviewWindow(pl));
+  ok(!!fresh, 'čerstvý nováček: pulse dne 7 čeká');
+  ok(!!near, 'nováček před koncem ZD: okno vyhodnocení otevřené');
+  ok(near && Onboarding.riskOf(near) === 'pulse', 'negativní pulse dne 60 → risk flag');
+  ok(near && near.midDone, 'nováček před koncem ZD má 1:1 v půlce hotové');
+  ok(fresh && !Store.list('reviews').some(r => r.subjectId === fresh.personId), 'nováček nemá roční review');
+  ok(fresh && !Store.list('goals').some(g => g.ownerId === fresh.personId), 'nováček nemá cíle (přijdou po ZD)');
+
+  /* a) plán ze šablony + progress */
+  const cand = Store.list('people').find(p => p.managerId && !Onboarding.planOf(p.id));
+  cand.hiredAt = Date.now() - 5 * 86400000; /* simulace čerstvého nástupu */
+  Store.replaceAll('goals', Store.list('goals').filter(g => g.ownerId !== cand.id));
+  const plan = Onboarding.createPlan(cand.id, tpls[0].id, null, null, 3);
+  ok(plan.items.length === tpls[0].items.length, 'plán zdědil položky šablony');
+  ok(Onboarding.progress(plan) === 0, 'nový plán: progress 0');
+  plan.items[0].done = true;
+  ok(Onboarding.progress(plan) > 0, 'progress po odškrtnutí roste');
+  ok(Onboarding.probationDaysLeft(plan) > 60, 'konec ZD ~3 měsíce od nástupu');
+
+  /* b) pulse ukládání + sentiment notifikace */
+  const nBefore = Store.list('notifications').length;
+  const flagged = Onboarding.savePulse(plan, 1, [{ q: 'ready', v: 4 }, { q: 'agenda', v: 2 }, { q: 'free', v: null, text: 'x' }]);
+  ok(flagged === true, 'odpověď 2 → flagged');
+  ok(Store.list('notifications').length === nBefore + 1, 'negativní pulse → notifikace manažerovi');
+  ok(Onboarding.pulseDue(plan) === null || Onboarding.pulseDue(plan) > 1, 'den 1 už není due');
+
+  /* c) rozhodnutí + goals kickoff */
+  Onboarding.confirmProbation(plan, null, 'ok');
+  ok(plan.probation.status === 'confirmed', 'potvrzení ZD');
+  ok(Onboarding.goalsKickoffDue(plan), 'po potvrzení: nastavit cíle (nemá žádné)');
+  ok(Onboarding.activePlans().every(pl => pl.id !== plan.id), 'potvrzený plán už není aktivní');
+
+  /* d) copilot: pulse flow + přehled */
+  const novacek = Store.get('people', fresh.personId);
+  Store.patchSettings({ onboarded: true, viewAs: { role: 'employee', personId: novacek.id } });
+  const th = { id: 'tob', ownerKey: Copilot.ownerKey(), title: '', pinned: false, createdAt: 0, updatedAt: 0, msgs: [], state: null };
+  Store.insert('copilotThreads', th);
+  ok(Copilot.detect('Chci odpovědět na onboarding otázky') === 'obPulse', 'intent obPulse (cs)');
+  ok(Copilot.detect('answer the onboarding questions') === 'obPulse', 'intent obPulse (en)');
+  Copilot.process(th, t('cop.ask.obpulse'));
+  ok(th.state && th.state.flow === 'obp' && th.state.data.day === 7, 'copilot: pulse dne 7 zahájen');
+  ['4', '2', '4', '4'].forEach(v => Copilot.reply(th, { val: v }));
+  Copilot.reply(th, { text: 'komentář' });
+  ok(th.state === null && fresh.pulses.some(pu => pu.day === 7 && pu.flagged), 'copilot: pulse uložen + flagged');
+  ok(Copilot.recs().length >= 0, 'recs nepadá');
+  const mgr = Store.get('people', novacek.managerId);
+  Store.patchSettings({ viewAs: { role: 'manager', personId: mgr.id } });
+  const th2 = { id: 'tob2', ownerKey: Copilot.ownerKey(), title: '', pinned: false, createdAt: 0, updatedAt: 0, msgs: [], state: null };
+  Store.insert('copilotThreads', th2);
+  Copilot.process(th2, 'Jak jsou na tom nováčci?');
+  ok(th2.msgs[th2.msgs.length - 1].html.includes(novacek.lastName), 'copilot: přehled nováčků obsahuje mého nováčka');
+
+  /* e) todos na Přehledu + nápověda */
+  const todos = OnboardingViews.homeTodos(mgr, 'manager');
+  ok(Array.isArray(todos), 'homeTodos vrací pole');
+  ok(!!HelpKB.topics('hr').find(x => x.id === 'onboarding'), 'nápověda: téma onboarding');
+  ok((HelpKB.search('zkusebni doba')[0] || {}).topic && HelpKB.search('zkusebni doba')[0].topic.id === 'onboarding', 'fulltext „zkušební doba" → onboarding');
+  const ans = HelpKB.answer('jak funguje onboarding nováčka?');
+  ok(ans && ans.title === t('help.onb.title'), 'HelpKB.answer odpovídá z tématu onboarding');
+
+  /* f) i18n kompletnost */
+  let missOnb = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['nav.onboarding', 'onb.title', 'onb.np.title', 'onb.tplHrOnly', 'onb.pulsePrivacy', 'onb.sc.1', 'onb.sc.4',
+     'onb.pq.d7.mgrTime', 'onb.pq.d90.recommend', 'onb.ne.match', 'onb.notifFlag', 'onb.midQ1',
+     'cop.ask.obpulse', 'cop.ob.intro', 'cop.ob.flag', 'cop.rec.obPulse', 'cop.cap.13', 'help.onb.title', 'help.onb.7', 'ch.onb.t', 'ch.onb.d']
+      .forEach(k => { if (t(k) === k) missOnb.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missOnb.length === 0, missOnb.length ? 'chybí: ' + missOnb.slice(0, 6).join(', ') : 'onboarding: i18n kompletní (cs/en/de)');
+  Store.patchSettings({ viewAs: null });
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */

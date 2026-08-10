@@ -128,6 +128,22 @@
       if (risk.length) out.push({ txt: fmt('cop.rec.atrisk', { n: risk.length }), chips: [
         { label: t('cop.ch.open'), act: 'nav', val: '#/hr' }] });
     }
+    /* onboarding: pulse nováčka má přednost (Checkback - ptáme se aktivně my) */
+    if (p && window.Onboarding) {
+      const plan = Onboarding.planOf(p.id);
+      const due = plan ? Onboarding.pulseDue(plan) : null;
+      if (due) out.unshift({ txt: fmt('cop.rec.obPulse', { day: due }), chips: [
+        { label: t('cop.ch.fillSelf'), act: 'ask', val: t('cop.ask.obpulse') }] });
+      if (plan && Onboarding.reviewWindow(plan) && !plan.probation.newhireEval)
+        out.push({ txt: t('cop.rec.obNe'), chips: [{ label: t('cop.ch.open'), act: 'nav', val: '#/home' }] });
+      if (v.role === 'manager') {
+        const ids = new Set(); const walk = mid => ppl().filter(x => x.managerId === mid).forEach(x => { ids.add(x.id); walk(x.id); });
+        walk(v.personId);
+        const wins = Onboarding.activePlans(ids).filter(pl => Onboarding.reviewWindow(pl) || Onboarding.midDue(pl));
+        if (wins.length) out.push({ txt: fmt('cop.rec.obMgr', { n: wins.length }), chips: [
+          { label: t('cop.ch.open'), act: 'nav', val: '#/onboarding' }] });
+      }
+    }
     if (p && window.NPS && NPS.pendingWaveFor && NPS.pendingWaveFor(p.id))
       out.push({ txt: t('cop.rec.enps'), chips: [{ label: t('cop.ch.fillSelf'), act: 'ask', val: t('cop.ask.nps') }] });
     if (p && window.Feedback360 && Feedback360.pendingFor(p.id).length)
@@ -204,6 +220,9 @@
     myEval: /(kdo (me|mne) (hodnoti|bude hodnotit)|kdo je (muj|moje) (hodnotitel|manazer|nadrizen|sef)|muj (hodnotitel|manazer|nadrizen)|who (evaluates|reviews) me|who is my (manager|evaluator)|wer bewertet mich|wer ist mein (chef|vorgesetzter))/,
     myTodo: /(co mam (dnes |ted |tento tyden )?(delat|udelat|na praci)|co me ceka|moje ukoly|co visi na mne|mam neco k vyrizeni|what (do i|should i) (need to )?do|my tasks|was muss ich (tun|machen)|meine aufgaben)/,
     succGaps: /((nema|nemaji|bez|chybi)\s+\S*\s*(nastupc|naslednik)|nekryt\w* pozic|(nastupnictvi|succession).*(chybi|gap|mezer)|without a successor|no successor|ohne nachfolg)/,
+    /* onboarding: vyplnění pulse (nováček) vs. přehled nováčků (mgr/HR) */
+    obPulse: /((vypln|odpov|answer|beantwort|ausfull).*(onboarding|adaptac|zaskolen|zapracov)|(onboarding|adaptac).*(otazk|pulse|dotaz|vypln|odpov|questions?|fragen))/,
+    obStatus: /((novac|new hire|neuling|nekol\w* najat).*(stav|status|prehled|jak|progress|dari|overview)|(jak).*(novac|new hire|neuling)|(onboarding).*(stav|status|prehled|progress|overview|dashboard))/,
   };
 
   function detect(text) {
@@ -215,6 +234,8 @@
     if (RX.myEval.test(n)) return 'r.myEval';
     if (RX.myTodo.test(n)) return 'r.myTodo';
     if (RX.succGaps.test(n)) return 'r.succGaps';
+    if (RX.obPulse.test(n)) return 'obPulse';
+    if (RX.obStatus.test(n)) return 'r.onb';
     /* …a OTÁZKA („co je / jak funguje / kde / proč / kdo vidí") má přednost před AKCÍ:
        „zapiš 1:1 s Petrem" = akce, ale „jak zapíšu 1:1?" = nápověda. */
     if (RX.howto.test(n)) return 'howto';
@@ -1438,6 +1459,11 @@
       if (toConv.length) items.push({ txt: fmt('cop.my.todoConv', { names: toConv.slice(0, 4).map(r => (byId(r.subjectId) || {}).firstName).join(', ') }), nav: '#/team' });
     }
     if (window.NPS && NPS.pendingWaveFor(p.id)) items.push({ txt: t('cop.my.todoNps'), ask: t('cop.ask.nps') });
+    if (window.Onboarding) {
+      const obp = Onboarding.planOf(p.id);
+      if (obp && Onboarding.pulseDue(obp)) items.push({ txt: fmt('cop.my.todoObPulse', { day: Onboarding.pulseDue(obp) }), ask: t('cop.ask.obpulse') });
+      if (obp && Onboarding.reviewWindow(obp) && !obp.probation.newhireEval) items.push({ txt: t('cop.my.todoObNe'), nav: '#/home' });
+    }
     const f360 = Store.list('feedback360').filter(f => f.status !== 'closed'
       && (f.respondents || []).some(r2 => r2.personId === p.id && !r2.done));
     if (f360.length) items.push({ txt: fmt('cop.my.todo360', { n: f360.length }), ask: t('cop.ask.f360') });
@@ -1492,9 +1518,72 @@
     /* Copilot je zároveň nápověda - ukážeme i témata, která umí vysvětlit */
     const kbTopics = window.HelpKB ? HelpKB.topics(va().role).map(x => `<li>${esc(x.title)}</li>`).join('') : '';
     return `<b>${esc(t('cop.f.capabilities'))}</b><ul>` +
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>' +
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(i => `<li>${esc(t('cop.cap.' + i))}</li>`).join('') + '</ul>' +
       (kbTopics ? `<b>${esc(t('cop.kb.topicsTitle'))}</b><ul>${kbTopics}</ul>` : '');
   }
+  /* ---------- onboarding pulse (adresný - nováček ví, že odpovědi vidí mgr+HR) ---------- */
+  const obScaleChips = () => chipsOf([4, 3, 2, 1].map(v => ({ label: t('onb.sc.' + v), val: String(v) })));
+  function startObPulse(th) {
+    const p = meP();
+    const plan = p && window.Onboarding ? Onboarding.planOf(p.id) : null;
+    const day = plan ? Onboarding.pulseDue(plan) : null;
+    if (!day) return bot(th, t('cop.ob.none'), defaultChips());
+    th.state = { flow: 'obp', step: 'q', data: { planId: plan.id, day, idx: 0, answers: [] } };
+    bot(th, `<b>${esc(fmt('cop.ob.intro', { day }))}</b><br><span style="color:var(--warn)">${esc(t('onb.pulsePrivacy'))}</span>`);
+    askObQ(th);
+  }
+  function askObQ(th) {
+    const d = th.state.data;
+    const qs = Onboarding.PULSE_QS[d.day];
+    const q = qs[d.idx];
+    if (q === 'free') return bot(th, `<b>${d.idx + 1}/${qs.length}</b> ${esc(t('onb.pq.d' + d.day + '.free'))}`, chipsOf([{ label: t('cop.ch.skip'), val: '' }]));
+    bot(th, `<b>${d.idx + 1}/${qs.length}</b> ${esc(t('onb.pq.d' + d.day + '.' + q))}`, obScaleChips());
+  }
+  function contObPulse(th, input) {
+    const st = th.state, d = st.data;
+    const plan = Store.get('onboardingPlans', d.planId);
+    if (!plan) { th.state = null; return bot(th, t('cop.ob.none')); }
+    const qs = Onboarding.PULSE_QS[d.day];
+    const q = qs[d.idx];
+    if (q === 'free') { /* volný text je vždy poslední → uložit celý pulse */
+      d.answers.push({ q, v: null, text: (input.val != null ? input.val : (input.text || '')).trim() });
+      th.state = null;
+      const flagged = Onboarding.savePulse(plan, d.day, d.answers);
+      return bot(th, '💚 ' + esc(t('cop.ob.thanks')) + (flagged ? '<br>' + esc(t('cop.ob.flag')) : ''));
+    }
+    d.answers.push({ q, v: Math.max(1, Math.min(4, +(input.val != null ? input.val : (norm(input.text || '').match(/[1-4]/) || [3])[0]))) });
+    d.idx++;
+    askObQ(th);
+  }
+  /* přehled nováčků (mgr: podstrom, HR: vše); nováček dostane svůj stav */
+  function rOnb(th) {
+    const v = va();
+    if (!window.Onboarding) return bot(th, t('cop.f.sorry'));
+    if (v.role === 'employee') {
+      const plan = meP() ? Onboarding.planOf(meP().id) : null;
+      if (!plan) return bot(th, t('cop.ob.noPlan'), defaultChips());
+      const due = Onboarding.pulseDue(plan);
+      return bot(th, fmt('cop.ob.mine', { day: Onboarding.daysSince(meP()), pct: Onboarding.progress(plan), left: Math.max(0, Onboarding.probationDaysLeft(plan)) }),
+        due ? chipsOf([{ label: t('cop.ch.fillSelf'), act: 'ask', val: t('cop.ask.obpulse') }]) : null);
+    }
+    let ids = null;
+    if (v.role === 'manager') {
+      ids = new Set();
+      const walk = mid => ppl().filter(x => x.managerId === mid).forEach(x => { ids.add(x.id); walk(x.id); });
+      walk(v.personId);
+    }
+    const act = Onboarding.activePlans(ids);
+    if (!act.length) return bot(th, t('cop.ob.noneScope'), defaultChips());
+    const rows = act.map(pl => {
+      const p = byId(pl.personId); if (!p) return '';
+      const risk = Onboarding.riskOf(pl);
+      return `<li><b>${esc(p.name)}</b> - ${esc(t('onb.day'))} ${Onboarding.daysSince(p)}, ${Onboarding.progress(pl)} %, ${esc(t('onb.probLeft'))} ${Math.max(0, Onboarding.probationDaysLeft(pl))} d`
+        + (risk ? ` ⚠ ${esc(t('onb.risk.' + risk))}` : '')
+        + (Onboarding.reviewWindow(pl) ? ` · <b>${esc(t('onb.reviewDue'))}</b>` : '') + '</li>';
+    }).join('');
+    bot(th, `<b>${esc(t('cop.ob.title'))}</b><ul>${rows}</ul>`, chipsOf([{ label: t('cop.ch.open'), act: 'nav', val: '#/onboarding' }]));
+  }
+
   /* chip „Vysvětli mi <téma>" - vrací se zpět do znalostní báze */
   function askTopicChip(id) {
     const tp = window.HelpKB ? HelpKB.topics(va().role).find(x => x.id === id) : null;
@@ -1547,6 +1636,8 @@
     if (intent === 'r.myEval') return rMyEvaluator(th, text);
     if (intent === 'r.myTodo') return rMyTodo(th);
     if (intent === 'r.succGaps') return rSuccGaps(th);
+    if (intent === 'obPulse') return startObPulse(th);
+    if (intent === 'r.onb') return rOnb(th);
     if (intent === 'r.scale') return rScale(th);
     if (intent === 'r.talent') return rTalent(th);
     if (intent === 'r.f360') return rF360(th, text);
@@ -1559,6 +1650,7 @@
     schedule: contSchedule, goal: contGoalAdd, goalp: contGoalProg, confirm: contConfirm,
     conv: contConv, cycle: contCycle, nps: contNpsFill, f360f: contF360Fill, f360r: contF360Req,
     kpi: contKpiSet, person: contPersonAdd, theme: contTheme, langf: contLang, coff: contCopOff,
+    obp: contObPulse,
   };
 
   function reply(th, input) {

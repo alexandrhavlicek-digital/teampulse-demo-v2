@@ -218,6 +218,7 @@
     { sec: 'nav.adminSec' },
     { id: 'hr', ico: 'gauge', label: 'nav.hr', roles: ['hr'] },
     { id: 'talent', ico: 'grid9', label: 'nav.talent', roles: ['hr'] },
+    { id: 'onboarding', ico: 'sprout', label: 'nav.onboarding', roles: ['manager', 'hr'] },
     { id: 'help', ico: 'bulb', label: 'nav.help', roles: ['employee', 'manager', 'hr'] },
     { id: 'settings', ico: 'gear', label: 'nav.settings', roles: ['employee', 'manager', 'hr'] },
     { sec: 'nav.copilotSec' },
@@ -452,6 +453,8 @@
       txt: t('gc.todo') + ' · ' + GoalCheck.quarterKey(),
       gc: true, d: GoalCheck.quarterDaysLeft(),
     });
+    /* onboarding: manažerská todo (půlka ZD, vyhodnocení, cíle po ZD) */
+    if (me && window.OnboardingViews) OnboardingViews.homeTodos(me, va.role).forEach(td => todos.push(td));
     const myGoals = me ? Store.list('goals').filter(g => g.ownerId === me.id) : [];
     const lastKudos = Store.list('kudos').slice(-3).reverse();
     const confirmed = reviews().filter(r => r.period === Generator.CURRENT_PERIOD && ['confirmed', 'closed_by_hr'].includes(r.status)).length;
@@ -464,7 +467,7 @@
         <div class="card">
           <h2>${icon('doc', 18)}${esc(t('home.todo'))}</h2>
           ${todos.length ? todos.map(td => `
-            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : td.nps ? `data-nps="${td.nps}"` : td.gc ? 'data-gctodo="1"' : `onclick="location.hash='${td.hash}'"`}>
+            <button class="btn btn-block" style="justify-content:flex-start;margin-bottom:8px" ${td.f360 ? `data-f360="${td.f360}"` : td.nps ? `data-nps="${td.nps}"` : td.gc ? 'data-gctodo="1"' : td.plan ? `data-onbplan="${td.plan}"` : `onclick="location.hash='${td.hash}'"`}>
               ${td.ico} ${esc(td.txt)} <span class="badge ${td.d <= 7 ? 'b-amber' : ''}" style="margin-left:auto">${td.d} ${esc(t('home.daysLeft'))}</span>
             </button>`).join('') : `<div class="empty">${icon('spark', 52)}<br>${esc(t('home.noTodo'))}</div>`}
         </div>
@@ -479,6 +482,7 @@
           </div>
         </div>
       </div>
+      ${window.OnboardingViews ? OnboardingViews.homeCardHtml(me) : ''}
       ${myGoals.length ? `
       <div class="card">
         <h2>${icon('target', 18)}${esc(t('home.myGoals'))}</h2>
@@ -497,6 +501,11 @@
       if (w2) NPSViews.respondModal(w2, me.id, render);
     });
     root.querySelectorAll('[data-gctodo]').forEach(b => b.onclick = () => GoalCheckViews.checkModal(me.id, render));
+    root.querySelectorAll('[data-onbplan]').forEach(b => b.onclick = () => {
+      const pl = Store.get('onboardingPlans', b.dataset.onbplan);
+      if (pl) OnboardingViews.planModal(pl, render);
+    });
+    if (me && window.OnboardingViews) OnboardingViews.bindHomeCard(root, me, render);
   };
 
   /* ---- my reviews ---- */
@@ -1574,6 +1583,9 @@
 
   /* ---- talent & reporty (jen HR) ---- */
   views.talent = root => TalentViews.renderHr(root);
+
+  /* ---- onboarding nováčků (mgr: svůj podstrom, HR: vše) ---- */
+  views.onboarding = root => OnboardingViews.render(root);
 
   /* ---- můj tým (jen manažer) ---- */
   views.myteam = root => TalentViews.renderMyTeam(root);

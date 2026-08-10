@@ -23,6 +23,7 @@
     { id: 'mod-employee', ico: 'grid9', hash: '#/home', roles: ['employee'], title: 'help.mod.title', keys: n => range('help.mod.employee.', 4), kw: MOD_KW },
     { id: 'mod-manager', ico: 'grid9', hash: '#/myteam', roles: ['manager'], title: 'help.mod.title', keys: n => range('help.mod.manager.', 8), kw: MOD_KW },
     { id: 'mod-hr', ico: 'grid9', hash: '#/talent', roles: ['hr'], title: 'help.mod.title', keys: n => range('help.mod.hr.', 8), kw: MOD_KW },
+    { id: 'onboarding', ico: 'sprout', hash: '#/onboarding', roles: ['employee', 'manager', 'hr'], title: 'help.onb.title', keys: n => range('help.onb.', 7), kw: ['onboarding', 'novacek', 'novacka', 'novacci', 'nastup', 'zkusebni doba', 'zkusebka', 'buddy', 'zaskolen', 'zaskolovatel', 'adaptace', 'probace', 'new hire', 'probation', 'einarbeitung', 'probezeit'] },
     { id: 'copilot', ico: 'copilot', hash: '#/copilot', roles: ['employee', 'manager', 'hr'], title: 'help.cop.title', keys: n => range('help.cop.', 3), kw: ['copilot', 'chat', 'asistent', 'parták', 'assistant'] },
     { id: 'flow', ico: 'refresh', hash: '#/myreviews', roles: ['employee', 'manager', 'hr'], title: 'help.flowTitle', keys: n => range('help.flow.', 5), numbered: true, kw: ['proces', 'prubeh', 'faze', 'kroky', 'funguje hodnocen', 'probiha hodnocen', 'workflow', 'ablauf', 'phasen'] },
     { id: 'scale', ico: 'spark', hash: '#/myreviews', roles: ['employee', 'manager', 'hr'], title: 'help.scaleTitle', keys: n => ['TN', 'PO', 'KV', 'NR', 'NU'].map(k => 'help.scale.' + k), kw: ['skala', 'skale', 'stupnic', 'stupne', 'hodnotici skala', 'rating scale', 'skala bewertung'] },
@@ -34,6 +35,7 @@
 
   /* changelog - nejnovější nahoře; datum je součást dat, texty v i18n */
   const LOG = [
+    { date: '2026-08-10', ico: 'sprout', hash: '#/onboarding', key: 'ch.onb' },
     { date: '2026-07-30', ico: 'target', hash: '#/goals', key: 'ch.gc' },
     { date: '2026-07-30', ico: 'tree', hash: '#/goals', key: 'ch.gal' },
     { date: '2026-07-30', ico: 'coach', hash: '#/kudos', key: 'ch.fb' },

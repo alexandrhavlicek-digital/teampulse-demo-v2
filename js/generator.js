@@ -236,6 +236,7 @@
       email: (first + '.' + last).toLowerCase()
         .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '') + '@firma.cz',
       hiredMonthsAgo: 3 + Math.floor(rnd() * 90),
+      hiredAt: null, /* dopočte se z hiredMonthsAgo v seedAll (onboarding modul) */
     };
   }
 
@@ -749,7 +750,107 @@
       status: 'collecting', responses: curResp, respondedIds: curIds,
     });
 
-    return { reviews, goals, kudos, feedback, checkins, notifications, keyPositions, talentChecks, redCards, feedback360, npsWaves };
+    /* ---------------- onboarding (koncept 2026-08-10) ----------------
+       hiredAt pro všechny + 2 živí nováčci: čerstvý (den ~9, přímý report demo
+       manažera, pulse dne 7 čeká v Copilotu) a před koncem ZD (den ~78, okno
+       vyhodnocení otevřené, jeden negativní pulse → risk flag). */
+    const onboardingTemplates = [];
+    const onboardingPlans = [];
+    (function seedOnboarding() {
+      people.forEach(p => { p.hiredAt = today - (p.hiredMonthsAgo || 0) * 30 * day - Math.floor(rnd() * 20) * day; });
+
+      const TPL = (name, deptKey, extra) => ({
+        id: uid(), name, deptKey: deptKey || null,
+        items: [
+          { label: 'Smlouva a dokumenty podepsané digitálně', phase: 'pre', ownerRole: 'hr', dueOffset: -7 },
+          { label: 'Technika, účty a přístupy připravené a otestované', phase: 'pre', ownerRole: 'it', dueOffset: -2 },
+          { label: 'Určit buddyho a zaškolovatele, oznámit příchod týmu', phase: 'pre', ownerRole: 'manager', dueOffset: -5 },
+          { label: 'Welcome e-mail s agendou prvního dne', phase: 'pre', ownerRole: 'hr', dueOffset: -3 },
+          { label: 'Osobní přivítání, představení týmu, oběd s týmem', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
+          { label: 'Úvodní 1:1 - očekávání od role a jak spolu budeme pracovat', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
+          { label: 'Seznámení s buddym - první káva', phase: 'day1', ownerRole: 'buddy', dueOffset: 1 },
+          { label: 'Představení firmy, hodnot a strategie', phase: 'week1', ownerRole: 'hr', dueOffset: 3 },
+          { label: 'Školení BOZP a interní směrnice + test', phase: 'week1', ownerRole: 'newhire', dueOffset: 5 },
+          { label: 'Mapa klíčových lidí a stakeholderů (kdo je kdo)', phase: 'week1', ownerRole: 'manager', dueOffset: 5 },
+          { label: 'První malý reálný úkol dokončen', phase: 'week1', ownerRole: 'newhire', dueOffset: 7 },
+          { label: 'Zaškolení do systémů a procesů týmu', phase: 'month1', ownerRole: 'trainer', dueOffset: 20 },
+          { label: 'Buddy check: týden 2 a 4 - jak se daří?', phase: 'month1', ownerRole: 'buddy', dueOffset: 28 },
+          { label: 'Plán 30/60/90 sepsán a odsouhlasen', phase: 'month1', ownerRole: 'manager', dueOffset: 30 },
+          { label: 'Vlastní agenda převzatá, samostatné výstupy', phase: 'month3', ownerRole: 'newhire', dueOffset: 75 },
+          { label: '1:1 v půlce zkušební doby (den ~45)', phase: 'month3', ownerRole: 'manager', dueOffset: 45 },
+        ].concat(extra || []).map(it => Object.assign({ id: uid() }, it)),
+      });
+      onboardingTemplates.push(TPL('Obecný onboarding', null));
+      const d0 = ind.depts[0];
+      onboardingTemplates.push(TPL(d0.name + ' - varianta', d0.key, [
+        { label: 'Stínování zkušeného kolegy (' + d0.name + ')', phase: 'week1', ownerRole: 'trainer', dueOffset: 4 },
+      ]));
+
+      const evalCounts = {};
+      reviews.filter(r => r.period === CURRENT_PERIOD && r.evaluatorId)
+        .forEach(r => { evalCounts[r.evaluatorId] = (evalCounts[r.evaluatorId] || 0) + 1; });
+      const demoMgrId = Object.keys(evalCounts).sort((a, b) => evalCounts[b] - evalCounts[a])[0];
+      const demoMgr = demoMgrId ? people.find(p => p.id === demoMgrId) : null;
+
+      /* nováčky PŘIDÁVÁME jako nové osoby (ne konverzí stávajících) - nemají
+         review ani cíle a nemění počty hodnotitelů (výběr demo manažera). */
+      const mkNewHire = (deptDef, managerId, daysIn) => {
+        const np = makePerson(deptDef.roles[0], deptDef.key, deptDef.name, managerId, false);
+        np.hiredMonthsAgo = 0;
+        np.hiredAt = today - daysIn * day;
+        people.push(np);
+        return np;
+      };
+      const mates = p2 => people.filter(x => x.managerId && x.id !== p2.id && x.deptKey === p2.deptKey && x.hiredMonthsAgo > 12);
+      const tpl = onboardingTemplates[0];
+      const mkPlan = (person, opts) => {
+        const buddy = (mates(person)[0] || {}).id || null;
+        const trainer = (mates(person)[1] || {}).id || null;
+        const plan = {
+          id: uid(), personId: person.id, templateId: tpl.id, buddyId: buddy, trainerId: trainer,
+          probationMonths: 3,
+          items: tpl.items.map(it => {
+            const due = person.hiredAt + it.dueOffset * day;
+            const done = due < today - (opts.lag || 2) * day; /* co mělo termín, je hotové */
+            return Object.assign({}, it, { id: uid(), done, doneAt: done ? due : null, doneById: null });
+          }),
+          pulses: opts.pulses, midDone: opts.midDone || false,
+          probation: { status: 'running', decidedAt: null, decidedById: null, note: '', newhireEval: null },
+          createdAt: person.hiredAt - 7 * day,
+        };
+        onboardingPlans.push(plan);
+        return plan;
+      };
+      const pu = (dayN, vals, txt) => ({
+        day: dayN,
+        answers: Object.keys(vals).map(q => ({ q, v: vals[q] })).concat([{ q: 'free', v: null, text: txt || '' }]),
+        flagged: Object.values(vals).some(v => v <= 2),
+        at: today - 2 * day,
+      });
+
+      /* čerstvý nováček: den 9, přímý report demo manažera → pulse dne 7 čeká */
+      const freshDept = ind.depts.find(dd => dd.key === (demoMgr || {}).deptKey) || ind.depts[0];
+      const fresh = mkNewHire(freshDept, (demoMgr || people[0]).id, 9);
+      mkPlan(fresh, { pulses: [pu(1, { ready: 4, agenda: 3 }, 'Skvělé přivítání, děkuju!')] });
+      /* nováček před koncem ZD: den 78 (zbývá ~12 dní), negativní pulse dne 60 */
+      const nearDept = ind.depts.find(dd => dd.key !== freshDept.key) || ind.depts[0];
+      const nearMgr = people.find(p => p.isHead && p.deptKey === nearDept.key) || demoMgr || people[0];
+      const near = mkNewHire(nearDept, nearMgr.id, 78);
+      if (near) {
+        mkPlan(near, {
+          midDone: today - 32 * day,
+          pulses: [
+            pu(1, { ready: 4, agenda: 4 }),
+            pu(7, { clarity: 3, mgrTime: 4, materials: 3, buddyMet: 4 }),
+            pu(30, { matches: 3, training: 4, safe: 3 }, 'Zatím spokojenost.'),
+            pu(60, { belong: 3, feedback: 2 }, 'Chybí mi průběžná zpětná vazba od manažera.'),
+          ],
+        });
+        notifications.push({ id: uid(), text: 'Onboarding pulse (den 60): ' + near.name + ' - málo zpětné vazby', forRole: 'manager', at: today - 2 * day, read: false });
+      }
+    })();
+
+    return { reviews, goals, kudos, feedback, checkins, notifications, keyPositions, talentChecks, redCards, feedback360, npsWaves, onboardingTemplates, onboardingPlans };
   }
 
   /* ---------------- public API ---------------- */
@@ -778,11 +879,13 @@
       Store.replaceAll('redCards', g.redCards || []);
       Store.replaceAll('feedback360', g.feedback360 || []);
       Store.replaceAll('npsWaves', g.npsWaves || []);
+      Store.replaceAll('onboardingTemplates', g.onboardingTemplates || []);
+      Store.replaceAll('onboardingPlans', g.onboardingPlans || []);
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','feedback','goalChecks','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','feedback','goalChecks','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves','onboardingTemplates','onboardingPlans'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

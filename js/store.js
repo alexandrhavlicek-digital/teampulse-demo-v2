@@ -36,6 +36,8 @@
         goalChecks: [],         // kvartální checky cílů: [{id,personId,q:'2026-Q3',at}] - kdo má hotovo; progressLog žije přímo na goals
         feedback: [],           // průběžná konstruktivní vazba: [{id,fromId,toId,kind:'praise'|'develop',tagKind:'area'|'comp'|null,tagKey,sit,beh,imp,sug,at}] - vidí příjemce+jeho manažer, HR jen počty
         npsWaves: [],           // eNPS pulse: [{id,label,theme,themeQ,startedAt,deadline,status,responses:[{id,deptKey,teamId,nps,dims{},theme,comment,at}] BEZ personId, respondedIds:[personId] odděleně}]
+        onboardingTemplates: [], // šablony onboardingu (spravuje HR): [{id,name,deptKey|null,items:[{id,label,phase:'pre'|'day1'|'week1'|'month1'|'month3',ownerRole:'hr'|'manager'|'buddy'|'trainer'|'it'|'newhire',dueOffset:dny od nástupu}]}]
+        onboardingPlans: [],    // plán nováčka: [{id,personId,templateId,buddyId,trainerId,probationMonths,items:[{...+done,doneAt,doneById}],pulses:[{day,answers,flagged,at}],midDone,probation:{status:'running'|'confirmed'|'ended',decidedAt,decidedById,note,newhireEval},createdAt}]
         copilotThreads: [],     // Copilot chaty: [{id,ownerKey:'role|personId',title,pinned,createdAt,updatedAt,msgs:[],state}]
         copilotPrompts: [],     // uložené prompty: [{id,ownerKey,label,text,at}]
         copilotTasks: [],       // naplánované úlohy: [{id,ownerKey,text,freq:'daily'|'weekly'|'monthly'|'once',nextAt,at}]
