@@ -52,6 +52,10 @@ Sekce 1:1 check-iny má dva taby. **Přehled** ti na první pohled řekne, jestl
 
 V seznamech (1:1 check-iny, kudos, hodnocení týmu) navíc filtruj hledáním jména/role nebo výběrem oddělení — filtr drží, dokud ho křížkem nezrušíš. Tabulky (Hodnocení týmu, Moje hodnocení, Lidé) řadíš klikem na hlavičku sloupce: první klik vzestupně, druhý sestupně — stav se řadí podle postupu procesu, termín podle dní do deadlinu.
 
+## Rozvojový plán
+
+V sekci Hodnocení (krok 4 průvodce) najdeš **Rozvojový plán**: volby zaměstnance z katalogu, jeho zájmy o dovednosti a vlastní přání. U každé položky rozhoduješ **Schvaluji / K rozhovoru / Zamítám** — stejná disciplína jako u cílů: rozpory se propíší do bodů k rozhovoru a bez rozhodnutí u všech položek hodnocení nefinalizuješ. Můžeš přidat i vlastní určené aktivity a u kompetencí hodnocených „Potřebuje rozvoj" ti systém sám nabídne kurzy k jednomu kliknutí. Schválené položky se po potvrzení stanou plánem zaměstnance; hotové aktivity uvidíš příště v Podkladech z období a souhrn rozvoje svého týmu máš v sekci Můj tým.
+
 ## Průvodce, nebo vše naráz
 
 Hodnoticí formulář má hodně vstupů, proto si vyber režim zobrazení tlačítky **Průvodce | Vše naráz** vpravo nahoře. Průvodce rozdělí hodnocení do pěti kroků — **Podklady** (sebehodnocení a co se za období nasbíralo), **Vyhodnocení cílů**, **Nové cíle**, **Hodnocení** (oblasti či kompetence, texty, talent) a **Shrnutí** (skóre, termíny, akce). Klikatelný pásek nahoře ukazuje, kde jsi a co je vyplněné; rozpracované hodnocení se otevře v kroku, kde jsi skončil/a. Vše naráz je původní zobrazení na jedné stránce, nově se sticky navigací sekcí s indikací vyplněnosti. Volba se pamatuje per osoba a data jsou v obou režimech tatáž.

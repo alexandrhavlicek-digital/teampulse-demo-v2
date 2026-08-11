@@ -783,6 +783,7 @@
         </div>`;
       })()}
       ${rcCardHtml({ scopeIds: new Set(team.map(p => p.id)), mgrMode: true })}
+      ${window.DevViews ? DevViews.teamCardHtml(team) : ''}
       <h2 class="mt-sec">${icon('team', 18)}${esc(t('mt.cards'))}</h2>
       <div class="mt-cards">${entries.map(teamCardHtml).join('')}</div>`;
 

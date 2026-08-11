@@ -483,6 +483,7 @@
         </div>
       </div>
       ${window.OnboardingViews ? OnboardingViews.homeCardHtml(me) : ''}
+      ${window.DevViews ? DevViews.homeCardHtml(me) : ''}
       ${myGoals.length ? `
       <div class="card">
         <h2>${icon('target', 18)}${esc(t('home.myGoals'))}</h2>
@@ -506,6 +507,7 @@
       if (pl) OnboardingViews.planModal(pl, render);
     });
     if (me && window.OnboardingViews) OnboardingViews.bindHomeCard(root, me, render);
+    if (window.DevViews) DevViews.bindHomeCard(root, render);
   };
 
   /* ---- my reviews ---- */
@@ -1501,7 +1503,8 @@
       </div>
 
       <div class="card"><h2>${icon('clock', 18)}${esc(t('hr.timeline'))}</h2>
-        <ul class="timeline">${tl.map(([d, key]) => `<li><span class="tday">${esc(t('common.day'))} ${d}</span> ${esc(t(key))}</li>`).join('')}</ul></div>`;
+        <ul class="timeline">${tl.map(([d, key]) => `<li><span class="tday">${esc(t('common.day'))} ${d}</span> ${esc(t(key))}</li>`).join('')}</ul></div>
+      ${window.DevViews ? DevViews.hrCardHtml() : ''}`;
 
     root.querySelectorAll('[data-remind]').forEach(b => b.onclick = () => {
       /* cílená připomínka: dostane ji ten, kdo je na tahu - ne plošně všichni */
@@ -1512,6 +1515,7 @@
       notify(t('act.remindMsg').split('{name}').join(target ? target.name : ''), toEval ? 'manager' : 'employee');
       toast(t('act.remindSent').split('{name}').join(target ? CzName.full(target.name, 'acc') : ''));
     });
+    if (window.DevViews) DevViews.bindHrCard(root, render);
     const polSave = root.querySelector('#pol-save');
     if (polSave) polSave.onclick = () => {
       const gp = Object.assign({}, policy);
@@ -1822,6 +1826,7 @@
   function boot() {
     /* migrace: firmy uložené před onboarding modulem dostanou výchozí šablony */
     if (window.Generator && Generator.ensureOnboardingTemplates) Generator.ensureOnboardingTemplates();
+    if (window.Dev && Dev.ensureSeed) Dev.ensureSeed();
     render();
   }
   window.addEventListener('hashchange', render);

@@ -41,6 +41,9 @@
         copilotThreads: [],     // Copilot chaty: [{id,ownerKey:'role|personId',title,pinned,createdAt,updatedAt,msgs:[],state}]
         copilotPrompts: [],     // uložené prompty: [{id,ownerKey,label,text,at}]
         copilotTasks: [],       // naplánované úlohy: [{id,ownerKey,text,freq:'daily'|'weekly'|'monthly'|'once',nextAt,at}]
+        skillTags: [],          // rozvoj: číselník dovedností [{id,label,type:'soft'|'hard',compKeys:[]}] - spravuje HR
+        devCatalog: [],         // rozvoj: katalog aktivit [{id,title,desc,kind,provider:'internal'|'edunio'|'external',url,skillIds,durationH,deptKeys,active}]
+        devPlans: [],           // rozvojové plány z hodnocení (materializace při v3): [{id,personId,period,reviewId,createdAt,items:[{...devItem,status,statusAt}]}]
       };
     }
     function persist() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }

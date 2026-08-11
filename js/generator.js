@@ -912,11 +912,13 @@
       Store.replaceAll('npsWaves', g.npsWaves || []);
       Store.replaceAll('onboardingTemplates', g.onboardingTemplates || []);
       Store.replaceAll('onboardingPlans', g.onboardingPlans || []);
+      /* rozvoj: katalog + dovednosti + devItems v hodnoceních + plány (modul dev.js) */
+      if (window.Dev) { Store.replaceAll('devPlans', []); Dev.seedDemo(industryKey); }
       return g;
     },
     installEmpty() {
       Store.setCompany({ name: 'Moje firma', industry: null, size: 0, departments: [], kpis: [], teamKpis: [], goalPolicy: Object.assign({}, DEFAULT_GOAL_POLICY), competencies: null, cycleConfig: { semiEnabled: true }, createdAt: new Date().toISOString() });
-      ['people','reviews','goals','kudos','feedback','goalChecks','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves','onboardingTemplates','onboardingPlans'].forEach(c => Store.replaceAll(c, []));
+      ['people','reviews','goals','kudos','feedback','goalChecks','checkins','notifications','keyPositions','talentChecks','redCards','feedback360','npsWaves','onboardingTemplates','onboardingPlans','skillTags','devCatalog','devPlans'].forEach(c => Store.replaceAll(c, []));
     },
   };
 })();

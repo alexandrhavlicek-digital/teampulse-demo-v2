@@ -317,6 +317,7 @@
     const f = r.form;
     if (r.status === 'pending_self') transition(r, 'self_in_progress');
     initNewGoals(r);
+    if (window.Dev) Dev.ensureItems(f);
     const total = 6;
     const mode = reviewMode();
     const step = f.wizardStep || 1;
@@ -335,7 +336,7 @@
       { key: 's2', label: t('rev.tl2'), state: ratedAreas === ratedTotal ? 'done' : ratedAreas ? 'part' : 'empty' },
       { key: 's3', label: t('rev.tl3'), skip: f.goalsEval.length === 0, state: f.goalsEval.length && gRated === f.goalsEval.length ? 'done' : gRated ? 'part' : 'empty' },
       { key: 's4', label: t('rev.tl4'), state: ngOk ? 'done' : ngStarted ? 'part' : 'empty' },
-      { key: 's5', label: t('rev.tl5'), state: (f.self.summary || '').trim() ? 'done' : f.trainings.length ? 'part' : 'empty' },
+      { key: 's5', label: t('rev.tl5'), state: (f.self.summary || '').trim() ? 'done' : ((f.devItems || f.trainings || []).length) ? 'part' : 'empty' },
       { key: 's6', label: t('rev.tl6'), state: 'empty' },
     ];
 
@@ -411,14 +412,9 @@
           }).join('');
       }
       if (n === 5) {
-        const tags = ['Prezentační dovednosti', 'Time management', 'Jazykový kurz AJ', 'Odborná certifikace', 'Leadership základy', 'Excel pokročilý'];
         return `
         ${stepHead(5, t('rev.trainings') + ' + ' + t('rev.summary'))}
-        <div class="field"><label>${esc(t('rev.trainings'))}</label>
-          <div class="hint" style="margin-bottom:6px">${esc(t('rev.trainingsHint'))}</div>
-          <div id="train-tags">${tags.map(tag =>
-            `<button type="button" class="badge ${f.trainings.includes(tag) ? 'b-blue' : ''}" data-tag="${esc(tag)}" style="margin:3px;cursor:pointer">${esc(tag)}</button>`).join('')}
-          </div></div>
+        ${window.DevViews ? DevViews.selfBlockHtml(f) : ''}
         <div class="field"><label>${esc(t('rev.summary'))}</label>
           <textarea class="input" data-f="summary">${esc(f.self.summary)}</textarea></div>`;
       }
@@ -493,12 +489,7 @@
       if (name.startsWith('comp.')) ensureCompRatings(r.form).self[name.slice(5)] = val;
       saveForm(r);
     });
-    root.querySelectorAll('#train-tags .badge').forEach(b => b.addEventListener('click', () => {
-      const tag = b.dataset.tag;
-      const i = r.form.trainings.indexOf(tag);
-      if (i >= 0) r.form.trainings.splice(i, 1); else r.form.trainings.push(tag);
-      saveForm(r); renderWizard(root, r);
-    }));
+    if (window.DevViews) DevViews.bindSelfBlock(root, r, () => renderWizard(root, r));
     bindModeSeg(root, () => { collect(); renderWizard(root, r); });
     if (mode === 'sheet') bindSecnav(root);
     const go = s => {
@@ -563,7 +554,8 @@
           : `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${AREAS.map(a => `${esc(areaName(a))}: <b>${esc(scaleWord(f.self.areas[a]))}</b>`).join(' · ')}</p>`}
         ${f.goalsEval.length ? `<div style="margin-top:8px"><b>${esc(t('rev.goalsEval'))}</b>${goalsByAreaHtml(f.goalsEval)}</div>` : ''}
         ${f.newGoals.length ? `<div style="margin-top:12px"><b>${esc(t('rev.goalsNew'))}</b>${goalsByAreaHtml(f.newGoals)}</div>` : ''}
-        ${f.trainings.length ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.trainings.map(esc).join(', ')}</p>` : ''}
+        ${(f.devItems && f.devItems.length) ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.devItems.map(d => esc(d.title) + (d.source === 'manager' ? ' (' + esc(t('dev.byMgr')) + ')' : '')).join(', ')}</p>`
+          : f.trainings.length ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.trainings.map(esc).join(', ')}</p>` : ''}
         <p style="margin-top:8px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.self.summary) || '-'}</p>
       </div>`;
   }
@@ -624,6 +616,7 @@
       f.goalsEval.forEach(g => { if (!g.mgrRating && g.rating) g.mgrRating = g.rating; });
       f.mgrPrefilled = true; saveForm(r);
     }
+    if (window.Dev) { Dev.ensureItems(f); saveForm(r); }
     const st = r.status === 'self_done' ? 'manager_in_progress' : r.status;
 
     const phase2 = ['manager_done', 'conversation_scheduled'].includes(st);
@@ -695,6 +688,7 @@
             }).join('');
           }
           if (cis.length) h += cis.map(c => `<p style="font-size:.88rem;margin-bottom:4px;color:var(--text-muted)">${icon('checkin', 13)} ${fmtDate(c.at)} ${c.mood} - ${esc(c.notes)}</p>`).join('');
+          if (window.Dev) h += Dev.evidenceHtml(r.subjectId);
           /* 360: tři pohledy (self · 360 · mgr) + běžící sběr + vyžádání */
           if (window.Feedback360Views) {
             h += Feedback360Views.statusLineHtml(r.subjectId);
@@ -748,8 +742,10 @@
           <div class="field"><label>${esc(t('rev.mgr.strengths'))}</label><textarea class="input" data-m="strengths">${esc(f.mgr.strengths)}</textarea></div>
           <div class="field"><label>${esc(t('rev.mgr.growthAreas'))}</label><textarea class="input" data-m="growthAreas">${esc(f.mgr.growthAreas)}</textarea></div>
         </div>
+        ${window.DevViews ? DevViews.mgrBlockHtml(f) : ''}
         ${(() => {
-          const disputed = f.goalsEval.concat(f.newGoals).filter(g => g.mgrDecision === 'discuss');
+          const disputed = f.goalsEval.concat(f.newGoals).filter(g => g.mgrDecision === 'discuss')
+            .concat((f.devItems || []).filter(d => d.decision === 'discuss'));
           return disputed.length ? `<div class="callout" style="margin-bottom:12px;background:color-mix(in srgb, var(--warn) 14%, transparent);color:var(--warn)">
             ${icon('checkin', 16)} <span><b>${esc(t('rev.discussList'))}:</b><br>${disputed.map(g =>
               `· ${esc(g.title)}${g.rating || g.mgrRating ? ` (${esc(t('misc.you'))} ${esc(scaleWord(g.rating))} × ${esc(scaleWord(g.mgrRating))})` : ''}${g.mgrNote ? ' - ' + esc(g.mgrNote) : ''}`).join('<br>')}</span></div>` : '';
@@ -867,6 +863,7 @@
       }
     });
     bindTalentSection(root, r, f, () => { collect(); rerender(); });
+    if (window.DevViews) DevViews.bindMgrBlock(root, r, () => { collect(); rerender(); });
     const q = s => root.querySelector(s);
     if (q('#mg-back')) q('#mg-back').onclick = () => goStep(prevIdx);
     if (q('#mg-next')) q('#mg-next').onclick = () => goStep(nextIdx);
@@ -893,7 +890,10 @@
     if (q('#m-final')) q('#m-final').onclick = () => {
       collect();
       if (!f.nextReviewDate) { toast(t('rev.nextDate')); return; }
-      const disputed = f.goalsEval.concat(f.newGoals).some(g => g.mgrDecision === 'discuss');
+      const devUndecided = (f.devItems || []).some(d => !d.decision);
+      if (devUndecided) { toast(t('dev.decideAll')); return; }
+      const disputed = f.goalsEval.concat(f.newGoals).some(g => g.mgrDecision === 'discuss')
+        || (f.devItems || []).some(d => d.decision === 'discuss');
       if (disputed) { toast(t('rev.resolveDisputes')); return; }
       const unconfirmed = f.goalsEval.some(g => !g.mgrConfirmed) || f.newGoals.some(g => !g.mgrConfirmed);
       const sumsBad = AREAS.some(a => f.newGoals.some(g => g.areaKey === a) && areaSum(f.newGoals, a) !== 100);
@@ -1192,7 +1192,7 @@
       r.form.employeeComment = root.querySelector('#emp-comment').value;
       r.form.versions.push({ label: 'v3_confirmed', at: Date.now() });
       saveForm(r);
-      if (r.type === 'semi') applySemiChanges(r); else materializeNewGoals(r);
+      if (r.type === 'semi') applySemiChanges(r); else { materializeNewGoals(r); if (window.Dev) Dev.materialize(r); }
       transition(r, 'confirmed', ((subj || {}).name || '') + ' - ' + t('st.confirmed'), 'all');
       toast(t('st.confirmed'));
       location.hash = '#/myreviews';
@@ -1229,6 +1229,7 @@
         ${f.employeeComment ? `<p style="margin-top:6px"><b>${esc(t('rev.employeeComment'))}:</b> ${esc(f.employeeComment)}</p>` : ''}
       </div>
       ${f.newGoals.length ? `<div class="card"><h2>${icon('spark', 18)}${esc(t('rev.goalsNew'))}</h2>${goalsByAreaHtml(f.newGoals, { showConfirm: true })}</div>` : ''}
+      ${window.DevViews ? DevViews.readHtml(f) : ''}
       ${withPrivate ? scoreCard(f) : ''}
       <div class="card">
         <h2>${icon('clock', 18)}${esc(t('rev.history'))}</h2>

@@ -35,6 +35,7 @@ load('js/talent.js');
 load('js/feedback360.js');
 load('js/feedback.js');
 load('js/goalcheck.js');
+load('js/dev.js');
 load('js/help.js');
 load('js/app.js'); /* boot proběhne proti stub DOM (onboarding větev) - dává window.App a AppFilters */
 
@@ -1368,6 +1369,81 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
     rev.form.mgrStep = 4; Store.update('reviews', rev.id, { form: rev.form });
     ok(Store.get('reviews', rev.id).form.mgrStep === 4, 'mgrStep se persistuje ve formuláři');
   }
+})();
+
+
+/* --- 28) rozvojový modul: seed, migrace, doporučení, rozhodnutí, materializace, poptávka --- */
+(() => {
+  Generator.install('travel', 50);
+  /* a) seed katalogu + dovedností */
+  const cat = Store.list('devCatalog'), sk = Store.list('skillTags');
+  ok(cat.length >= 10, `katalog naseedován (${cat.length} aktivit)`);
+  ok(sk.filter(s => s.type === 'soft').length >= 6 && sk.filter(s => s.type === 'hard').length >= 5,
+    `dovednosti soft+hard (${sk.length})`);
+  ok(cat.some(c => c.provider === 'edunio' && c.url), 'EDUNIO položky mají proklik');
+  ok(cat.every(c => (c.skillIds || []).every(id => sk.some(s => s.id === id))), 'integrita: skillIds ukazují na existující dovednosti');
+
+  /* b) devItems v hodnoceních + plány */
+  const revs = Store.list('reviews');
+  const withDev = revs.filter(r => (r.form.devItems || []).length);
+  ok(withDev.length > 5, `devItems v seedu hodnocení (${withDev.length}×)`);
+  const plans = Store.list('devPlans');
+  ok(plans.length > 3, `rozvojové plány naseedovány (${plans.length})`);
+  ok(plans.every(p => p.items.every(i => i.decision === 'approved')), 'plány obsahují jen schválené položky');
+  ok(plans.some(p => p.items.some(i => i.status === 'done')), 'v plánech jsou hotové aktivity (podklady příštího cyklu)');
+
+  /* c) migrace starých f.trainings → devItems */
+  const rf = { trainings: ['Kurz X', 'Kurz Y'] };
+  const items = Dev.ensureItems(rf);
+  ok(items.length === 2 && items[0].kind === 'custom' && items[0].source === 'self' && !items[0].decision,
+    'migrace f.trainings → custom devItems');
+
+  /* d) doporučení dle nízkého ratingu (bez AI) */
+  const f2 = { mgr: { areas: { teamwork: 'NR', growth: 'KV', quality: 'KV' } }, devItems: [] };
+  const reco = Dev.recommendFor(f2);
+  ok(reco.length > 0, `doporučení pro „Potřebuje rozvoj" v oblasti (${reco.length} kurzů)`);
+  const f3 = { mgr: { areas: { teamwork: 'TN', growth: 'TN', quality: 'TN' } }, devItems: [] };
+  ok(Dev.recommendFor(f3).length === 0, 'žádné doporučení bez nízkého ratingu');
+
+  /* e) materializace: jen schválené */
+  const r0 = revs.find(x => (x.form.devItems || []).length >= 2);
+  const before = Store.list('devPlans').length;
+  r0.form.devItems.forEach((d, i) => { d.decision = i === 0 ? 'approved' : 'declined'; });
+  const plan = Dev.materialize(r0);
+  ok(!!plan && plan.items.length === 1 && plan.items[0].status === 'planned',
+    'materializace vezme jen schválené, status planned');
+  ok(Store.list('devPlans').length === before + 1, 'plán zapsán do Store');
+  ok(Dev.planOf(r0.subjectId).id === plan.id, 'planOf vrací nejnovější plán');
+
+  /* f) poptávka: agregace včetně zájmů mimo katalog, bez jmen */
+  const d = Dev.demand();
+  ok(d.topCourses.length > 0 && d.topCourses[0].n >= 1, `poptávka: top aktivity (${d.topCourses.length})`);
+  ok(d.coveragePct >= 0 && d.coveragePct <= 100, `pokrytí ${d.coveragePct} %`);
+  ok(!JSON.stringify(d).match(/personId|name/), 'report poptávky neobsahuje jména ani id osob');
+
+  /* g) evidence: hotové aktivity do podkladů */
+  const personWithDone = Store.list('devPlans').find(p => p.items.some(i => i.status === 'done'));
+  if (personWithDone) ok(Dev.evidenceHtml(personWithDone.personId).includes('badge'), 'evidenceHtml vrací hotové aktivity');
+
+  /* h) i18n úplnost */
+  let missDev = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['dev.pick', 'dev.interest', 'dev.soft', 'dev.hard', 'dev.custom', 'dev.chosen', 'dev.mgrTitle', 'dev.approve', 'dev.decline',
+     'dev.reco', 'dev.decideAll', 'dev.myPlan', 'dev.status.planned', 'dev.status.in_progress', 'dev.status.done',
+     'dev.teamTitle', 'dev.hrTitle', 'dev.coverage', 'dev.topCourses', 'dev.topSkills', 'dev.newCourse', 'dev.newSkill',
+     'dev.kind.course', 'dev.kind.elearning', 'dev.provider.internal', 'dev.provider.edunio', 'dev.provider.external']
+      .forEach(k => { if (t(k) === k) missDev.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missDev.length === 0, missDev.length ? 'chybí: ' + missDev.slice(0, 6).join(', ') : 'rozvoj: i18n kompletní (cs/en/de)');
+
+  /* i) finalizace: nerozhodnuté položky blokují (zdrojová kontrola) */
+  const revSrc = fs.readFileSync('js/reviews.js', 'utf8');
+  ok(revSrc.includes("dev.decideAll") && revSrc.includes('Dev.materialize'), 'finalizace hlídá rozhodnutí + materializace při v3');
+  /* backfill starých DB */
+  Store.replaceAll('skillTags', []); Store.replaceAll('devCatalog', []);
+  ok(Dev.ensureSeed() === true && Store.list('skillTags').length > 0, 'ensureSeed doplní katalog starým DB');
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */
