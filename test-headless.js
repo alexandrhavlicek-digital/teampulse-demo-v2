@@ -869,7 +869,7 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(badRef.length === 0, `integrita: žádný cíl neukazuje na neexistující KPI (${badRef.length})`);
   /* UI: záložka v sekci Cíle + role scope (zdrojová kontrola) */
   const appSrc19 = fs.readFileSync('js/app.js', 'utf8');
-  ok(appSrc19.includes('data-gl-tab="align"') && appSrc19.includes('renderAlign'), 'sekce Cíle má záložku Alignment');
+  ok(appSrc19.includes("['align', t('gal.tab')") && appSrc19.includes('renderAlign'), 'sekce Cíle má záložku Alignment');
   ok(appSrc19.includes("va.role === 'manager' ? all.filter"), 'alignment: scope dle role (mgr = přímý tým)');
   /* i18n úplnost */
   let miss19 = [];
@@ -1228,7 +1228,19 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   Generator.install('travel', 80);
   const plans = Store.list('onboardingPlans');
   const tpls = Store.list('onboardingTemplates');
-  ok(tpls.length >= 2, `šablony v seedu (${tpls.length})`);
+  /* předpřipravená sada: obecná + varianta pro každé oddělení + Vedoucí pozice + Remote nástup */
+  const deptCnt = Generator.INDUSTRIES.travel.depts.length;
+  ok(tpls.length === deptCnt + 3, `šablony v seedu: obecná + ${deptCnt} oddělení + vedoucí + remote (${tpls.length})`);
+  ok(tpls[0].name === 'Obecný onboarding', 'první šablona = Obecný onboarding');
+  ok(!!tpls.find(tp => tp.name === 'Vedoucí pozice'), 'šablona Vedoucí pozice');
+  ok(!!tpls.find(tp => tp.name === 'Remote nástup'), 'šablona Remote nástup');
+  ok(Generator.INDUSTRIES.travel.depts.every(d => tpls.some(tp => tp.deptKey === d.key)), 'varianta pro každé oddělení');
+  ok(tpls.every(tp => tp.items.length >= 16 && tp.items.every(it => it.id && it.label && it.phase && it.ownerRole && typeof it.dueOffset === 'number')), 'položky šablon kompletní');
+  /* backfill: stará DB bez šablon je dostane při bootu (Generator.ensureOnboardingTemplates) */
+  Store.replaceAll('onboardingTemplates', []);
+  ok(Generator.ensureOnboardingTemplates() === deptCnt + 3, 'backfill doplní šablony do staré DB');
+  ok(Generator.ensureOnboardingTemplates() === 0, 'backfill podruhé nic nepřidá');
+  Store.replaceAll('onboardingTemplates', tpls); /* zpět seedované (id používá test níže) */
   ok(plans.length === 2, `2 nováčci v seedu (${plans.length})`);
   ok(Store.list('people').every(p => p.hiredAt), 'všichni lidé mají hiredAt');
 
@@ -1305,6 +1317,57 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   I18N.setLocale('cs');
   ok(missOnb.length === 0, missOnb.length ? 'chybí: ' + missOnb.slice(0, 6).join(', ') : 'onboarding: i18n kompletní (cs/en/de)');
   Store.patchSettings({ viewAs: null });
+})();
+
+/* --- 27) UX zpřehlednění: režim hodnocení, timeline, taby cílů, org chart --- */
+(() => {
+  Generator.install('it', 40);
+  /* a) preference režimu: default průvodce, přepnutí na plachtu se pamatuje per osoba */
+  const emp = Store.list('people').find(p => p.managerId);
+  Store.patchSettings({ viewAs: { role: 'employee', personId: emp.id } });
+  ok(ReviewViews.reviewMode() === 'guide', 'režim hodnocení: default je průvodce');
+  ReviewViews.setReviewMode('sheet');
+  ok(ReviewViews.reviewMode() === 'sheet', 'režim hodnocení: přepnutí na plachtu se uloží');
+  ok((Store.getSettings().reviewModes || {})[emp.id] === 'sheet', 'preference leží ve Store.settings.reviewModes per osoba');
+  const other = Store.list('people').find(p => p.managerId && p.id !== emp.id);
+  Store.patchSettings({ viewAs: { role: 'employee', personId: other.id } });
+  ok(ReviewViews.reviewMode() === 'guide', 'jiná osoba má dál default průvodce');
+  ReviewViews.setReviewMode('nesmysl');
+  ok(ReviewViews.reviewMode() === 'guide', 'neplatná hodnota režimu se normalizuje na průvodce');
+  Store.patchSettings({ viewAs: null });
+
+  /* b) zdrojové kontroly: timeline, secnav, sekce, taby, sbalitelné sekce, org fit&center */
+  const revSrc = fs.readFileSync('js/reviews.js', 'utf8');
+  ok(revSrc.includes('function timelineHtml') && revSrc.includes('data-wtl'), 'průvodce má klikatelnou timeline');
+  ok(revSrc.includes('function secnavHtml') && revSrc.includes('data-secnav'), 'plachta má sticky navigaci sekcí');
+  ["'self'", "'goalsEval'", "'newGoals'", "'ratings'", "'summary'"].forEach(k =>
+    ok(revSrc.includes(`{ key: ${k},`), `manažerský průvodce má krok ${k}`));
+  ok(revSrc.includes("data-rmode=\"guide\"") && revSrc.includes("data-rmode=\"sheet\""), 'přepínač Průvodce | Vše naráz existuje');
+  const appSrc = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc.includes('const fitCenter') && appSrc.includes('contentFits'), 'org chart: fitCenter + kontrola vejití');
+  ok(appSrc.includes('orgUi.fitted') && appSrc.includes('orgUi.refit'), 'org chart: auto-fit při prvním zobrazení + dorovnání po toggle');
+  ["'list'", "'company'", "'team'", "'align'"].forEach(k =>
+    ok(appSrc.includes(`[${k}, `), `stránka Cíle má tab ${k}`));
+  ok(appSrc.includes('openAreas') && appSrc.includes('openDepts') && appSrc.includes('csec-head'), 'sbalitelné sekce oblastí a oddělení');
+
+  /* c) i18n úplnost nových klíčů */
+  let missUx = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['org.center', 'rev.modeGuide', 'rev.modeSheet',
+     'rev.tl1', 'rev.tl2', 'rev.tl3', 'rev.tl4', 'rev.tl5', 'rev.tl6',
+     'rev.mtl1', 'rev.mtl2', 'rev.mtl3', 'rev.mtl4', 'rev.mtl5']
+      .forEach(k => { if (t(k) === k) missUx.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missUx.length === 0, missUx.length ? 'chybí: ' + missUx.slice(0, 6).join(', ') : 'UX zpřehlednění: i18n kompletní (cs/en/de)');
+
+  /* d) wizardStep / mgrStep se persistují ve formuláři (návrat do rozpracovaného kroku) */
+  const rev = Store.list('reviews').find(x => x.form && x.form.goalsEval && x.form.goalsEval.length);
+  if (rev) {
+    rev.form.mgrStep = 4; Store.update('reviews', rev.id, { form: rev.form });
+    ok(Store.get('reviews', rev.id).form.mgrStep === 4, 'mgrStep se persistuje ve formuláři');
+  }
 })();
 
 /* --- 10) empty state: prázdná firma nesmí spadnout --- */

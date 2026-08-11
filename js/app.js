@@ -657,7 +657,8 @@
       ${!companyHtml && !teamHtml && !tree.unlinked.length ? `<div class="card"><div class="empty">${icon('target', 52)}<br>${esc(t('gal.empty'))}</div></div>` : ''}`;
   }
 
-  const glUi = { tab: 'list' };
+  /* ---- cíle: 4 taby (osobní cíle / firemní KPI / týmové KPI / provázanost) ---- */
+  const glUi = { tab: 'list', openAreas: null, openDepts: null };
   views.goals = root => {
     const va = viewAs();
     const co = Store.getCompany() || { kpis: [], teamKpis: [], goalPolicy: Generator.DEFAULT_GOAL_POLICY };
@@ -666,6 +667,10 @@
     const all = Store.list('goals').filter(g => g.type === 'personal');
     const personal = va.role === 'hr' ? all : all.filter(g => g.ownerId === va.personId);
     const teamK = (co.teamKpis || []).filter(k => va.role === 'hr' || (me && k.deptKey === me.deptKey));
+
+    /* sbalitelné sekce: HR startuje sbaleně (velké objemy), ostatní rozbaleně; manažerovi se otevře jeho oddělení */
+    if (glUi.openAreas === null) glUi.openAreas = new Set(va.role === 'hr' ? [] : ['teamwork', 'growth', 'quality']);
+    if (glUi.openDepts === null) glUi.openDepts = new Set(va.role !== 'hr' && me ? [me.deptKey] : []);
 
     const goalRow = g => {
       const owner = person(g.ownerId);
@@ -681,41 +686,92 @@
         <button class="btn btn-sm" data-gh="${g.id}" title="${esc(t('gc.history'))}">${icon('clock', 13)}</button></div>`;
     };
 
+    /* oblast jako sbalitelná sekce - hlavička nese počet, součet vah a průměrné plnění i ve sbaleném stavu */
     const areaSection = (a, pool) => {
       const items = pool.filter(g => g.areaKey === a);
       const mineSum = me ? items.filter(g => g.ownerId === me.id).reduce((s2, g) => s2 + g.weight, 0) : 0;
-      return `<div class="card"><h2>${icon('target', 18)}${esc(t('rev.area.' + a))}
-          <span class="badge" style="margin-left:8px">${policy[a] || 2}×</span>
+      const openA = glUi.openAreas.has(a);
+      const avgP = items.length ? Math.round(items.reduce((s2, g) => s2 + (g.progress || 0), 0) / items.length) : 0;
+      return `<div class="card csec ${openA ? 'open' : ''}">
+        <button type="button" class="csec-head" data-ga="${a}">
+          <span class="csec-chev">${icon('arrowR', 14)}</span>
+          ${icon('target', 18)}<b>${esc(t('rev.area.' + a))}</b>
+          <span class="badge b-blue">${items.length}×</span>
+          <span class="badge">${policy[a] || 2}×</span>
           ${Generator.KPI_REQUIRED[a] ? `<span class="badge b-blue">${esc(t('goals.kpi'))}</span>` : ''}
           ${va.role !== 'hr' && items.length ? `<span class="badge ${mineSum === 100 ? 'b-green' : 'b-amber'}">${esc(t('goals.sum'))}: ${mineSum} %</span>` : ''}
-        </h2>
-        ${items.length ? items.slice(0, va.role === 'hr' ? 30 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>`;
+          <span style="flex:1"></span>
+          ${items.length ? `<div class="progressbar al-bar"><div style="width:${avgP}%"></div></div><b class="al-pct">${avgP}%</b>` : ''}
+        </button>
+        ${openA ? `<div class="csec-body">${items.length ? items.slice(0, va.role === 'hr' ? 30 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>` : ''}
+      </div>`;
     };
 
-    const alignTab = glUi.tab === 'align';
+    const kpiBarRow = k => `
+      <div class="brow"><span>${k.dept ? `<span class="badge">${esc(k.dept)}</span> ` : ''}${esc(k.title)}
+        ${k.target ? `<small style="color:var(--text-muted)"> · ${esc(t('hr.kpiTarget'))}: ${esc(k.target)}</small>` : ''}
+        ${k.desc ? `<br><small style="color:var(--text-muted)">${esc(k.desc)}</small>` : ''}</span>
+      <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`;
+
+    const TABS = [
+      ['list', t('goals.personal'), personal.length],
+      ['company', t('goals.company'), (co.kpis || []).length],
+      ['team', t('hr.teamKpis'), teamK.length],
+      ['align', t('gal.tab'), null],
+    ];
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <h1 class="page-title" style="margin:0">${esc(t('goals.title'))}</h1>
         <span class="lang-seg">
-          <button data-gl-tab="list" class="${!alignTab ? 'on' : ''}">${esc(t('gal.tabList'))}</button>
-          <button data-gl-tab="align" class="${alignTab ? 'on' : ''}">${esc(t('gal.tab'))}</button>
+          ${TABS.map(([k, lbl, n]) => `<button data-gl-tab="${k}" class="${glUi.tab === k ? 'on' : ''}">${esc(lbl)}${n ? ` <small>${n}</small>` : ''}</button>`).join('')}
         </span>
         <span style="flex:1"></span>
-        ${alignTab ? '' : `<button class="btn btn-primary btn-sm" id="g-add">${icon('plus', 15)} ${esc(t('goals.add'))}</button>`}
+        ${glUi.tab === 'list' ? `<button class="btn btn-primary btn-sm" id="g-add">${icon('plus', 15)} ${esc(t('goals.add'))}</button>` : ''}
       </div>
-      <p class="page-sub">${esc(alignTab ? t('gal.sub') : t('goals.sub'))}</p>
+      <p class="page-sub">${esc(glUi.tab === 'align' ? t('gal.sub') : t('goals.sub'))}</p>
       <div id="g-body"></div>`;
     root.querySelectorAll('[data-gl-tab]').forEach(b => b.onclick = () => { glUi.tab = b.dataset.glTab; views.goals(root); });
-    if (alignTab) { renderAlign(root.querySelector('#g-body'), va, me, all); return; }
-    root.querySelector('#g-body').innerHTML = `
-      ${co.kpis && co.kpis.length ? `<div class="card"><h2>${icon('building', 18)}${esc(t('goals.company'))}</h2>
-        <div class="bars">${co.kpis.map(k => `
-          <div class="brow"><span title="${esc(k.desc)}">${esc(k.title)}</span>
-          <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div></div>` : ''}
-      ${teamK.length ? `<div class="card"><h2>${icon('team', 18)}${esc(t('hr.teamKpis'))}</h2>
-        <div class="bars">${teamK.map(k => `
-          <div class="brow"><span><span class="badge">${esc(k.dept)}</span> ${esc(k.title)}</span>
-          <div class="progressbar"><div style="width:${k.current}%"></div></div><b>${k.current}%</b></div>`).join('')}</div></div>` : ''}
+    const body = root.querySelector('#g-body');
+
+    if (glUi.tab === 'align') { renderAlign(body, va, me, all); return; }
+
+    if (glUi.tab === 'company') {
+      body.innerHTML = (co.kpis && co.kpis.length)
+        ? `<div class="card"><h2>${icon('building', 18)}${esc(t('goals.company'))}</h2><div class="bars">${co.kpis.map(kpiBarRow).join('')}</div></div>`
+        : `<div class="card"><div class="empty">${icon('building', 52)}<br>${esc(t('gal.empty'))}</div></div>`;
+      return;
+    }
+
+    if (glUi.tab === 'team') {
+      /* seskupení po odděleních do accordionů - hlavička nese počet KPI a průměrné plnění */
+      const byDept = {};
+      teamK.forEach(k => { (byDept[k.deptKey] = byDept[k.deptKey] || { name: k.dept, list: [] }).list.push(k); });
+      const keys = Object.keys(byDept);
+      body.innerHTML = keys.length ? keys.map(dk => {
+        const d = byDept[dk];
+        const openD = glUi.openDepts.has(dk);
+        const avgC = Math.round(d.list.reduce((s2, k) => s2 + (k.current || 0), 0) / d.list.length);
+        return `<div class="card csec ${openD ? 'open' : ''}">
+          <button type="button" class="csec-head" data-gd="${dk}">
+            <span class="csec-chev">${icon('arrowR', 14)}</span>
+            ${icon('team', 18)}<b>${esc(d.name)}</b>
+            <span class="badge b-blue">${d.list.length}×</span>
+            <span style="flex:1"></span>
+            <div class="progressbar al-bar"><div style="width:${avgC}%"></div></div><b class="al-pct">${avgC}%</b>
+          </button>
+          ${openD ? `<div class="csec-body"><div class="bars">${d.list.map(kpiBarRow).join('')}</div></div>` : ''}
+        </div>`;
+      }).join('') : `<div class="card"><div class="empty">${icon('team', 52)}<br>${esc(t('gal.empty'))}</div></div>`;
+      body.querySelectorAll('[data-gd]').forEach(b => b.onclick = () => {
+        const dk = b.dataset.gd;
+        if (glUi.openDepts.has(dk)) glUi.openDepts.delete(dk); else glUi.openDepts.add(dk);
+        views.goals(root);
+      });
+      return;
+    }
+
+    /* tab Osobní cíle */
+    body.innerHTML = `
       ${va.role === 'hr' ? filterBarHtml('goals') : ''}
       <div id="g-areas"></div>`;
 
@@ -724,6 +780,11 @@
       const pool = (va.role === 'hr' && (fG.q || fG.dept))
         ? personal.filter(g => personMatch(person(g.ownerId), fG)) : personal;
       root.querySelector('#g-areas').innerHTML = ['teamwork', 'growth', 'quality'].map(a => areaSection(a, pool)).join('');
+      root.querySelectorAll('[data-ga]').forEach(b => b.onclick = () => {
+        const a = b.dataset.ga;
+        if (glUi.openAreas.has(a)) glUi.openAreas.delete(a); else glUi.openAreas.add(a);
+        drawAreas();
+      });
       /* HR korekce: i ta jde přes applyProgress → zapíše se do historie s označením */
       root.querySelectorAll('[data-gp]').forEach(sl => sl.onchange = () => {
         GoalCheck.applyProgress(sl.dataset.gp, +sl.value, t('gc.hrFix'), va.personId);
@@ -733,7 +794,8 @@
     };
     drawAreas();
     if (va.role === 'hr') bindFilterBar(root, 'goals', drawAreas);
-    root.querySelector('#g-add').onclick = () => {
+    const addBtn = root.querySelector('#g-add');
+    if (addBtn) addBtn.onclick = () => {
       const owner = va.personId || (personas().hr || {}).id;
       const kpiOpts = `<option value="">${esc(t('goals.kpiNone'))}</option>
         <optgroup label="${esc(t('goals.company'))}">${(co.kpis || []).map(k => `<option value="company:${k.id}">${esc(k.title)}</option>`).join('')}</optgroup>
@@ -927,7 +989,7 @@
         <div class="org-zoom">
           <button class="iconbtn" id="oz-in" title="+">${icon('plus', 16)}</button>
           <button class="iconbtn" id="oz-out" title="-"><svg class="pi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.2 12h13.6"/></svg></button>
-          <button class="iconbtn" id="oz-fit" title="reset">${icon('refresh', 15)}</button>
+          <button class="iconbtn" id="oz-fit" title="${esc(t('org.center'))}">${icon('refresh', 15)}</button>
           <button class="iconbtn" id="oz-fs" title="${esc(t('org.fullscreen'))}">${icon('expand', 15)}</button>
         </div>
         <div class="org-canvas" id="org-canvas">
@@ -990,15 +1052,34 @@
       setZoom(orgUi.z * factor, e.clientX - rect.left, e.clientY - rect.top);
     }, { passive: false });
 
+    /* fit & center: strom se zmenší tak, aby se vešel (max 100 %), a vycentruje na plátně */
+    const fitCenter = () => {
+      const cw = canvas.clientWidth, ch = canvas.clientHeight;
+      const sw = stage.offsetWidth, sh = stage.offsetHeight;
+      if (!cw || !ch || !sw || !sh) return;
+      const z = Math.max(.3, Math.min((cw - 48) / sw, (ch - 48) / sh, 1));
+      orgUi.z = z;
+      orgUi.x = Math.max((cw - sw * z) / 2, 12);
+      orgUi.y = Math.max((ch - sh * z) / 2, 16);
+      apply();
+    };
+    const contentFits = () => {
+      const cw = canvas.clientWidth, ch = canvas.clientHeight;
+      const sw = stage.offsetWidth * orgUi.z, sh = stage.offsetHeight * orgUi.z;
+      return orgUi.x >= 0 && orgUi.y >= 0 && orgUi.x + sw <= cw && orgUi.y + sh <= ch;
+    };
     root.querySelector('#oz-in').onclick = () => setZoom(orgUi.z * 1.2);
     root.querySelector('#oz-out').onclick = () => setZoom(orgUi.z / 1.2);
-    root.querySelector('#oz-fit').onclick = () => { orgUi.x = 24; orgUi.y = 16; orgUi.z = 1; apply(); };
+    root.querySelector('#oz-fit').onclick = fitCenter;
+    canvas.addEventListener('dblclick', fitCenter);
     /* fullscreen celé karty s org chartem */
     const fsCard = canvas.closest('.card');
     root.querySelector('#oz-fs').onclick = () => {
       if (document.fullscreenElement) document.exitFullscreen();
       else if (fsCard && fsCard.requestFullscreen) fsCard.requestFullscreen();
     };
+    /* po přepnutí fullscreenu se změní rozměr plátna → dorovnat */
+    if (fsCard) fsCard.onfullscreenchange = () => setTimeout(fitCenter, 80);
     /* ⓘ na uzlu → karta člověka (jen mgr+HR - tlačítko se jinak nerenderuje) */
     root.querySelectorAll('[data-org-info]').forEach(bi => bi.onclick = e => {
       e.stopPropagation();
@@ -1010,8 +1091,13 @@
       e.stopPropagation();
       const id = btn.dataset.orgToggle;
       if (orgUi.collapsed.has(id)) orgUi.collapsed.delete(id); else orgUi.collapsed.add(id);
+      orgUi.refit = true;
       views.org(root);
     });
+
+    /* první zobrazení: vycentrovat automaticky; po sbalení/rozbalení dorovnat jen když se obsah nevejde */
+    if (!orgUi.fitted) { fitCenter(); orgUi.fitted = true; }
+    else if (orgUi.refit) { orgUi.refit = false; if (!contentFits()) fitCenter(); }
   };
 
   /* ---- kudos + konstruktivní vazba ---- */
@@ -1733,7 +1819,11 @@
     lastRouteKey = routeKey;
   }
 
-  function boot() { render(); }
+  function boot() {
+    /* migrace: firmy uložené před onboarding modulem dostanou výchozí šablony */
+    if (window.Generator && Generator.ensureOnboardingTemplates) Generator.ensureOnboardingTemplates();
+    render();
+  }
   window.addEventListener('hashchange', render);
   applySettings();
   boot();

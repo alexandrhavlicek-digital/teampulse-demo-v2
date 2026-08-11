@@ -20,6 +20,10 @@ Výzva ti přijde notifikací (zvoneček vpravo nahoře; v produkci e-mailem). H
 
 **6 — Náhled a odeslání.** Zkontroluj vše pohromadě a **Odešli**. Tím vzniká Verze 1 — po odeslání už formulář needituješ (případnou změnu řeš s HR).
 
+## Průvodce, nebo vše naráz
+
+Formulář si můžeš zobrazit dvěma způsoby a kdykoli mezi nimi přepnout tlačítky **Průvodce | Vše naráz** vpravo nahoře. Průvodce tě vede krok za krokem — nahoře vidíš klikatelný pásek s názvy kroků a stavem vyplnění (plný proužek = hotovo, poloviční = rozpracováno), takže se můžeš soustředit na jednu věc a kdykoli skočit jinam. Vše naráz zobrazí celý formulář na jedné stránce s navigací sekcí nahoře. Volba se pamatuje, obě varianty pracují nad stejnými daty a vše se průběžně ukládá.
+
 ## Co se děje pak
 
 Manažer si tvoje sebehodnocení projde, doplní svůj pohled a navrhne termín **hodnoticího rozhovoru**. Tam se probere všechno, kde se vidíte jinak — systém ta místa sám označí. Rozhovor je dialog: připrav si poznámky a příklady, manažer si nepamatuje všechno, co se ti povedlo.

@@ -52,6 +52,10 @@ Sekce 1:1 check-iny má dva taby. **Přehled** ti na první pohled řekne, jestl
 
 V seznamech (1:1 check-iny, kudos, hodnocení týmu) navíc filtruj hledáním jména/role nebo výběrem oddělení — filtr drží, dokud ho křížkem nezrušíš. Tabulky (Hodnocení týmu, Moje hodnocení, Lidé) řadíš klikem na hlavičku sloupce: první klik vzestupně, druhý sestupně — stav se řadí podle postupu procesu, termín podle dní do deadlinu.
 
+## Průvodce, nebo vše naráz
+
+Hodnoticí formulář má hodně vstupů, proto si vyber režim zobrazení tlačítky **Průvodce | Vše naráz** vpravo nahoře. Průvodce rozdělí hodnocení do pěti kroků — **Podklady** (sebehodnocení a co se za období nasbíralo), **Vyhodnocení cílů**, **Nové cíle**, **Hodnocení** (oblasti či kompetence, texty, talent) a **Shrnutí** (skóre, termíny, akce). Klikatelný pásek nahoře ukazuje, kde jsi a co je vyplněné; rozpracované hodnocení se otevře v kroku, kde jsi skončil/a. Vše naráz je původní zobrazení na jedné stránce, nově se sticky navigací sekcí s indikací vyplněnosti. Volba se pamatuje per osoba a data jsou v obou režimech tatáž.
+
 ## Zásady dobrého hodnotitele
 
 Hodnoť celé období, ne posledních 14 dní — od toho máš podklady. Konkrétní příklady místo dojmů. Neshodu neobrušuj smírným ratingem — označ ji k rozhovoru, od toho proces je. A nezapomeň: hodnocení potvrzené pod nátlakem se ti vrátí ve fluktuaci.

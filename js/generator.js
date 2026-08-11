@@ -240,6 +240,53 @@
     };
   }
 
+  /* ---------------- onboarding: výchozí šablony ----------------
+     Předpřipravená sada pro demo (spravuje HR na stránce Onboarding):
+     obecná + varianta pro každé oddělení + Vedoucí pozice + Remote nástup.
+     depts: [{key, name}] bez 'vedeni'. Používá seed i backfill starých DB. */
+  const OB_BASE_ITEMS = [
+    { label: 'Smlouva a dokumenty podepsané digitálně', phase: 'pre', ownerRole: 'hr', dueOffset: -7 },
+    { label: 'Technika, účty a přístupy připravené a otestované', phase: 'pre', ownerRole: 'it', dueOffset: -2 },
+    { label: 'Určit buddyho a zaškolovatele, oznámit příchod týmu', phase: 'pre', ownerRole: 'manager', dueOffset: -5 },
+    { label: 'Welcome e-mail s agendou prvního dne', phase: 'pre', ownerRole: 'hr', dueOffset: -3 },
+    { label: 'Osobní přivítání, představení týmu, oběd s týmem', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
+    { label: 'Úvodní 1:1 - očekávání od role a jak spolu budeme pracovat', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
+    { label: 'Seznámení s buddym - první káva', phase: 'day1', ownerRole: 'buddy', dueOffset: 1 },
+    { label: 'Představení firmy, hodnot a strategie', phase: 'week1', ownerRole: 'hr', dueOffset: 3 },
+    { label: 'Školení BOZP a interní směrnice + test', phase: 'week1', ownerRole: 'newhire', dueOffset: 5 },
+    { label: 'Mapa klíčových lidí a stakeholderů (kdo je kdo)', phase: 'week1', ownerRole: 'manager', dueOffset: 5 },
+    { label: 'První malý reálný úkol dokončen', phase: 'week1', ownerRole: 'newhire', dueOffset: 7 },
+    { label: 'Zaškolení do systémů a procesů týmu', phase: 'month1', ownerRole: 'trainer', dueOffset: 20 },
+    { label: 'Buddy check: týden 2 a 4 - jak se daří?', phase: 'month1', ownerRole: 'buddy', dueOffset: 28 },
+    { label: 'Plán 30/60/90 sepsán a odsouhlasen', phase: 'month1', ownerRole: 'manager', dueOffset: 30 },
+    { label: 'Vlastní agenda převzatá, samostatné výstupy', phase: 'month3', ownerRole: 'newhire', dueOffset: 75 },
+    { label: '1:1 v půlce zkušební doby (den ~45)', phase: 'month3', ownerRole: 'manager', dueOffset: 45 },
+  ];
+  function defaultOnboardingTemplates(depts) {
+    const TPL = (name, deptKey, extra) => ({
+      id: uid(), name, deptKey: deptKey || null,
+      items: OB_BASE_ITEMS.concat(extra || []).map(it => Object.assign({ id: uid() }, it)),
+    });
+    const out = [TPL('Obecný onboarding', null)];
+    (depts || []).forEach(d => out.push(TPL(d.name + ' - varianta', d.key, [
+      { label: 'Stínování zkušeného kolegy (' + d.name + ')', phase: 'week1', ownerRole: 'trainer', dueOffset: 4 },
+      { label: 'Zpětná vazba zaškolovatele po 1. měsíci (' + d.name + ')', phase: 'month1', ownerRole: 'trainer', dueOffset: 30 },
+    ])));
+    out.push(TPL('Vedoucí pozice', null, [
+      { label: 'Úvodní 1:1 s každým členem týmu', phase: 'week1', ownerRole: 'newhire', dueOffset: 10 },
+      { label: 'Seznámení s KPI, rozpočtem a reporty týmu', phase: 'month1', ownerRole: 'manager', dueOffset: 15 },
+      { label: 'Převzetí běžících projektů a priorit', phase: 'month1', ownerRole: 'manager', dueOffset: 20 },
+      { label: 'První týmová porada vedená samostatně', phase: 'month1', ownerRole: 'newhire', dueOffset: 30 },
+    ]));
+    out.push(TPL('Remote nástup', null, [
+      { label: 'Technika doručena domů, otestován vzdálený přístup (VPN)', phase: 'pre', ownerRole: 'it', dueOffset: -5 },
+      { label: 'Virtuální welcome call s celým týmem', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
+      { label: 'Denní check-in s buddym po první dva týdny', phase: 'week1', ownerRole: 'buddy', dueOffset: 2 },
+      { label: 'Osobní návštěva kanceláře a setkání s týmem', phase: 'month1', ownerRole: 'manager', dueOffset: 30 },
+    ]));
+    return out;
+  }
+
   /* ---------------- org builder ---------------- */
   function buildCompany(industryKey, size, opts) {
     seed = (opts && opts.seed) || (Date.now() % 100000);
@@ -754,37 +801,10 @@
        hiredAt pro všechny + 2 živí nováčci: čerstvý (den ~9, přímý report demo
        manažera, pulse dne 7 čeká v Copilotu) a před koncem ZD (den ~78, okno
        vyhodnocení otevřené, jeden negativní pulse → risk flag). */
-    const onboardingTemplates = [];
+    const onboardingTemplates = defaultOnboardingTemplates(ind.depts);
     const onboardingPlans = [];
     (function seedOnboarding() {
       people.forEach(p => { p.hiredAt = today - (p.hiredMonthsAgo || 0) * 30 * day - Math.floor(rnd() * 20) * day; });
-
-      const TPL = (name, deptKey, extra) => ({
-        id: uid(), name, deptKey: deptKey || null,
-        items: [
-          { label: 'Smlouva a dokumenty podepsané digitálně', phase: 'pre', ownerRole: 'hr', dueOffset: -7 },
-          { label: 'Technika, účty a přístupy připravené a otestované', phase: 'pre', ownerRole: 'it', dueOffset: -2 },
-          { label: 'Určit buddyho a zaškolovatele, oznámit příchod týmu', phase: 'pre', ownerRole: 'manager', dueOffset: -5 },
-          { label: 'Welcome e-mail s agendou prvního dne', phase: 'pre', ownerRole: 'hr', dueOffset: -3 },
-          { label: 'Osobní přivítání, představení týmu, oběd s týmem', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
-          { label: 'Úvodní 1:1 - očekávání od role a jak spolu budeme pracovat', phase: 'day1', ownerRole: 'manager', dueOffset: 0 },
-          { label: 'Seznámení s buddym - první káva', phase: 'day1', ownerRole: 'buddy', dueOffset: 1 },
-          { label: 'Představení firmy, hodnot a strategie', phase: 'week1', ownerRole: 'hr', dueOffset: 3 },
-          { label: 'Školení BOZP a interní směrnice + test', phase: 'week1', ownerRole: 'newhire', dueOffset: 5 },
-          { label: 'Mapa klíčových lidí a stakeholderů (kdo je kdo)', phase: 'week1', ownerRole: 'manager', dueOffset: 5 },
-          { label: 'První malý reálný úkol dokončen', phase: 'week1', ownerRole: 'newhire', dueOffset: 7 },
-          { label: 'Zaškolení do systémů a procesů týmu', phase: 'month1', ownerRole: 'trainer', dueOffset: 20 },
-          { label: 'Buddy check: týden 2 a 4 - jak se daří?', phase: 'month1', ownerRole: 'buddy', dueOffset: 28 },
-          { label: 'Plán 30/60/90 sepsán a odsouhlasen', phase: 'month1', ownerRole: 'manager', dueOffset: 30 },
-          { label: 'Vlastní agenda převzatá, samostatné výstupy', phase: 'month3', ownerRole: 'newhire', dueOffset: 75 },
-          { label: '1:1 v půlce zkušební doby (den ~45)', phase: 'month3', ownerRole: 'manager', dueOffset: 45 },
-        ].concat(extra || []).map(it => Object.assign({ id: uid() }, it)),
-      });
-      onboardingTemplates.push(TPL('Obecný onboarding', null));
-      const d0 = ind.depts[0];
-      onboardingTemplates.push(TPL(d0.name + ' - varianta', d0.key, [
-        { label: 'Stínování zkušeného kolegy (' + d0.name + ')', phase: 'week1', ownerRole: 'trainer', dueOffset: 4 },
-      ]));
 
       const evalCounts = {};
       reviews.filter(r => r.period === CURRENT_PERIOD && r.evaluatorId)
@@ -857,7 +877,18 @@
   window.Generator = {
     INDUSTRIES, AREAS, KPI_REQUIRED, WEIGHT_PRESETS, DEFAULT_GOAL_POLICY, COMP_LIB,
     CURRENT_PERIOD, PAST_PERIOD, SCALE,
-    emptyForm, weightsFor, goalsEvalFrom,
+    emptyForm, weightsFor, goalsEvalFrom, defaultOnboardingTemplates,
+    /* backfill: firmy uložené před onboarding modulem nemají šablony -
+       doplní výchozí sadu podle oddělení firmy (volá boot v app.js) */
+    ensureOnboardingTemplates() {
+      const co = Store.getCompany();
+      if (!co || !Store.list('people').length) return 0;
+      if (Store.list('onboardingTemplates').length) return 0;
+      const depts = (co.departments || []).filter(d => d.key !== 'vedeni');
+      const tpls = defaultOnboardingTemplates(depts);
+      Store.replaceAll('onboardingTemplates', tpls);
+      return tpls.length;
+    },
     generate(industryKey, size) {
       const pack = buildCompany(industryKey, size, {});
       const seeded = seedAll(pack);

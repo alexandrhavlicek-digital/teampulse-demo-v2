@@ -1313,3 +1313,48 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
   opacity: .65; padding: 0 3px; color: inherit;
 }
 .onb-mini:hover { opacity: 1; }
+
+/* ============================================================
+   UX zpřehlednění (2026-08): timeline průvodce, navigace sekcí,
+   sbalitelné sekce (cíle, týmové KPI)
+   ============================================================ */
+.wtl { display: flex; gap: 4px; margin: 14px 0 20px; flex-wrap: wrap; }
+.wtl-step {
+  flex: 1 1 0; min-width: 96px; display: flex; flex-direction: column; align-items: flex-start;
+  gap: 6px; padding: 6px 6px 8px; background: transparent; border: none; cursor: pointer; border-radius: 10px;
+}
+.wtl-step:hover { background: var(--chip-bg); }
+.wtl-dot { display: block; width: 100%; height: 5px; border-radius: 99px; background: var(--chip-bg); }
+.wtl-step.st-part .wtl-dot { background: color-mix(in srgb, var(--accent) 40%, var(--chip-bg)); }
+.wtl-step.st-done .wtl-dot { background: var(--accent); }
+.wtl-step.cur .wtl-dot { outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 1px; }
+.wtl-lbl { font-size: .74rem; font-weight: 600; color: var(--text-muted); letter-spacing: .02em; text-align: left; }
+.wtl-step.cur .wtl-lbl { color: var(--text); font-weight: 700; }
+
+.secnav {
+  position: sticky; top: 8px; z-index: 4; display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 8px; border-radius: var(--radius); margin-bottom: 12px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--border);
+}
+.secnav button {
+  font-size: .76rem; font-weight: 650; color: var(--text-muted); border: none; cursor: pointer;
+  padding: 4px 10px; border-radius: 999px; background: var(--chip-bg);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.secnav button::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: transparent; border: 1px solid var(--border);
+}
+.secnav button.st-part::before { background: color-mix(in srgb, var(--accent) 45%, transparent); border-color: transparent; }
+.secnav button.st-done::before { background: var(--accent); border-color: var(--accent); }
+.secnav button:hover { color: var(--text); }
+
+.csec .csec-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: none;
+  padding: 0; cursor: pointer; text-align: left; font-size: 1rem; color: var(--text); flex-wrap: wrap;
+}
+.csec .csec-head .csec-chev { display: inline-flex; transition: transform .15s ease; color: var(--text-muted); }
+.csec.open .csec-head .csec-chev { transform: rotate(90deg); }
+.csec-body { margin-top: 10px; }
+.lang-seg button small { font-weight: 500; opacity: .75; }
