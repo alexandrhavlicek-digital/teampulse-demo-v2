@@ -846,6 +846,7 @@
       // settings
       'set.title': 'Nastavení', 'set.theme': 'Design', 'set.lang': 'Jazyk',
       'set.demoData': 'Demo data', 'set.reset': 'Resetovat demo',
+      'set.hideDemo': 'Skrýt štítek DEMO (např. pro screenshoty)',
       'set.resetConfirm': 'Opravdu? Smaže se celá firma i tvůj postup.',
       'set.regen': 'Vygenerovat jinou firmu', 'set.notif': 'Notifikace',
       'set.notifHint': 'V demu se notifikace zobrazují ve zvonečku nahoře. V produkci e-mail + in-app.',
@@ -1864,6 +1865,7 @@
       'help.docs': 'Documents', 'help.tutorials': 'Tutorials',
       'set.title': 'Settings', 'set.theme': 'Design', 'set.lang': 'Language',
       'set.demoData': 'Demo data', 'set.reset': 'Reset demo',
+      'set.hideDemo': 'Hide the DEMO badge (e.g. for screenshots)',
       'set.resetConfirm': 'Really? This deletes the whole company and your progress.',
       'set.regen': 'Generate a different company', 'set.notif': 'Notifications',
       'set.notifHint': 'In the demo, notifications appear in the bell above. In production: email + in-app.',
@@ -2880,6 +2882,7 @@
       'help.docs': 'Dokumente', 'help.tutorials': 'Tutorials',
       'set.title': 'Einstellungen', 'set.theme': 'Design', 'set.lang': 'Sprache',
       'set.demoData': 'Demo-Daten', 'set.reset': 'Demo zurücksetzen',
+      'set.hideDemo': 'DEMO-Label ausblenden (z. B. für Screenshots)',
       'set.resetConfirm': 'Wirklich? Die ganze Firma und dein Fortschritt werden gelöscht.',
       'set.regen': 'Andere Firma generieren', 'set.notif': 'Benachrichtigungen',
       'set.notifHint': 'In der Demo erscheinen Benachrichtigungen in der Glocke oben. In Produktion: E-Mail + In-App.',

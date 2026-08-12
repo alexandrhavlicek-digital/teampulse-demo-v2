@@ -1288,7 +1288,7 @@
       ${withPrivate && f.mgr.privateNote ? `<p><b>${esc(t('rev.privateNote'))}:</b> ${esc(f.mgr.privateNote)}</p>` : ''}
       ${withPrivate && score != null ? `<p><b>${esc(t('rev.score'))}:</b> ${score.toFixed(2)} - ${esc(t('band.' + b.key))}</p>` : ''}
       ${f.employeeComment ? `<p><b>${esc(t('rev.employeeComment'))}:</b> ${esc(f.employeeComment)}</p>` : ''}
-      <p class="meta">${esc(t('rev.nextDate'))}: ${fmtDate(f.nextReviewDate)} · TeamPulse demo · ${fmtDate(Date.now())}</p>`;
+      <p class="meta">${esc(t('rev.nextDate'))}: ${fmtDate(f.nextReviewDate)} · TeamPulse${Store.getSettings().hideDemoBadge ? '' : ' demo'} · ${fmtDate(Date.now())}</p>`;
     pr.hidden = false;
     window.print();
     setTimeout(() => { pr.hidden = true; }, 400);

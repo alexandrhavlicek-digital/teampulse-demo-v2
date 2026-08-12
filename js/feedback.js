@@ -58,8 +58,7 @@
     let kind = 'develop', tagKey = null, tagKind = null;
     modal(`<h3>${icon('coach', 18)}${esc(t('fb.give'))}</h3>
       <p class="hint" style="color:var(--text-muted);margin-bottom:10px">${icon('lock', 13)} ${esc(t('fb.privacy'))}</p>
-      <div class="field"><label>${esc(t('kudos.to'))}</label>
-        <select class="input" id="fb-to">${ps.map(p => `<option value="${p.id}">${esc(p.name)} · ${esc(p.role)}</option>`).join('')}</select></div>
+      <div class="field"><label>${esc(t('kudos.to'))}</label><div id="fb-to"></div></div>
       <div class="field"><label>${esc(t('fb.kind'))}</label>
         <div class="scale-row sm">${KINDS.map(k => `
           <button type="button" class="scale-opt ${k === kind ? 'sel' : ''}" data-fbk="${k}">${icon(k === 'praise' ? 'heart' : 'sprout', 15)} ${esc(t('fb.kind.' + k))}</button>`).join('')}
@@ -80,6 +79,7 @@
         <button class="btn" id="fb-cancel">${esc(t('common.cancel'))}</button>
         <button class="btn btn-primary" id="fb-send">${esc(t('common.send'))} ${icon('send', 14)}</button>
       </div>`, m => {
+      const pick = App.personPicker(m.querySelector('#fb-to'), { people: ps, autofocus: true });
       m.querySelectorAll('[data-fbk]').forEach(b => b.onclick = () => {
         m.querySelectorAll('[data-fbk]').forEach(x => x.classList.remove('sel'));
         b.classList.add('sel'); kind = b.dataset.fbk;
@@ -96,9 +96,10 @@
         const beh = m.querySelector('#fb-beh').value.trim();
         const imp = m.querySelector('#fb-imp').value.trim();
         const sug = m.querySelector('#fb-sug').value.trim();
+        const toId = pick.get(); if (!toId) { UI.toast(t('kudos.to')); return; }
         if (!sit || !beh || !imp) { UI.toast(t('fb.fillSbi')); return; }
         Store.insert('feedback', {
-          id: uid(), fromId: meId || ((Store.list('people')[0] || {}).id), toId: m.querySelector('#fb-to').value,
+          id: uid(), fromId: meId || ((Store.list('people')[0] || {}).id), toId,
           kind, tagKind, tagKey, sit, beh, imp, sug, at: Date.now(),
         });
         notify(t('fb.notif'), 'all');

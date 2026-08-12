@@ -36,7 +36,7 @@
     Store.patchSettings({ viewAs: { role, personId } });
     render();
   }
-  window.App = { viewAs, render: () => render() };
+  window.App = { viewAs, render: () => render(), personPicker }; /* personPicker sdílený i pro ostatní moduly (feedback, talent) */
 
   /* ================= theme & locale ================= */
   function applySettings() {
@@ -70,6 +70,76 @@
     </svg></div>`;
   }
 
+  /* wordmark lock-up dle Brand Manual v1.0 — outline T (gradient stroke) + „TEAMPULSE" */
+  function brandLockup(size = 28) {
+    const fs = Math.round(size * 0.42 * 10) / 10;   /* poměr wordmark/mark dle manuálu */
+    const gap = Math.round(size * 0.18 * 10) / 10;
+    return `<span class="tp-lockup" aria-label="TeamPulse" style="gap:${gap}px">
+      <svg width="${size}" height="${size}" viewBox="0 0 140 140" style="overflow:visible" aria-hidden="true">
+        <defs><linearGradient id="tplg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FCB6D4"/><stop offset="50%" stop-color="#F5247D"/><stop offset="100%" stop-color="#C0185F"/>
+        </linearGradient></defs>
+        <path d="M30 34 H110 A8 8 0 0 1 110 50 H82 V104 A8 8 0 0 1 58 104 V50 H30 A8 8 0 0 1 30 34 Z" fill="none" stroke="url(#tplg)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg><span class="tp-wordmark" style="font-size:${fs}px">TEAMPULSE</span></span>`;
+  }
+
+  /* Fulltextový výběr osoby — sdílená komponenta (vzor f360/rcModal, rozhodnutí
+     2026-08-10: žádné velké <select>y). Vykreslí hledací input + filtrovaný
+     seznam; po výběru chip s ✕. Vrací { get } se zvoleným personId. */
+  function personPicker(host, opts = {}) {
+    const ps = opts.people || people();
+    const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    let sel = opts.selectedId || null;
+    let q = '';
+    let first = true;
+    const draw = () => {
+      const p = sel ? person(sel) : null;
+      host.innerHTML = p ? `
+        <div class="f3-selrow" style="margin-bottom:0">
+          <span class="f3-chip">${avatar(p, 20)} ${esc(p.name)}&nbsp;<small style="color:var(--text-muted)">${esc(p.role)}</small>
+            <button type="button" data-pp-clear title="${esc(t('common.cancel'))}">✕</button></span>
+        </div>`
+      : `
+        <div class="filterbar" style="margin:0 0 6px">${icon('search', 15)}
+          <input class="input" data-pp-q placeholder="${esc(t('rc.searchPerson'))}"></div>
+        <div class="f3-list" data-pp-list style="max-height:30vh"></div>`;
+      /* seznam se překresluje samostatně → input drží fokus */
+      const listEl = host.querySelector('[data-pp-list]');
+      const renderList = () => {
+        if (!listEl) return;
+        /* kompaktní režim (minChars): seznam se ukáže až od N napsaných znaků */
+        if (opts.minChars && q.length < opts.minChars) { listEl.innerHTML = ''; return; }
+        const vis = ps.filter(pp => !q || norm(pp.name + ' ' + pp.role + ' ' + (pp.dept || '')).includes(norm(q)));
+        listEl.innerHTML = (vis.slice(0, 60).map(pp => `
+          <button type="button" class="f3-row" data-pp="${pp.id}">
+            ${avatar(pp, 30)}
+            <span class="f3-nm"><b>${esc(pp.name)}</b><small>${esc(pp.role)}${pp.dept ? ' · ' + esc(pp.dept) : ''}</small></span>
+            <span class="f3-check">${icon('plus', 15)}</span>
+          </button>`).join('') + (vis.length > 60 ? `<div class="f3-chip-empty">+${vis.length - 60}</div>` : ''))
+          || `<div class="f3-chip-empty">${esc(t('flt.noMatch'))}</div>`;
+        listEl.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => {
+          sel = b.dataset.pp; draw();
+          if (opts.onSelect) opts.onSelect(sel);
+        });
+      };
+      const qi = host.querySelector('[data-pp-q]');
+      if (qi) {
+        qi.value = q;
+        qi.oninput = () => { q = qi.value; renderList(); };
+        if (opts.autofocus && first) qi.focus();
+      }
+      renderList();
+      const clr = host.querySelector('[data-pp-clear]');
+      if (clr) clr.onclick = () => {
+        sel = null; q = ''; first = true; draw();
+        if (opts.onSelect) opts.onSelect(null);
+      };
+      first = false;
+    };
+    draw();
+    return { get: () => sel };
+  }
+
   function renderOnboarding() {
     const root = document.getElementById('onboarding');
     root.hidden = false;
@@ -81,7 +151,7 @@
       inner = `
         <div class="ob-welcome">
           ${pulseMark()}
-          <div class="ob-kicker">${icon('logo', 15)} TeamPulse</div>
+          <div class="ob-kicker"><span class="tp-wordmark" style="font-size:13px">TEAMPULSE</span></div>
           <h1>${t('ob.w.title')}</h1>
           <p class="ob-lead">${esc(t('ob.w.lead'))}</p>
           <div class="ob-values">
@@ -242,11 +312,12 @@
       ? (n.sec !== 'nav.copilotSec' || copOn)
       : n.roles.includes(va.role) && (n.id !== 'copilot' || copOn));
 
-    const collapsed = !!Store.getSettings().sidebarCollapsed;
+    const sSet = Store.getSettings();
+    const collapsed = !!sSet.sidebarCollapsed;
     document.getElementById('app').classList.toggle('sb-collapsed', collapsed);
     document.getElementById('sidebar').innerHTML = `
-      <div class="brand"><span class="logo-dot">${icon('logo', 18)}</span><b>TeamPulse</b>
-        <span class="badge b-amber" style="margin-left:auto">${esc(t('common.demo'))}</span></div>
+      <div class="brand">${brandLockup(30)}
+        ${sSet.hideDemoBadge ? '' : `<span class="badge b-amber" style="margin-left:auto">${esc(t('common.demo'))}</span>`}</div>
       ${visible.map(n => n.sec
         ? `<div class="nav-section">${esc(t(n.sec))}</div>`
         : `<button class="nav-item ${page === n.id ? 'active' : ''}" data-nav="${n.id}" title="${esc(t(n.label))}">
@@ -912,11 +983,11 @@
         <div class="grid cols-2">
           <div class="field"><label>${esc(t('people.dept'))}</label>
             <select class="input" id="np-dept">${depts.map(d => `<option value="${d.key}">${esc(d.name)}</option>`).join('')}</select></div>
-          <div class="field"><label>${esc(t('people.manager'))}</label>
-            <select class="input" id="np-mgr"><option value="">-</option>${ps.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+          <div class="field"><label>${esc(t('people.manager'))}</label><div id="np-mgr"></div></div>
         </div>
         <div class="wizard-foot"><button class="btn" id="np-cancel">${esc(t('common.cancel'))}</button>
           <button class="btn btn-primary" id="np-save">${esc(t('common.save'))}</button></div>`, m => {
+        const mgrPick = personPicker(m.querySelector('#np-mgr'), { minChars: 1 }); /* volitelné pole → kompaktní režim */
         m.querySelector('#np-cancel').onclick = closeModal;
         m.querySelector('#np-save').onclick = () => {
           const name = m.querySelector('#np-name').value.trim(); if (!name) return;
@@ -927,7 +998,7 @@
             id: uid(), firstName: parts[0], lastName: parts.slice(1).join(' ') || '',
             name, initials: (parts[0][0] || '?') + ((parts[1] || ' ')[0] || ''),
             hue: Math.floor(Math.random() * 360), role: m.querySelector('#np-role').value || '-',
-            deptKey, dept: dept ? dept.name : deptKey, managerId: m.querySelector('#np-mgr').value || null,
+            deptKey, dept: dept ? dept.name : deptKey, managerId: mgrPick.get() || null,
             isHead: false, email: name.toLowerCase().replace(/\s+/g, '.') + '@firma.cz', hiredMonthsAgo: 0, female: false,
           });
           closeModal(); toast(t('common.saved')); render();
@@ -1146,23 +1217,23 @@
     draw();
     bindFilterBar(root, 'kudos', draw);
     root.querySelector('#k-give').onclick = () => {
-      const ps = people();
       modal(`<h3>${icon('heartPulse', 18)}${esc(t('kudos.give'))}</h3>
-        <div class="field"><label>${esc(t('kudos.to'))}</label>
-          <select class="input" id="k-to">${ps.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>${esc(t('kudos.to'))}</label><div id="k-to"></div></div>
         <div class="field"><label>${esc(t('kudos.msg'))}</label><textarea class="input" id="k-msg"></textarea></div>
         <div class="field"><div class="scale-row">${Object.keys(VAL).map((v, i) =>
           `<button type="button" class="scale-opt ${i === 0 ? 'sel' : ''}" data-kv="${v}">${icon(KICON[v], 16)}<br>${esc(t(VAL[v]))}</button>`).join('')}</div></div>
         <div class="wizard-foot"><button class="btn" id="k-cancel">${esc(t('common.cancel'))}</button>
           <button class="btn btn-primary" id="k-send">${esc(t('common.send'))}</button></div>`, m => {
+        const pick = personPicker(m.querySelector('#k-to'), { autofocus: true });
         let val = 'team';
         m.querySelectorAll('[data-kv]').forEach(b => b.onclick = () => {
           m.querySelectorAll('[data-kv]').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); val = b.dataset.kv;
         });
         m.querySelector('#k-cancel').onclick = closeModal;
         m.querySelector('#k-send').onclick = () => {
+          const toId = pick.get(); if (!toId) { toast(t('kudos.to')); return; }
           const msg = m.querySelector('#k-msg').value.trim(); if (!msg) return;
-          Store.insert('kudos', { id: uid(), fromId: va.personId || (personas().hr || {}).id, toId: m.querySelector('#k-to').value, msg, value: val, at: Date.now() });
+          Store.insert('kudos', { id: uid(), fromId: va.personId || (personas().hr || {}).id, toId, msg, value: val, at: Date.now() });
           notify(t('kudos.give'), 'all');
           closeModal(); toast(t('common.send')); render();
         };
@@ -1322,23 +1393,23 @@
     root.querySelectorAll('[data-ci-tab]').forEach(b => b.onclick = () => { ciUi.tab = b.dataset.ciTab; views.checkins(root); });
     if (ciUi.tab === 'overview') drawOverview(); else drawRecords();
     root.querySelector('#ci-new').onclick = () => {
-      const ps = people();
       modal(`<h3>${icon('plus', 18)}${esc(t('ci.new'))}</h3>
-        <div class="field"><label>${esc(t('ci.with'))}</label>
-          <select class="input" id="ci-who">${ps.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>${esc(t('ci.with'))}</label><div id="ci-who"></div></div>
         <div class="field"><label>${esc(t('ci.mood'))}</label>
           <div class="scale-row">${['😄', '🙂', '😐', '😟'].map((m2, i) => `<button type="button" class="scale-opt ${i === 1 ? 'sel' : ''}" data-md="${m2}" style="font-size:1.3rem">${m2}</button>`).join('')}</div></div>
         <div class="field"><label>${esc(t('ci.notes'))}</label><textarea class="input" id="ci-notes"></textarea></div>
         <div class="field"><label>${esc(t('ci.next'))}</label><input class="input" id="ci-next"></div>
         <div class="wizard-foot"><button class="btn" id="ci-cancel">${esc(t('common.cancel'))}</button>
           <button class="btn btn-primary" id="ci-save">${esc(t('common.save'))}</button></div>`, m => {
+        const pick = personPicker(m.querySelector('#ci-who'), { autofocus: true });
         let mood = '🙂';
         m.querySelectorAll('[data-md]').forEach(b => b.onclick = () => {
           m.querySelectorAll('[data-md]').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); mood = b.dataset.md;
         });
         m.querySelector('#ci-cancel').onclick = closeModal;
         m.querySelector('#ci-save').onclick = () => {
-          Store.insert('checkins', { id: uid(), managerId: va.personId || (personas().hr || {}).id, employeeId: m.querySelector('#ci-who').value, at: Date.now(), mood, notes: m.querySelector('#ci-notes').value, next: m.querySelector('#ci-next').value });
+          const empId = pick.get(); if (!empId) { toast(t('ci.with')); return; }
+          Store.insert('checkins', { id: uid(), managerId: va.personId || (personas().hr || {}).id, employeeId: empId, at: Date.now(), mood, notes: m.querySelector('#ci-notes').value, next: m.querySelector('#ci-next').value });
           closeModal(); toast(t('common.saved')); render();
         };
       });
@@ -1759,7 +1830,7 @@
       <h1 class="page-title">${esc(t('set.title'))}</h1><p class="page-sub"></p>
       <div class="card"><h2>${icon('palette', 18)}${esc(t('set.theme'))}</h2>
         <div class="choice-grid">
-          ${[['corp', '#0070f2,#f0ab00,#f5f6f7'], ['glass', '#0a7aff,#bf5af2,#ffffff'], ['genz', '#3a57fc,#ff7a1a,#0a1230']].map(([k, colors]) => `
+          ${[['brand', '#F5247D,#C0185F,#FFF0F7'], ['corp', '#0070f2,#f0ab00,#f5f6f7'], ['glass', '#0a7aff,#bf5af2,#ffffff'], ['genz', '#3a57fc,#ff7a1a,#0a1230']].map(([k, colors]) => `
             <button class="choice ${s.theme === k ? 'sel' : ''}" data-th="${k}">
               <b>${esc(t('ob.theme.' + k))}</b><span>${esc(t('ob.theme.' + k + 'Desc'))}</span>
               <span class="theme-preview">${colors.split(',').map(c => `<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}
@@ -1773,6 +1844,9 @@
       <div class="card"><h2>${icon('bell', 18)}${esc(t('set.notif'))}</h2><p class="page-sub">${esc(t('set.notifHint'))}</p></div>
       <div class="card"><h2>${icon('db', 18)}${esc(t('set.backend'))}</h2><p class="page-sub">${esc(t('set.backendHint'))}</p></div>
       <div class="card"><h2>${icon('alert', 18)}${esc(t('set.demoData'))}</h2>
+        <label style="display:flex;gap:8px;align-items:center;font-size:.9rem;cursor:pointer;margin-bottom:14px">
+          <input type="checkbox" id="set-hidedemo" ${s.hideDemoBadge ? 'checked' : ''}>
+          ${esc(t('set.hideDemo'))}</label>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn" id="set-regen">${icon('refresh', 15)} ${esc(t('set.regen'))}</button>
           <button class="btn btn-danger" id="set-reset">${icon('trash', 15)} ${esc(t('set.reset'))}</button>
@@ -1783,6 +1857,11 @@
     const copChk = root.querySelector('#set-copilot');
     if (copChk) copChk.onchange = () => {
       Store.patchSettings({ copilotEnabled: copChk.checked });
+      UI.toast(t('common.saved')); render();
+    };
+    const hdChk = root.querySelector('#set-hidedemo');
+    if (hdChk) hdChk.onchange = () => {
+      Store.patchSettings({ hideDemoBadge: hdChk.checked });
       UI.toast(t('common.saved')); render();
     };
     bindLangSwitch(root, render);

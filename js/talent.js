@@ -435,6 +435,7 @@
     const isNew = !kp;
     kp = kp ? JSON.parse(JSON.stringify(kp)) : { id: uid(), deptKey: '', title: '', holderId: '', checklist: {}, confirmedByHr: true, successors: [] };
     const depts = (co && co.departments) || [];
+    let succSel = null; /* rozpracovaný výběr nástupce (fulltext picker) — přežije překreslení */
 
     const render = m => {
       const yes = kpYes(kp);
@@ -453,8 +454,7 @@
           <div class="field"><label>${esc(t('people.dept'))}</label>
             <select class="input" id="kpf-dept">${depts.map(d => `<option value="${d.key}" ${kp.deptKey === d.key ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></div>
         </div>
-        <div class="field"><label>${esc(t('kp.holder'))}</label>
-          <select class="input" id="kpf-holder"><option value="">-</option>${ps.map(p => `<option value="${p.id}" ${kp.holderId === p.id ? 'selected' : ''}>${esc(p.name)} (${esc(p.role)})</option>`).join('')}</select></div>
+        <div class="field"><label>${esc(t('kp.holder'))}</label><div id="kpf-holder"></div></div>
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px">
           <b>${esc(t('kp.checklist'))}</b>
           <span class="badge ${kpRated(kp) ? (kpIsKey(kp) ? 'b-blue' : '') : 'b-amber'}">${yes}/12 ${esc(t('kp.yes'))} → ${esc(t(kpRated(kp) ? (kpIsKey(kp) ? 'kp.result.key' : 'kp.result.notKey') : 'kp.result.unrated'))}</span>
@@ -479,22 +479,34 @@
               <button type="button" class="btn btn-sm" data-kps-del="${i}">${icon('trash', 12)}</button>
             </span></div>`;
         }).join('')}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-          <select class="input" id="kps-person" style="flex:2;min-width:160px"><option value="">${esc(t('kp.addSucc'))}…</option>
-            ${ps.filter(p => p.id !== kp.holderId && !kp.successors.some(s => s.personId === p.id)).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-          <select class="input" id="kps-level" style="flex:1;min-width:120px">
-            <option value="key">${esc(t('kp.succKey'))}</option><option value="successor">${esc(t('kp.succReg'))}</option></select>
-          <select class="input" id="kps-rd" style="flex:1;min-width:110px">
-            ${['r1', 'r12', 'no'].map(r => `<option value="${r}">${esc(t('tal.rd.' + r))}</option>`).join('')}</select>
-          <button type="button" class="btn btn-sm" id="kps-add">${icon('plus', 13)}</button>
+        <div style="margin-top:8px">
+          <div id="kps-person" style="margin-bottom:6px"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <select class="input" id="kps-level" style="flex:1;min-width:120px">
+              <option value="key">${esc(t('kp.succKey'))}</option><option value="successor">${esc(t('kp.succReg'))}</option></select>
+            <select class="input" id="kps-rd" style="flex:1;min-width:110px">
+              ${['r1', 'r12', 'no'].map(r => `<option value="${r}">${esc(t('tal.rd.' + r))}</option>`).join('')}</select>
+            <button type="button" class="btn btn-sm" id="kps-add">${icon('plus', 13)} ${esc(t('kp.addSucc'))}</button>
+          </div>
         </div>`;
+
+      /* fulltext pickery (sdílený App.personPicker): držitel drží kp.holderId přes onSelect */
+      const holderEl = m.querySelector('#kpf-holder');
+      if (holderEl) App.personPicker(holderEl, {
+        selectedId: kp.holderId || null, minChars: 1,
+        onSelect: id => { kp.holderId = id; },
+      });
+      App.personPicker(m.querySelector('#kps-person'), {
+        people: ps.filter(p => p.id !== kp.holderId && !kp.successors.some(s => s.personId === p.id)),
+        selectedId: succSel, minChars: 1,
+        onSelect: id => { succSel = id; },
+      });
 
       const collect = () => {
         const ti = m.querySelector('#kpf-title');
         if (!ti) return; /* režim manažera: hlavička je read-only */
         kp.title = ti.value;
         kp.deptKey = m.querySelector('#kpf-dept') ? m.querySelector('#kpf-dept').value : kp.deptKey;
-        kp.holderId = m.querySelector('#kpf-holder').value || null;
       };
       m.querySelectorAll('[data-kps-cand]').forEach(bc => bc.onclick = () => {
         collect();
@@ -514,8 +526,9 @@
       m.querySelectorAll('[data-kps-del]').forEach(bd => bd.onclick = () => { collect(); kp.successors.splice(+bd.dataset.kpsDel, 1); render(m); });
       m.querySelector('#kps-add').onclick = () => {
         collect();
-        const pid = m.querySelector('#kps-person').value; if (!pid) return;
+        const pid = succSel; if (!pid) return;
         kp.successors.push({ personId: pid, level: m.querySelector('#kps-level').value, readiness: m.querySelector('#kps-rd').value });
+        succSel = null;
         render(m);
       };
       m.querySelector('#kp-save').onclick = () => {
