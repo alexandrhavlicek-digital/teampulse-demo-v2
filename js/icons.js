@@ -53,6 +53,10 @@
     expand: '<path d="M9 4H4v5"/><path d="M15 4h5v5"/><path d="M9 20H4v-5"/><path d="M15 20h5v-5"/>',
     /* prezentační režim org chartu (čistá vizualizace) */
     eye: '<path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.9"/>',
+    /* org chart: rozbalování po úrovních */
+    chevronsDown: '<path d="M6.4 6.2l5.6 4.8 5.6-4.8"/><path d="M6.4 12.6l5.6 4.8 5.6-4.8"/>',
+    chevronsUp: '<path d="M6.4 17.8 12 13l5.6 4.8"/><path d="M6.4 11.4 12 6.6l5.6 4.8"/>',
+    expandAll: '<path d="M12 3.8v9.6"/><path d="M8.2 9.8l3.8 3.6 3.8-3.6"/><path d="M5 19.6h14"/>',
 
     /* talent 9-box grid */
     grid9: '<rect x="4" y="4" width="16" height="16" rx="2.2"/><path d="M9.4 4v16M14.6 4v16M4 9.4h16M4 14.6h16"/>',

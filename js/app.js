@@ -1022,14 +1022,16 @@
     const showSucc = ['hr', 'manager'].includes(viewAs().role);
     const succ = showSucc ? SuccLogic.succMaps() : { kpByHolder: {}, succLevel: {} };
 
-    /* default: sbalit vše pod úrovní vedoucích (CEO + heads viditelní) */
+    /* hloubka uzlů pro rozbalování po úrovních (root = 0) */
+    const depthOf = {};
+    const walkDepth = (p, d) => { depthOf[p.id] = d; kidsOf(p.id).forEach(k => walkDepth(k, d + 1)); };
+    roots.forEach(r0 => walkDepth(r0, 0));
+    const maxDepth = Math.max(0, ...Object.values(depthOf));
+
+    /* default: sbalit vše pod úrovní vedoucích (CEO + heads viditelní) = úroveň 1 */
     if (orgUi.collapsed === null) {
-      orgUi.collapsed = new Set();
-      const mark = (p, depth) => kidsOf(p.id).forEach(k => {
-        if (kidsOf(k.id).length) orgUi.collapsed.add(k.id); // start: jen CEO + přímí podřízení
-        mark(k, depth + 1);
-      });
-      roots.forEach(r0 => mark(r0, 0));
+      orgUi.collapsed = new Set(ps.filter(p => depthOf[p.id] >= 1 && kidsOf(p.id).length).map(p => p.id));
+      orgUi.level = 1;
     }
 
     function nodeHtml(p) {
@@ -1065,6 +1067,9 @@
           <button class="iconbtn" id="oz-in" title="+">${icon('plus', 16)}</button>
           <button class="iconbtn" id="oz-out" title="-"><svg class="pi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.2 12h13.6"/></svg></button>
           <button class="iconbtn" id="oz-fit" title="${esc(t('org.center'))}">${icon('refresh', 15)}</button>
+          <button class="iconbtn" id="oz-lvl-less" title="${esc(t('org.lvlLess'))}">${icon('chevronsUp', 15)}</button>
+          <button class="iconbtn" id="oz-lvl-more" title="${esc(t('org.lvlMore'))}">${icon('chevronsDown', 15)}</button>
+          <button class="iconbtn" id="oz-expand-all" title="${esc(t('org.expandAll'))}">${icon('expandAll', 15)}</button>
           ${showSucc ? `<button class="iconbtn ${orgUi.clean ? 'on' : ''}" id="oz-clean" title="${esc(t('org.clean'))}">${icon('eye', 15)}</button>` : ''}
           <button class="iconbtn" id="oz-fs" title="${esc(t('org.fullscreen'))}">${icon('expand', 15)}</button>
         </div>
@@ -1181,6 +1186,18 @@
       });
     };
     drawStage();
+
+    /* rozbalování po úrovních: level N = viditelné uzly do hloubky N, hlubší sbalené */
+    const expandToLevel = L => {
+      L = Math.max(1, Math.min(L, maxDepth || 1));
+      orgUi.level = L;
+      orgUi.collapsed = new Set(ps.filter(p => depthOf[p.id] >= L && kidsOf(p.id).length).map(p => p.id));
+      drawStage();
+      fitCenter(); /* změna úrovně = jiný layout → vždy dorovnat */
+    };
+    root.querySelector('#oz-lvl-less').onclick = () => expandToLevel((orgUi.level || 1) - 1);
+    root.querySelector('#oz-lvl-more').onclick = () => expandToLevel((orgUi.level || 1) + 1);
+    root.querySelector('#oz-expand-all').onclick = () => expandToLevel(maxDepth || 1);
 
     /* prezentační režim: čistý org chart bez talent vrstvy a legendy (např. pro promítání) */
     const cleanBtn = root.querySelector('#oz-clean');
