@@ -1346,7 +1346,9 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(revSrc.includes("data-rmode=\"guide\"") && revSrc.includes("data-rmode=\"sheet\""), 'přepínač Průvodce | Vše naráz existuje');
   const appSrc = fs.readFileSync('js/app.js', 'utf8');
   ok(appSrc.includes('const fitCenter') && appSrc.includes('contentFits'), 'org chart: fitCenter + kontrola vejití');
-  ok(appSrc.includes('orgUi.fitted') && appSrc.includes('orgUi.refit'), 'org chart: auto-fit při prvním zobrazení + dorovnání po toggle');
+  ok(appSrc.includes('orgUi.fitted') && appSrc.includes('const drawStage'), 'org chart: auto-fit při prvním zobrazení + stage se překresluje samostatně');
+  ok(appSrc.includes('drawStage();\n        if (!contentFits()) fitCenter()'), 'org chart: toggle nepřekresluje celý view (fullscreen přežije) + dorovnání');
+  ok(appSrc.includes('orgUi.clean') && appSrc.includes('oz-clean') && appSrc.includes('org-legend-card'), 'org chart: prezentační režim (čistá vizualizace bez talent vrstvy a legendy)');
   ["'list'", "'company'", "'team'", "'align'"].forEach(k =>
     ok(appSrc.includes(`[${k}, `), `stránka Cíle má tab ${k}`));
   ok(appSrc.includes('openAreas') && appSrc.includes('openDepts') && appSrc.includes('csec-head'), 'sbalitelné sekce oblastí a oddělení');

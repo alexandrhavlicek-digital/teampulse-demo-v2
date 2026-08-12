@@ -51,6 +51,8 @@
     db: '<ellipse cx="12" cy="6" rx="7.6" ry="2.8"/><path d="M4.4 6v12c0 1.5 3.4 2.8 7.6 2.8s7.6-1.3 7.6-2.8V6"/><path d="M4.4 12c0 1.5 3.4 2.8 7.6 2.8s7.6-1.3 7.6-2.8"/>',
     /* fullscreen */
     expand: '<path d="M9 4H4v5"/><path d="M15 4h5v5"/><path d="M9 20H4v-5"/><path d="M15 20h5v-5"/>',
+    /* prezentační režim org chartu (čistá vizualizace) */
+    eye: '<path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.9"/>',
 
     /* talent 9-box grid */
     grid9: '<rect x="4" y="4" width="16" height="16" rx="2.2"/><path d="M9.4 4v16M14.6 4v16M4 9.4h16M4 14.6h16"/>',

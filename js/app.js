@@ -1039,15 +1039,17 @@
         <button class="org-toggle" data-org-toggle="${p.id}" title="${kids.length}">
           ${isCollapsed ? `＋ ${subtreeCount(p)}` : '-'}
         </button>` : '';
-      const kp = succ.kpByHolder[p.id];
-      const sl = succ.succLevel[p.id];
-      const rcq = (succ.red || {})[p.id];
+      /* prezentační režim: čistá struktura bez talent/red-card vrstvy */
+      const overlay = showSucc && !orgUi.clean;
+      const kp = overlay ? succ.kpByHolder[p.id] : null;
+      const sl = overlay ? succ.succLevel[p.id] : null;
+      const rcq = overlay ? (succ.red || {})[p.id] : null;
       const uncovered = kp && !(kp.successors || []).length;
       return `<div class="org-branch">
         <div class="org-node ${kp ? 'org-kp' : ''} ${rcq ? 'org-redcard' : sl === 'key' ? 'org-succ-key' : sl ? 'org-succ-reg' : ''}"
           ${kp ? `title="${esc(t('kp.legend.kp'))}: ${esc(kp.title)}${uncovered ? ' · ' + esc(t('kp.noSucc')) : ''}"` : sl ? `title="${esc(t(sl === 'key' ? 'kp.succKey' : 'kp.succReg'))}"` : ''}>
           ${avatar(p, 40)}<div class="nm">${esc(p.name)}</div><div class="rl">${esc(p.role)}</div>
-          ${showSucc ? `<button class="org-info" data-org-info="${p.id}" title="${esc(t('mt.profile'))}">i</button>` : ''}
+          ${overlay ? `<button class="org-info" data-org-info="${p.id}" title="${esc(t('mt.profile'))}">i</button>` : ''}
           ${uncovered ? `<span class="org-flag" title="${esc(t('kp.noSucc'))}">!</span>` : ''}${toggle}</div>
         ${kids.length && !isCollapsed ? `<div class="org-vline"></div><div class="org-children">
           ${kids.map(nodeHtml).join('')}</div>` : ''}
@@ -1063,16 +1065,15 @@
           <button class="iconbtn" id="oz-in" title="+">${icon('plus', 16)}</button>
           <button class="iconbtn" id="oz-out" title="-"><svg class="pi" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.2 12h13.6"/></svg></button>
           <button class="iconbtn" id="oz-fit" title="${esc(t('org.center'))}">${icon('refresh', 15)}</button>
+          ${showSucc ? `<button class="iconbtn ${orgUi.clean ? 'on' : ''}" id="oz-clean" title="${esc(t('org.clean'))}">${icon('eye', 15)}</button>` : ''}
           <button class="iconbtn" id="oz-fs" title="${esc(t('org.fullscreen'))}">${icon('expand', 15)}</button>
         </div>
         <div class="org-canvas" id="org-canvas">
-          <div class="org-stage" id="org-stage" style="transform:translate(${orgUi.x}px,${orgUi.y}px) scale(${orgUi.z})">
-            ${roots.map(nodeHtml).join('')}
-          </div>
+          <div class="org-stage" id="org-stage" style="transform:translate(${orgUi.x}px,${orgUi.y}px) scale(${orgUi.z})"></div>
         </div>
       </div>
       ${showSucc && (Store.list('keyPositions').length || Store.list('redCards').length) ? `
-      <div class="card" style="margin-top:12px">
+      <div class="card" id="org-legend-card" style="margin-top:12px" ${orgUi.clean ? 'hidden' : ''}>
         <div class="org-legend">
           <span><i class="ol-kp"></i>${esc(t('kp.legend.kp'))}</span>
           <span><i class="ol-key"></i>${esc(t('kp.succKey'))}</span>
@@ -1153,24 +1154,46 @@
     };
     /* po přepnutí fullscreenu se změní rozměr plátna → dorovnat */
     if (fsCard) fsCard.onfullscreenchange = () => setTimeout(fitCenter, 80);
-    /* ⓘ na uzlu → karta člověka (jen mgr+HR - tlačítko se jinak nerenderuje) */
-    root.querySelectorAll('[data-org-info]').forEach(bi => bi.onclick = e => {
-      e.stopPropagation();
-      TalentViews.profileModal(bi.dataset.orgInfo);
-    });
+    /* Esc ukončí fullscreen (nativní chování prohlížeče + explicitní pojistka) */
+    if (!orgUi.escBound) {
+      orgUi.escBound = true;
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.fullscreenElement) document.exitFullscreen();
+      });
+    }
 
-    /* collapse / expand */
-    root.querySelectorAll('[data-org-toggle]').forEach(btn => btn.onclick = e => {
-      e.stopPropagation();
-      const id = btn.dataset.orgToggle;
-      if (orgUi.collapsed.has(id)) orgUi.collapsed.delete(id); else orgUi.collapsed.add(id);
-      orgUi.refit = true;
-      views.org(root);
-    });
+    /* stage se překresluje SAMOSTATNĚ (bez root.innerHTML) → fullscreen karty
+       přežije sbalení/rozbalení uzlu i přepnutí prezentačního režimu */
+    const drawStage = () => {
+      stage.innerHTML = roots.map(nodeHtml).join('');
+      /* ⓘ na uzlu → karta člověka (jen mgr+HR - tlačítko se jinak nerenderuje) */
+      stage.querySelectorAll('[data-org-info]').forEach(bi => bi.onclick = e => {
+        e.stopPropagation();
+        TalentViews.profileModal(bi.dataset.orgInfo);
+      });
+      /* collapse / expand */
+      stage.querySelectorAll('[data-org-toggle]').forEach(btn => btn.onclick = e => {
+        e.stopPropagation();
+        const id = btn.dataset.orgToggle;
+        if (orgUi.collapsed.has(id)) orgUi.collapsed.delete(id); else orgUi.collapsed.add(id);
+        drawStage();
+        if (!contentFits()) fitCenter(); /* dorovnat jen když se obsah nevejde */
+      });
+    };
+    drawStage();
 
-    /* první zobrazení: vycentrovat automaticky; po sbalení/rozbalení dorovnat jen když se obsah nevejde */
+    /* prezentační režim: čistý org chart bez talent vrstvy a legendy (např. pro promítání) */
+    const cleanBtn = root.querySelector('#oz-clean');
+    if (cleanBtn) cleanBtn.onclick = () => {
+      orgUi.clean = !orgUi.clean;
+      cleanBtn.classList.toggle('on', orgUi.clean);
+      const leg = root.querySelector('#org-legend-card');
+      if (leg) leg.hidden = orgUi.clean;
+      drawStage();
+    };
+
+    /* první zobrazení: vycentrovat automaticky */
     if (!orgUi.fitted) { fitCenter(); orgUi.fitted = true; }
-    else if (orgUi.refit) { orgUi.refit = false; if (!contentFits()) fitCenter(); }
   };
 
   /* ---- kudos + konstruktivní vazba ---- */
