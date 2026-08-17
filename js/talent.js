@@ -266,8 +266,6 @@
         </div>
       </div>` : ''}
 
-      ${window.NPSViews ? NPSViews.hrCardHtml() : ''}
-
       ${tcHrCardHtml()}
 
       ${successionCardHtml(Store.list('keyPositions').filter(kp => !talUi.dept || kp.deptKey === talUi.dept))}
@@ -305,7 +303,21 @@
     bindSuccessionCard(root, () => renderHr(root));
     bindRcCard(root, () => renderHr(root));
     bindTcHrCard(root);
-    if (window.NPSViews) NPSViews.bindHrCard(root, () => renderHr(root));
+  }
+
+  /* ---------------- Reporty (jen HR): eNPS/nálada oddělena od talentu (feedback 2026-08) ---------------- */
+  function renderReports(root) {
+    root.innerHTML = `
+      <h1 class="page-title">${esc(t('reports.title'))}</h1>
+      <p class="page-sub">${esc(t('reports.sub'))}</p>
+      ${window.NPSViews ? NPSViews.hrCardHtml() : ''}
+      <div id="rep-archive"></div>`;
+    if (window.NPSViews) NPSViews.bindHrCard(root, () => renderReports(root));
+    const arch = root.querySelector('#rep-archive');
+    if (arch && window.ReviewViews && ReviewViews.archiveCardHtml) {
+      arch.innerHTML = ReviewViews.archiveCardHtml();
+      ReviewViews.bindArchiveCard(root, () => renderReports(root));
+    }
   }
 
   /* ---------------- succession: klíčové pozice ----------------
@@ -1236,5 +1248,5 @@
     setTimeout(() => { pr.hidden = true; }, 400);
   }
 
-  window.TalentViews = { renderHr, renderMyTeam, renderCheck, profileModal, printBoardReport };
+  window.TalentViews = { renderHr, renderReports, renderMyTeam, renderCheck, profileModal, printBoardReport };
 })();

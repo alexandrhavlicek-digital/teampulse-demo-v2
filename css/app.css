@@ -1363,3 +1363,21 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.5; }
 .csec.open .csec-head .csec-chev { transform: rotate(90deg); }
 .csec-body { margin-top: 10px; }
 .lang-seg button small { font-weight: 500; opacity: .75; }
+
+/* ---- čitelný read-view hodnocení (feedback z testování 2026-08: „slité, mess") ---- */
+.rsec { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hairline); }
+.rsec:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+.rsec-h {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .76rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 10px;
+}
+.rsec-h svg { flex: 0 0 auto; }
+.rq { margin-bottom: 12px; }
+.rq:last-child { margin-bottom: 0; }
+.rq label { display: block; font-size: .78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 2px; }
+.rq p { margin: 0; }
+.rarea { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 0; border-bottom: 1px dashed var(--hairline); }
+.rarea:last-child { border-bottom: none; }
+.rarea > b { flex: 1; min-width: 140px; font-weight: 600; }
+.rarea-note { font-size: .84rem; color: var(--text-muted); margin: 2px 0 8px; }

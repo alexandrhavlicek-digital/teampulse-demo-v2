@@ -288,6 +288,7 @@
     { sec: 'nav.adminSec' },
     { id: 'hr', ico: 'gauge', label: 'nav.hr', roles: ['hr'] },
     { id: 'talent', ico: 'grid9', label: 'nav.talent', roles: ['hr'] },
+    { id: 'reports', ico: 'chart', label: 'nav.reports', roles: ['hr'] },
     { id: 'onboarding', ico: 'sprout', label: 'nav.onboarding', roles: ['manager', 'hr'] },
     { id: 'help', ico: 'bulb', label: 'nav.help', roles: ['employee', 'manager', 'hr'] },
     { id: 'settings', ico: 'gear', label: 'nav.settings', roles: ['employee', 'manager', 'hr'] },
@@ -531,6 +532,29 @@
     const confirmed = reviews().filter(r => r.period === Generator.CURRENT_PERIOD && ['confirmed', 'closed_by_hr'].includes(r.status)).length;
     const totalCur = reviews().filter(r => r.period === Generator.CURRENT_PERIOD).length;
 
+    /* vázne/po termínu: HR vše, manažer svoje hodnocené (feedback z testování 2026-08 -
+       „aby mi na dashboardu vyskočilo, kdo to nemá hotové, a mohla jsem připomenout") */
+    const laggards = ['hr', 'manager'].includes(va.role) ? reviews()
+      .filter(r => !['confirmed', 'closed_by_hr', 'cancelled'].includes(r.status))
+      .filter(r => ['risk', 'blocked'].includes(ReviewLogic.risk(r)))
+      .filter(r => va.role === 'hr' || (me && r.evaluatorId === me.id))
+      .sort((a, b) => ReviewLogic.daysLeft(a) - ReviewLogic.daysLeft(b)) : [];
+    const laggardRow = r => {
+      const subj = person(r.subjectId);
+      const toEval = ReviewLogic.nextActor(r.status) === 'evaluator';
+      const target = person(toEval ? r.evaluatorId : r.subjectId);
+      const d = ReviewLogic.daysLeft(r);
+      const isMe = me && target && target.id === me.id;
+      return `<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--hairline);flex-wrap:wrap">
+        ${avatar(subj, 26)}
+        <div style="flex:1;min-width:180px"><b>${esc(subj ? subj.name : '')}</b> <small style="color:var(--text-muted)">· ${esc(t('st.' + r.status))}</small><br>
+          <small style="color:var(--text-muted)">${esc(t('home.ballAt'))}: ${isMe ? '<b>' + esc(t('misc.you')) + '</b>' : esc(target ? target.name : '-')}</small></div>
+        <span class="badge ${d < 0 ? 'b-red' : 'b-amber'}">${d < 0 ? esc(t('home.overdueBy').split('{d}').join(-d)) : d + ' ' + esc(t('home.daysLeft'))}</span>
+        ${!isMe ? `<button class="btn btn-sm" data-remind="${r.id}">${icon('send', 13)} ${esc(t('act.remindPerson'))}</button>` : ''}
+        <button class="btn btn-sm" onclick="location.hash='#/review/${r.id}'" title="${esc(t('help.open'))}">${icon('doc', 13)}</button>
+      </div>`;
+    };
+
     root.innerHTML = `
       <h1 class="page-title">${esc(t('home.hello'))}${me ? ', ' + esc(CzName.first(me.firstName, 'voc')) : ''}</h1>
       <p class="page-sub">${esc(t('misc.viewAs'))}: ${esc(t('role.' + va.role))}</p>
@@ -543,16 +567,25 @@
             </button>`).join('') : `<div class="empty">${icon('spark', 52)}<br>${esc(t('home.noTodo'))}</div>`}
         </div>
         <div class="card">
-          <h2>${icon('gauge', 18)}${esc(t('home.teamPulse'))}</h2>
+          <!-- rozděleno z „Pulz týmu" - průběh cyklu a uznání jsou dvě různé věci (feedback z testování 2026-08) -->
+          <h2>${icon('gauge', 18)}${esc(t('home.cycleProgress'))}</h2>
           <div class="kpi-num">${totalCur ? Math.round(confirmed / totalCur * 100) : 0} %</div>
           <div class="kpi-label">${esc(t('hr.completion'))} · ${esc(Generator.CURRENT_PERIOD)}</div>
           <div class="progressbar" style="margin-top:10px"><div style="width:${totalCur ? confirmed / totalCur * 100 : 0}%"></div></div>
-          <div style="margin-top:18px">
-            <h2>${icon('heartPulse', 18)}${esc(t('home.recentKudos'))}</h2>
-            ${lastKudos.map(k => `<p style="font-size:.88rem;margin-bottom:6px">${avatar(person(k.fromId), 22)} <b>${esc((person(k.fromId) || {}).firstName || '')}</b> → <b>${esc((person(k.toId) || {}).firstName || '')}</b>: ${esc(k.msg)}</p>`).join('') || `<p class="page-sub">-</p>`}
-          </div>
+          <button class="btn btn-sm" style="margin-top:12px" onclick="location.hash='${va.role === 'hr' ? '#/hr' : va.role === 'manager' ? '#/team' : '#/myreviews'}'">${icon('arrowR', 13)} ${esc(t('home.openCycle'))}</button>
+        </div>
+        <div class="card">
+          <h2>${icon('heartPulse', 18)}${esc(t('home.recentKudos'))}</h2>
+          ${lastKudos.map(k => `<p style="font-size:.88rem;margin-bottom:6px">${avatar(person(k.fromId), 22)} <b>${esc((person(k.fromId) || {}).firstName || '')}</b> → <b>${esc((person(k.toId) || {}).firstName || '')}</b>: ${esc(k.msg)}</p>`).join('') || `<p class="page-sub">-</p>`}
+          <button class="btn btn-sm" style="margin-top:10px" onclick="location.hash='#/kudos'">${icon('arrowR', 13)} ${esc(t('home.openKudos'))}</button>
         </div>
       </div>
+      ${laggards.length ? `<div class="card">
+        <h2>${icon('alert', 18)}${esc(t('home.stalled'))}</h2>
+        <p class="page-sub" style="margin-bottom:6px">${esc(t('home.stalledSub'))}</p>
+        ${laggards.slice(0, 8).map(laggardRow).join('')}
+        ${laggards.length > 8 ? `<p style="margin-top:8px"><span class="badge">+${laggards.length - 8}</span></p>` : ''}
+      </div>` : ''}
       ${window.OnboardingViews ? OnboardingViews.homeCardHtml(me) : ''}
       ${window.DevViews ? DevViews.homeCardHtml(me) : ''}
       ${myGoals.length ? `
@@ -576,6 +609,15 @@
     root.querySelectorAll('[data-onbplan]').forEach(b => b.onclick = () => {
       const pl = Store.get('onboardingPlans', b.dataset.onbplan);
       if (pl) OnboardingViews.planModal(pl, render);
+    });
+    root.querySelectorAll('[data-remind]').forEach(b => b.onclick = () => {
+      /* cílená připomínka: dostane ji ten, kdo je na tahu (stejná logika jako HR centrum) */
+      const r = reviews().find(x => x.id === b.dataset.remind);
+      if (!r) return;
+      const toEval = ReviewLogic.nextActor(r.status) === 'evaluator';
+      const target = person(toEval ? r.evaluatorId : r.subjectId);
+      notify(t('act.remindMsg').split('{name}').join(target ? target.name : ''), toEval ? 'manager' : 'employee');
+      toast(t('act.remindSent').split('{name}').join(target ? CzName.full(target.name, 'acc') : ''));
     });
     if (me && window.OnboardingViews) OnboardingViews.bindHomeCard(root, me, render);
     if (window.DevViews) DevViews.bindHomeCard(root, render);
@@ -731,7 +773,7 @@
   }
 
   /* ---- cíle: 4 taby (osobní cíle / firemní KPI / týmové KPI / provázanost) ---- */
-  const glUi = { tab: 'list', openAreas: null, openDepts: null };
+  const glUi = { tab: 'list', openAreas: null, openDepts: null, group: 'people' /* HR: lidé | témata (feedback 2026-08) */ };
   views.goals = root => {
     const va = viewAs();
     const co = Store.getCompany() || { kpis: [], teamKpis: [], goalPolicy: Generator.DEFAULT_GOAL_POLICY };
@@ -753,10 +795,29 @@
           ${UI.kpiChip(g.kpiRef)}
           ${g.confirmedByManager ? `<span class="badge b-green">${icon('check', 11)} ${esc(t('goals.confirmed'))}</span>` : `<span class="badge b-amber">${esc(t('goals.notConfirmed'))}</span>`}
           <div style="font-size:.82rem;color:var(--text-muted)">${esc(g.desc)}${va.role === 'hr' && owner ? ' · ' + esc(owner.name) : ''}</div></div>
-        <div style="width:140px"><div class="progressbar"><div style="width:${g.progress}%"></div></div></div>
-        <b style="width:42px;text-align:right">${g.progress}%</b>
+        <div style="width:140px"><div class="progressbar"><div data-gpb="${g.id}" style="width:${g.progress}%"></div></div></div>
+        <b style="width:42px;text-align:right" data-gpv="${g.id}">${g.progress}%</b>
         ${va.role === 'hr' ? `<input type="range" min="0" max="100" step="1" value="${g.progress}" data-gp="${g.id}" style="width:80px" title="${esc(t('gc.hrFix'))}">` : ''}
         <button class="btn btn-sm" data-gh="${g.id}" title="${esc(t('gc.history'))}">${icon('clock', 13)}</button></div>`;
+    };
+
+    /* HR seskupení podle témat: stejné cíle napříč lidmi na jednom řádku -
+       „kolik lidí má mentoring juniora" (feedback z testování 2026-08) */
+    const themeRows = items => {
+      const byTitle = {};
+      items.forEach(g => { (byTitle[g.title] = byTitle[g.title] || []).push(g); });
+      return Object.keys(byTitle)
+        .sort((x, y) => byTitle[y].length - byTitle[x].length || x.localeCompare(y, 'cs'))
+        .map(tt => {
+          const gs = byTitle[tt];
+          const avg = Math.round(gs.reduce((s2, g) => s2 + (g.progress || 0), 0) / gs.length);
+          return `<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--hairline);flex-wrap:wrap">
+            <div style="flex:1;min-width:220px"><b>${esc(tt)}</b> <span class="badge b-blue">${gs.length}× ${esc(t('goals.people'))}</span>
+              <div style="margin-top:4px;display:flex;gap:2px;flex-wrap:wrap;align-items:center">${gs.slice(0, 12).map(g => avatar(person(g.ownerId), 22)).join('')}${gs.length > 12 ? `<span class="badge">+${gs.length - 12}</span>` : ''}</div></div>
+            <div style="width:140px"><div class="progressbar"><div style="width:${avg}%"></div></div></div>
+            <b style="width:42px;text-align:right">${avg}%</b>
+          </div>`;
+        }).join('');
     };
 
     /* oblast jako sbalitelná sekce - hlavička nese počet, součet vah a průměrné plnění i ve sbaleném stavu */
@@ -776,7 +837,9 @@
           <span style="flex:1"></span>
           ${items.length ? `<div class="progressbar al-bar"><div style="width:${avgP}%"></div></div><b class="al-pct">${avgP}%</b>` : ''}
         </button>
-        ${openA ? `<div class="csec-body">${items.length ? items.slice(0, va.role === 'hr' ? 30 : 99).map(goalRow).join('') : `<p class="page-sub">-</p>`}</div>` : ''}
+        ${openA ? `<div class="csec-body">${!items.length ? `<p class="page-sub">-</p>`
+          : (va.role === 'hr' && glUi.group === 'theme') ? themeRows(items)
+          : items.slice(0, va.role === 'hr' ? 30 : 99).map(goalRow).join('')}</div>` : ''}
       </div>`;
     };
 
@@ -845,8 +908,14 @@
 
     /* tab Osobní cíle */
     body.innerHTML = `
+      ${va.role === 'hr' ? `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="lang-seg">
+          <button data-gl-grp="people" class="${glUi.group !== 'theme' ? 'on' : ''}">${esc(t('goals.grpPeople'))}</button>
+          <button data-gl-grp="theme" class="${glUi.group === 'theme' ? 'on' : ''}">${esc(t('goals.grpTheme'))}</button>
+        </span></div>` : ''}
       ${va.role === 'hr' ? filterBarHtml('goals') : ''}
       <div id="g-areas"></div>`;
+    root.querySelectorAll('[data-gl-grp]').forEach(b => b.onclick = () => { glUi.group = b.dataset.glGrp; views.goals(root); });
 
     const fG = fltState('goals');
     const drawAreas = () => {
@@ -859,9 +928,16 @@
         drawAreas();
       });
       /* HR korekce: i ta jde přes applyProgress → zapíše se do historie s označením */
-      root.querySelectorAll('[data-gp]').forEach(sl => sl.onchange = () => {
-        GoalCheck.applyProgress(sl.dataset.gp, +sl.value, t('gc.hrFix'), va.personId);
-        toast(t('common.saved')); render();
+      root.querySelectorAll('[data-gp]').forEach(sl => {
+        /* číslo i progressbar se mění živě během tažení (feedback z testování 2026-08) */
+        sl.oninput = () => {
+          const lbl = root.querySelector(`[data-gpv="${sl.dataset.gp}"]`); if (lbl) lbl.textContent = sl.value + '%';
+          const bar = root.querySelector(`[data-gpb="${sl.dataset.gp}"]`); if (bar) bar.style.width = sl.value + '%';
+        };
+        sl.onchange = () => {
+          GoalCheck.applyProgress(sl.dataset.gp, +sl.value, t('gc.hrFix'), va.personId);
+          toast(t('common.saved')); render();
+        };
       });
       root.querySelectorAll('[data-gh]').forEach(b => b.onclick = () => GoalCheckViews.historyModal(b.dataset.gh));
     };
@@ -1218,8 +1294,9 @@
   views.kudos = root => {
     const va = viewAs();
     const f = fltState('kudos');
-    const VAL = { team: 'kudos.value.team', quality: 'kudos.value.quality', growth: 'kudos.value.growth', client: 'kudos.value.client' };
-    const KICON = { team: 'link2', quality: 'gem', growth: 'sprout', client: 'heart' };
+    /* „other" = volné uznání bez kategorie - i zalití kytek se počítá (feedback z testování 2026-08) */
+    const VAL = { team: 'kudos.value.team', quality: 'kudos.value.quality', growth: 'kudos.value.growth', client: 'kudos.value.client', other: 'kudos.value.other' };
+    const KICON = { team: 'link2', quality: 'gem', growth: 'sprout', client: 'heart', other: 'spark' };
     const fbTab = kdUi.tab === 'fb';
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1782,8 +1859,11 @@
   /* ---- copilot (chat parťák; zap/vyp v nastavení) ---- */
   views.copilot = root => CopilotViews.render(root);
 
-  /* ---- talent & reporty (jen HR) ---- */
+  /* ---- talent (jen HR) ---- */
   views.talent = root => TalentViews.renderHr(root);
+
+  /* ---- reporty: nálada + přehledy napříč obdobími (jen HR; odděleno od talentu, feedback 2026-08) ---- */
+  views.reports = root => TalentViews.renderReports(root);
 
   /* ---- onboarding nováčků (mgr: svůj podstrom, HR: vše) ---- */
   views.onboarding = root => OnboardingViews.render(root);
@@ -1921,7 +2001,6 @@
   let lastRouteKey = null; /* scroll nahoru JEN při navigaci; re-render téže stránky (slider, uložení…) drží pozici */
   function render() {
     applySettings();
-    closeModal(); /* navigace zavírá případný otevřený modal */
     const s = Store.getSettings();
     if (!s.onboarded) { renderOnboarding(); return; }
     document.getElementById('onboarding').hidden = true;
@@ -1936,6 +2015,9 @@
     }
     const routeKey = page + '/' + (param || '') + '|' + va.role + '|' + (va.personId || '');
     const sameRoute = routeKey === lastRouteKey;
+    /* modal zavírá jen skutečná navigace - re-render téže stránky (odškrtnutí
+       kroku v checklistu, uložení hodnoty…) nechá otevřený modal být (bug z testování 2026-08) */
+    if (!sameRoute) closeModal();
     const sy = window.scrollY || 0;
     (views[page] || views.home)(root, param);
     if (sameRoute) window.scrollTo(0, sy); else window.scrollTo(0, 0);

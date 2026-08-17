@@ -54,6 +54,10 @@
     Store.insert('notifications', { id: uid(), text, forRole: forRole || 'all', at: Date.now(), read: false });
   }
 
+  /* šipka zpět z detailu hodnocení (feedback z testování 2026-08) */
+  function goBack() { if (history.length > 1) history.back(); else location.hash = '#/myreviews'; }
+  const backBtn = () => `<button class="btn btn-sm" onclick="ReviewViews.back()" title="${esc(t('common.back'))}" aria-label="${esc(t('common.back'))}">${icon('arrowL', 15)}</button>`;
+
   /* KPI lookup: kpiRef {type:'company'|'team', id} → label */
   function kpiName(ref) {
     if (!ref) return null;
@@ -425,6 +429,7 @@
 
     const head = `
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        ${backBtn()}
         <h1 class="page-title" style="margin:0">${esc(t('rev.selfTitle'))}</h1>
         <span style="flex:1"></span>${modeSegHtml(mode)}
       </div>
@@ -542,21 +547,29 @@
     }).join('');
   }
 
+  /* Čitelný read-view (feedback z testování 2026-08: „je to slité, oči chytají tučné").
+     Otázka = štítek + odpověď (.rq), oblasti = řádky s badge vpravo (.rarea),
+     každá sekce má vlastní hlavičku (.rsec-h) a oddělovací linku (.rsec). */
+  const rq = (label, val) => `<div class="rq"><label>${esc(label)}</label><p>${esc(val) || '-'}</p></div>`;
   function previewSelfHtml(r) {
     const f = r.form;
+    const areaRows = (compFramework() && f.compRatings)
+      ? compFramework().map(c => `<div class="rarea"><b>${esc(c.title)}</b><span class="badge">${c.weight} %</span><span class="badge b-blue">${esc(scaleWord(f.compRatings.self[c.key]))}</span></div>`).join('')
+      : AREAS.map(a => `<div class="rarea"><b>${esc(areaName(a))}</b><span class="badge b-blue">${esc(scaleWord(f.self.areas[a]))}</span></div>`).join('');
     return `
       <div class="card" style="background:var(--surface-2)">
         <h2>${esc(t('rev.v1'))}</h2>
-        <p><b>${esc(t('rev.q.success'))}</b><br>${esc(f.self.success) || '-'}</p>
-        <p style="margin-top:8px"><b>${esc(t('rev.q.challenge'))}</b><br>${esc(f.self.challenge) || '-'}</p>
-        <p style="margin-top:8px"><b>${esc(t('rev.q.improve'))}</b><br>${esc(f.self.improve) || '-'}</p>
-        ${(compFramework() && f.compRatings) ? `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${compFramework().map(c => `${esc(c.title)}: <b>${esc(scaleWord(f.compRatings.self[c.key]))}</b>`).join(' · ')}</p>`
-          : `<p style="margin-top:8px"><b>${esc(t('rev.areas'))}:</b> ${AREAS.map(a => `${esc(areaName(a))}: <b>${esc(scaleWord(f.self.areas[a]))}</b>`).join(' · ')}</p>`}
-        ${f.goalsEval.length ? `<div style="margin-top:8px"><b>${esc(t('rev.goalsEval'))}</b>${goalsByAreaHtml(f.goalsEval)}</div>` : ''}
-        ${f.newGoals.length ? `<div style="margin-top:12px"><b>${esc(t('rev.goalsNew'))}</b>${goalsByAreaHtml(f.newGoals)}</div>` : ''}
-        ${(f.devItems && f.devItems.length) ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.devItems.map(d => esc(d.title) + (d.source === 'manager' ? ' (' + esc(t('dev.byMgr')) + ')' : '')).join(', ')}</p>`
-          : f.trainings.length ? `<p style="margin-top:8px"><b>${esc(t('rev.trainings'))}:</b> ${f.trainings.map(esc).join(', ')}</p>` : ''}
-        <p style="margin-top:8px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.self.summary) || '-'}</p>
+        <div class="rsec">
+          ${rq(t('rev.q.success'), f.self.success)}
+          ${rq(t('rev.q.challenge'), f.self.challenge)}
+          ${rq(t('rev.q.improve'), f.self.improve)}
+        </div>
+        <div class="rsec"><div class="rsec-h">${icon('gauge', 14)} ${esc(t('rev.areas'))}</div>${areaRows}</div>
+        ${f.goalsEval.length ? `<div class="rsec"><div class="rsec-h">${icon('target', 14)} ${esc(t('rev.goalsEval'))}</div>${goalsByAreaHtml(f.goalsEval)}</div>` : ''}
+        ${f.newGoals.length ? `<div class="rsec"><div class="rsec-h">${icon('spark', 14)} ${esc(t('rev.goalsNew'))}</div>${goalsByAreaHtml(f.newGoals)}</div>` : ''}
+        ${(f.devItems && f.devItems.length) ? `<div class="rsec"><div class="rsec-h">${icon('sprout', 14)} ${esc(t('rev.trainings'))}</div><p>${f.devItems.map(d => esc(d.title) + (d.source === 'manager' ? ' (' + esc(t('dev.byMgr')) + ')' : '')).join(', ')}</p></div>`
+          : f.trainings.length ? `<div class="rsec"><div class="rsec-h">${icon('sprout', 14)} ${esc(t('rev.trainings'))}</div><p>${f.trainings.map(esc).join(', ')}</p></div>` : ''}
+        <div class="rsec">${rq(t('rev.summary'), f.self.summary)}</div>
       </div>`;
   }
 
@@ -798,6 +811,7 @@
 
     const head = `
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        ${backBtn()}
         <h1 class="page-title" style="margin:0">${esc(t('rev.evaluate'))}: ${esc(subj.name)}</h1>
         <span style="flex:1"></span>${modeSegHtml(mode)}
       </div>
@@ -979,7 +993,8 @@
     }
 
     root.innerHTML = `
-      <h1 class="page-title">${esc(t('misc.semi'))}</h1>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">${backBtn()}
+        <h1 class="page-title" style="margin:0">${esc(t('misc.semi'))}</h1></div>
       <p class="page-sub">${esc(subj ? subj.name : '')} · ${esc(r.period)} · ${esc(t('rev.deadline'))}: ${fmtDate(r.deadline)}</p>
       <div class="wizard-steps">${Array.from({ length: total }, (_, i) => `<div class="wstep ${i < step ? 'done' : ''}"></div>`).join('')}</div>
       <div class="card">${body}
@@ -1043,7 +1058,8 @@
     const sums = semiSums(f.goalsEval);
 
     root.innerHTML = `
-      <h1 class="page-title">${esc(t('misc.semi'))}: ${esc(subj.name)}</h1>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">${backBtn()}
+        <h1 class="page-title" style="margin:0">${esc(t('misc.semi'))}: ${esc(subj.name)}</h1></div>
       <p class="page-sub">${UI.avatar(subj, 26)} ${esc(subj.role)} · ${esc(r.period)} · ${stBadge(st)}</p>
 
       <div class="card">
@@ -1175,7 +1191,8 @@
   function renderConfirmation(root, r) {
     const subj = person(r.subjectId), ev = person(r.evaluatorId);
     root.innerHTML = `
-      <h1 class="page-title">${esc(t('rev.v2f'))}</h1>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">${backBtn()}
+        <h1 class="page-title" style="margin:0">${esc(t('rev.v2f'))}</h1></div>
       <p class="page-sub">${esc(t('rev.evaluator'))}: ${esc(ev ? ev.name : '-')} · ${esc(r.period)}</p>
       ${fullReadHtml(r, false)}
       <div class="card">
@@ -1212,21 +1229,25 @@
       ${previewSelfHtml(r)}
       <div class="card">
         <h2>${icon('target', 18)}${esc(t('rev.managerSection'))}</h2>
+        <div class="rsec"><div class="rsec-h">${icon('gauge', 14)} ${esc(t('rev.areas'))}</div>
         ${(compFramework() && f.compRatings) ? compFramework().map(c =>
-          `<p style="margin-bottom:6px"><b>${esc(c.title)}</b> <span class="badge">${c.weight} %</span>
+          `<div class="rarea"><b>${esc(c.title)}</b> <span class="badge">${c.weight} %</span>
            <span class="badge">${esc(t('misc.you'))}: ${esc(scaleWord(f.compRatings.self[c.key]))}</span>
-           <span class="badge b-blue">${esc(scaleWord(f.compRatings.mgr[c.key]))}</span></p>`).join('')
-          + AREAS.map(a => f.mgr.areaComments[a] ? `<p style="margin-bottom:6px;color:var(--text-muted)"><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</p>` : '').join('')
-        : AREAS.map(a => `<p style="margin-bottom:6px"><b>${esc(areaName(a))}:</b>
-          <span class="badge b-blue">${esc(scaleWord(f.mgr.areas[a]))}</span> ${esc(f.mgr.areaComments[a])}</p>`).join('')}
-        <p style="margin-top:8px"><b>${esc(t('rev.mgr.strengths'))}:</b> ${esc(f.mgr.strengths) || '-'}</p>
-        <p style="margin-top:6px"><b>${esc(t('rev.mgr.growthAreas'))}:</b> ${esc(f.mgr.growthAreas) || '-'}</p>
-        <p style="margin-top:6px"><b>${esc(t('rev.summary'))}:</b> ${esc(f.mgr.summary) || '-'}</p>
-        ${withPrivate && f.mgr.privateNote ? `<p style="margin-top:6px;color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.privateNote'))}:</b> ${esc(f.mgr.privateNote)}</p>` : ''}
-        ${withPrivate && f.mgr.talent && f.mgr.talent.potential ? `<p style="margin-top:6px;color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.talent.title'))}:</b>
-          ${esc(t('rev.talent.potential'))}: ${esc(t('tal.pot.' + f.mgr.talent.potential))}${f.mgr.talent.readiness ? ' · ' + esc(t('rev.talent.readiness')) + ': ' + esc(t('tal.rd.' + f.mgr.talent.readiness)) : ''}${f.mgr.talent.attrition ? ' · ' + esc(t('rev.talent.attrition')) + ': ' + esc(t('tal.att.' + f.mgr.talent.attrition)) : ''}${f.mgr.talent.mobility ? ' · ' + esc(t('rev.talent.mobility')) : ''}${f.mgr.talent.languages && f.mgr.talent.languages !== '-' ? ' · ' + esc(f.mgr.talent.languages) : ''}</p>` : ''}
-        ${f.conversationDate ? `<p style="margin-top:6px"><b>${icon('calendar', 14)}</b> ${fmtDate(f.conversationDate)} · <b>${esc(t('rev.nextDate'))}:</b> ${fmtDate(f.nextReviewDate)}</p>` : ''}
-        ${f.employeeComment ? `<p style="margin-top:6px"><b>${esc(t('rev.employeeComment'))}:</b> ${esc(f.employeeComment)}</p>` : ''}
+           <span class="badge b-blue">${esc(scaleWord(f.compRatings.mgr[c.key]))}</span></div>`).join('')
+          + AREAS.map(a => f.mgr.areaComments[a] ? `<div class="rarea-note"><b>${esc(areaName(a))}:</b> ${esc(f.mgr.areaComments[a])}</div>` : '').join('')
+        : AREAS.map(a => `<div class="rarea"><b>${esc(areaName(a))}</b><span class="badge b-blue">${esc(scaleWord(f.mgr.areas[a]))}</span></div>
+          ${f.mgr.areaComments[a] ? `<div class="rarea-note">${esc(f.mgr.areaComments[a])}</div>` : ''}`).join('')}
+        </div>
+        <div class="rsec">
+          ${rq(t('rev.mgr.strengths'), f.mgr.strengths)}
+          ${rq(t('rev.mgr.growthAreas'), f.mgr.growthAreas)}
+          ${rq(t('rev.summary'), f.mgr.summary)}
+        </div>
+        ${withPrivate && f.mgr.privateNote ? `<div class="rsec"><p style="color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.privateNote'))}:</b> ${esc(f.mgr.privateNote)}</p></div>` : ''}
+        ${withPrivate && f.mgr.talent && f.mgr.talent.potential ? `<div class="rsec"><p style="color:var(--warn)"><b>${icon('lock', 13)} ${esc(t('rev.talent.title'))}:</b>
+          ${esc(t('rev.talent.potential'))}: ${esc(t('tal.pot.' + f.mgr.talent.potential))}${f.mgr.talent.readiness ? ' · ' + esc(t('rev.talent.readiness')) + ': ' + esc(t('tal.rd.' + f.mgr.talent.readiness)) : ''}${f.mgr.talent.attrition ? ' · ' + esc(t('rev.talent.attrition')) + ': ' + esc(t('tal.att.' + f.mgr.talent.attrition)) : ''}${f.mgr.talent.mobility ? ' · ' + esc(t('rev.talent.mobility')) : ''}${f.mgr.talent.languages && f.mgr.talent.languages !== '-' ? ' · ' + esc(f.mgr.talent.languages) : ''}</p></div>` : ''}
+        ${f.conversationDate ? `<div class="rsec"><p><b>${icon('calendar', 14)}</b> ${fmtDate(f.conversationDate)} · <b>${esc(t('rev.nextDate'))}:</b> ${fmtDate(f.nextReviewDate)}</p></div>` : ''}
+        ${f.employeeComment ? `<div class="rsec">${rq(t('rev.employeeComment'), f.employeeComment)}</div>` : ''}
       </div>
       ${f.newGoals.length ? `<div class="card"><h2>${icon('spark', 18)}${esc(t('rev.goalsNew'))}</h2>${goalsByAreaHtml(f.newGoals, { showConfirm: true })}</div>` : ''}
       ${window.DevViews ? DevViews.readHtml(f) : ''}
@@ -1243,6 +1264,7 @@
     const subj = person(r.subjectId), ev = person(r.evaluatorId);
     root.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+        ${backBtn()}
         <h1 class="page-title" style="margin:0">${esc(subj ? subj.name : '')} - ${esc(r.period)}</h1>
         ${stBadge(r.status)}
         <span style="flex:1"></span>
@@ -1294,6 +1316,68 @@
     setTimeout(() => { pr.hidden = true; }, 400);
   }
 
+  /* ====================== archiv podle období ======================
+     Feedback z testování 2026-08: HR se dívá zpětně po bězích/kvartálech,
+     ne po lidech - lidi odcházejí, období zůstávají. */
+  const archUi = { open: null };
+  const CLOSED_ST = ['confirmed', 'closed_by_hr'];
+  function archiveCardHtml() {
+    const all = Store.list('reviews').filter(r => r.status !== 'cancelled');
+    const periods = [...new Set(all.map(r => r.period))].sort().reverse();
+    if (archUi.open === null && periods.length) archUi.open = periods[0];
+    const rows = per => {
+      const list = all.filter(r => r.period === per)
+        .map(r => ({ r, p: person(r.subjectId), score: CLOSED_ST.includes(r.status) ? computeScore(r.form) : null }))
+        .filter(x => x.p)
+        .sort((a, b) => a.p.name.localeCompare(b.p.name, 'cs'));
+      return `<table class="table" style="margin-top:8px">
+        <tr><th>${esc(t('rev.subject'))}</th><th>${esc(t('rev.evaluator'))}</th><th>${esc(t('rev.status'))}</th><th></th><th></th></tr>
+        ${list.map(({ r, p, score }) => {
+          const b = band(score);
+          return `<tr>
+            <td>${avatar(p, 24)} ${esc(p.name)}</td>
+            <td>${esc((person(r.evaluatorId) || {}).name || '-')}</td>
+            <td>${stBadge(r.status)}</td>
+            <td>${b ? `<span class="badge ${b.cls}">${esc(t('arch.b.' + b.key))}</span>` : ''}</td>
+            <td style="text-align:right"><button class="btn btn-sm" onclick="location.hash='#/review/${r.id}'">${icon('doc', 13)} ${esc(t('help.open'))}</button></td>
+          </tr>`;
+        }).join('')}
+      </table>`;
+    };
+    return `<div class="card">
+      <h2>${icon('clock', 18)}${esc(t('arch.title'))}</h2>
+      <p class="page-sub" style="margin-bottom:10px">${esc(t('arch.sub'))}</p>
+      ${periods.map(per => {
+        const list = all.filter(r => r.period === per);
+        const closed = list.filter(r => CLOSED_ST.includes(r.status));
+        const running = list.length - closed.length;
+        const dist = { top: 0, std: 0, dev: 0, risk: 0 };
+        closed.forEach(r => { const b = band(computeScore(r.form)); if (b) dist[b.key]++; });
+        const open = archUi.open === per;
+        return `<div class="csec ${open ? 'open' : ''}" style="padding:10px 0;border-top:1px solid var(--hairline)">
+          <button type="button" class="csec-head" data-arch="${esc(per)}">
+            <span class="csec-chev">${icon('arrowR', 14)}</span>
+            <b>${esc(per)}</b>
+            <span class="badge">${list.length}×</span>
+            <span class="badge b-green">${closed.length} ${esc(t('arch.closed'))}</span>
+            ${running ? `<span class="badge b-amber">${running} ${esc(t('arch.running'))}</span>` : ''}
+            <span style="flex:1"></span>
+            ${closed.length ? `<small style="color:var(--text-muted)">${esc(t('arch.dist'))}:</small>
+              ${['top', 'std', 'dev', 'risk'].filter(k => dist[k]).map(k =>
+                `<span class="badge ${band(k === 'top' ? 1.2 : k === 'std' ? 1.0 : k === 'dev' ? 0.9 : 0.7).cls}">${dist[k]}× ${esc(t('arch.b.' + k))}</span>`).join(' ')}` : ''}
+          </button>
+          ${open ? `<div class="csec-body">${rows(per)}</div>` : ''}
+        </div>`;
+      }).join('') || `<div class="empty">${icon('search', 48)}</div>`}
+    </div>`;
+  }
+  function bindArchiveCard(root, rerender) {
+    root.querySelectorAll('[data-arch]').forEach(b => b.onclick = () => {
+      archUi.open = archUi.open === b.dataset.arch ? '' : b.dataset.arch;
+      rerender();
+    });
+  }
+
   /* ====================== dispatcher ====================== */
   window.ReviewViews = {
     renderDetail(root, reviewId) {
@@ -1309,7 +1393,8 @@
       if (isEvaluator && ['self_done', 'manager_in_progress', 'manager_done', 'conversation_scheduled', 'conversation_done'].includes(r.status))
         return renderManagerEditor(root, r);
       if (isEvaluator && ['pending_self', 'self_in_progress'].includes(r.status)) {
-        root.innerHTML = `<h1 class="page-title">${esc((person(r.subjectId) || {}).name || '')}</h1>
+        root.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">${backBtn()}
+            <h1 class="page-title" style="margin:0">${esc((person(r.subjectId) || {}).name || '')}</h1></div>
           <div class="card"><p>${icon('clock', 16)} ${esc(t('rev.waitingForEmployee'))}</p></div>`;
         return;
       }
@@ -1317,5 +1402,7 @@
     },
     printReview,
     reviewMode, setReviewMode,
+    back: goBack,
+    archiveCardHtml, bindArchiveCard,
   };
 })();

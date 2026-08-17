@@ -18,7 +18,7 @@
   const DAY = 86400000;
   const AREAS = ['teamwork', 'growth', 'quality'];
   const SCALE = ['TN', 'PO', 'KV', 'NR', 'NU'];
-  const KVALS = ['team', 'quality', 'growth', 'client'];
+  const KVALS = ['team', 'quality', 'growth', 'client', 'other'];
   const MOODS = ['😄', '🙂', '😐', '😟'];
   const MOOD_VAL = { '😄': 4, '🙂': 3, '😐': 2, '😟': 1 };
 
@@ -669,7 +669,7 @@
     const score = NPS.enps(NPS.slice(last, null));
     if (score == null) return bot(th, t('cop.r.anon'));
     bot(th, `<b>eNPS</b> · ${esc(last.label || '')}: <b>${score}</b> <span style="color:var(--text-muted)">(${last.responses.length}×)</span>` +
-      bar((score + 100) / 2, 'eNPS', score), chipsOf(va().role === 'hr' ? [{ label: t('cop.ch.open'), act: 'nav', val: '#/talent' }] : []));
+      bar((score + 100) / 2, 'eNPS', score), chipsOf(va().role === 'hr' ? [{ label: t('cop.ch.open'), act: 'nav', val: '#/reports' }] : []));
   }
   function rKudos(th) {
     const list = Store.list('kudos').filter(k => k.at > Date.now() - 90 * DAY);

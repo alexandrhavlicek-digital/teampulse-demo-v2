@@ -109,7 +109,9 @@ let missing = [];
 });
 I18N.setLocale('cs');
 ok(missing.length === 0, missing.length ? 'chybí klíče: ' + missing.slice(0, 8).join(', ') : 'i18n klíče kompletní (cs/en/de)');
-ok(t('nav.talent') === 'Talent & Reporty', 'nav.talent cs');
+/* 2026-08-17: Talent a Reporty rozděleny na dvě stránky (feedback z testování) */
+ok(t('nav.talent') === 'Talent', 'nav.talent cs');
+ok(t('nav.reports') === 'Reporty', 'nav.reports cs');
 
 /* --- 9) HR view se vyrenderuje bez pádu --- */
 const root = fakeEl();
@@ -1448,10 +1450,56 @@ g.App = g.App || { viewAs: () => Store.getSettings().viewAs || { role: 'hr', per
   ok(Dev.ensureSeed() === true && Store.list('skillTags').length > 0, 'ensureSeed doplní katalog starým DB');
 })();
 
-/* --- 10) empty state: prázdná firma nesmí spadnout --- */
+/* --- 10) feedback z testování 2026-08 (Martina H.) --- */
+(() => {
+  Generator.install('it', 50);
+  /* a) archiv podle období: obě období, banda distribuce, proklik */
+  const archHtml = ReviewViews.archiveCardHtml();
+  ok(archHtml.includes(Generator.CURRENT_PERIOD) && archHtml.includes(Generator.PAST_PERIOD), 'archiv obsahuje obě období');
+  ok(archHtml.includes('#/review/'), 'archiv má proklik do detailu hodnocení');
+  ok(!archHtml.includes('arch.'), 'archiv bez nepřeložených klíčů');
+  /* b) reporty: samostatná stránka s eNPS + archivem */
+  const rr = fakeEl();
+  try { TalentViews.renderReports(rr); ok(rr.innerHTML.includes('rep-archive'), 'renderReports vyrenderován'); }
+  catch (e) { ok(false, 'renderReports spadl: ' + e.message); }
+  /* c) talent stránka už neobsahuje eNPS kartu (rozděleno) */
+  const rt = fakeEl(); TalentViews.renderHr(rt);
+  ok(!rt.innerHTML.includes(t('nps.hrTitle')), 'talent bez eNPS karty (odděleno do Reportů)');
+  /* d) kudos: volná kategorie other ve všech jazycích */
+  const missK = [];
+  ['cs', 'en', 'de'].forEach(loc => { I18N.setLocale(loc); if (t('kudos.value.other') === 'kudos.value.other') missK.push(loc); });
+  I18N.setLocale('cs');
+  ok(missK.length === 0, 'kudos.value.other přeloženo (cs/en/de)');
+  /* e) i18n nových bloků kompletní */
+  const missN = [];
+  ['cs', 'en', 'de'].forEach(loc => {
+    I18N.setLocale(loc);
+    ['arch.title', 'arch.sub', 'arch.b.top', 'arch.b.risk', 'reports.title', 'reports.sub',
+      'home.stalled', 'home.stalledSub', 'home.ballAt', 'home.overdueBy', 'home.cycleProgress',
+      'home.openCycle', 'home.openKudos', 'goals.grpPeople', 'goals.grpTheme', 'goals.people']
+      .forEach(k => { if (t(k) === k) missN.push(loc + ':' + k); });
+  });
+  I18N.setLocale('cs');
+  ok(missN.length === 0, missN.length ? 'chybí: ' + missN.slice(0, 6).join(', ') : 'feedback-2026-08: i18n kompletní (cs/en/de)');
+  /* f) zdrojové kontroly oprav bugů */
+  const appSrc = fs.readFileSync('js/app.js', 'utf8');
+  ok(appSrc.includes('if (!sameRoute) closeModal()'), 'modal se zavírá jen při navigaci (bug checklist karty)');
+  ok(appSrc.includes('data-gpv') && appSrc.includes('sl.oninput'), 'HR slider cílů má živý update čísla');
+  ok(appSrc.includes("data-gl-grp") && appSrc.includes('themeRows'), 'cíle: přepínač podle lidí/témat');
+  ok(appSrc.includes('data-remind') && appSrc.includes('laggards'), 'dashboard: karta Vázne/po termínu s připomínkou');
+  const revSrc2 = fs.readFileSync('js/reviews.js', 'utf8');
+  ok(revSrc2.includes('ReviewViews.back') && revSrc2.includes('function goBack'), 'šipka zpět z detailu hodnocení');
+  ok(revSrc2.includes('rsec-h') && revSrc2.includes('rarea'), 'read-view hodnocení sekčně (slitost)');
+  const cssSrc = fs.readFileSync('css/app.css', 'utf8');
+  ok(cssSrc.includes('.rsec-h') && cssSrc.includes('.rarea'), 'CSS pro čitelný read-view');
+})();
+
+/* --- 11) empty state: prázdná firma nesmí spadnout --- */
 Generator.installEmpty();
 try { const r2 = fakeEl(); TalentViews.renderHr(r2); ok(true, 'renderHr na prázdné firmě OK'); }
 catch (e) { ok(false, 'renderHr na prázdné firmě spadl: ' + e.message); }
+try { const r3 = fakeEl(); TalentViews.renderReports(r3); ok(true, 'renderReports na prázdné firmě OK'); }
+catch (e) { ok(false, 'renderReports na prázdné firmě spadl: ' + e.message); }
 
 console.log(failed ? `\n${failed} TEST(Ů) SELHALO` : '\nVŠECHNY TESTY PROŠLY');
 process.exit(failed ? 1 : 0);
